@@ -24,3 +24,13 @@ hs_err_pid*
 # IntelliJ
 /.idea/
 *.iml
+
+# Large MATSim Munich input files
+scenarios/munich_*/studyNetworkDense.xml
+scenarios/munich_*/munich-v1.0-5pct.plans.xml
+
+original-input-data/munich-v1/studyNetworkDense.xml
+original-input-data/munich-v1/munich-v1.0-5pct.plans.xml
+
+# Scenario outputs
+scenarios/munich_*/output/

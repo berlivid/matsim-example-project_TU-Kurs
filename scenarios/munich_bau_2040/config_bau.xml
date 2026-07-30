@@ -91,7 +91,7 @@
     </module>
 
     <module name="plans">
-        <param name="inputPlansFile" value="munich-v1.0-5pct.plans.xml" />
+        <param name="inputPlansFile" value="population_2040.xml" />
     </module>
 
     <module name="planCalcScore" >

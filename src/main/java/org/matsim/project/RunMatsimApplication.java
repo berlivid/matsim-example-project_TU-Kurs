@@ -33,7 +33,7 @@ import org.matsim.core.controler.OutputDirectoryHierarchy.OverwriteFileSetting;
 public class RunMatsimApplication extends MATSimApplication {
 
 	public RunMatsimApplication() {
-		super("scenarios/munich_base_2023/configBase.xml");
+		super("scenarios/munich_base_2023/config_base.xml");
 	}
 
 	public static void main(String[] args) {

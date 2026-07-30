@@ -5,13 +5,13 @@
         <param name="firstIteration" value="0"/>
         <param name="lastIteration" value="0"/>
         <param name="overwriteFiles" value="failIfDirectoryExists"/>
-        <param name="runId" value="munich-reference-day2"/>
-        <param name="outputDirectory" value="../../outputs/munich_reference/test_001" />
+        <param name="runId" value="munich-base-2023"/>
+        <param name="outputDirectory" value="output" />
     </module>
 
     <module name="network">
         <param name="inputNetworkFile"
-               value="https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/de/munich/munich-v1/input/munich-v1.0-network.xml.gz"/>
+               value="studyNetworkDense.xml"/>
     </module>
 
     <module name="qsim" >
@@ -91,7 +91,7 @@
     </module>
 
     <module name="plans">
-        <param name="inputPlansFile" value="https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/de/munich/munich-v1/input/munich-v1.0-5pct.plans.xml.gz" />
+        <param name="inputPlansFile" value="munich-v1.0-5pct.plans.xml" />
     </module>
 
     <module name="planCalcScore" >

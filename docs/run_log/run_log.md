@@ -133,3 +133,122 @@ configs now reference these generated files.
 - Both generated populations were read successfully by MATSim.
 - No full BAU-2040 or Fast-Track-2040 simulation has been run yet.
 - Detailed method: `docs/methodology/population_2040.md`
+
+## 2026-07-31 – Day 5: Current MVV public-transport reference
+
+### Raw GTFS input
+
+- Dataset: `Soll-Fahrplandaten MVV-Gesamtnetz (GTFS)`
+- Provider: Münchner Verkehrs- und Tarifverbund GmbH (MVV)
+- Raw file: `original-input-data/mvv_gtfs/gesamt_gtfs.zip`
+- Portal release label: `06/2026`
+- Internal `feed_info.txt` version: `20260705`
+- Feed validity: 2026-06-15 through 2026-09-30
+- Accessed: 2026-07-31
+- License: CC BY 4.0
+- Representative service day: Wednesday, 2026-09-16
+- Source details and checksum:
+  `original-input-data/mvv_gtfs/README.md`
+
+The selected date lies inside the feed validity period and no service explicitly
+named `Special` is added for this date in `calendar_dates.txt`.
+
+### GTFS conversion
+
+Class:
+`src/main/java/org/matsim/project/prepare/CreateCurrentMvvTransit.java`
+
+Conversion settings:
+
+- Base network: `scenarios/munich_base_2023/studyNetworkDense.xml`
+- Coordinate transformation: WGS84 (`EPSG:4326`) to `EPSG:31468`
+- Create PT pseudonetwork and transit vehicles: enabled
+- Copy early and late departures: enabled
+- Extended GTFS route types: enabled
+- Stop merging: disabled (`doNotMerge`)
+
+Generated files:
+
+- `scenarios/munich_base_2023/input_transit/studyNetworkDense-with-pt.xml.gz`
+- `scenarios/munich_base_2023/input_transit/transitSchedule-current.xml.gz`
+- `scenarios/munich_base_2023/input_transit/transitVehicles-current.xml.gz`
+
+Conversion result:
+
+- Active services: 915
+- Schedule-based departures before overnight copies: 44,536
+- Frequency-based departures: 0
+- Transit stop facilities reported after conversion: 39,799
+- Transit lines: 857
+- Transit vehicles/departures after overnight copies: 47,226
+
+The conversion completed with exit code 0. The GTFS loader reported that
+`shapes.txt` was present but empty. This is acceptable for the chosen
+pseudonetwork approach.
+
+### PT test configuration
+
+Config:
+`scenarios/munich_base_2023/config_pt_test.xml`
+
+- Original `config_base.xml` retained unchanged.
+- Network changed to the generated network with PT pseudolinks.
+- Transit schedule and transit vehicles activated.
+- `useTransit = true`
+- Coordinate system: `EPSG:31468`
+- `firstIteration = 0`
+- `lastIteration = 0`
+- `flowCapacityFactor = 0.05`
+- `storageCapacityFactor = 0.05`
+- Java heap: 8 GB
+
+The first PT test had no explicit QSim end time. Transit vehicles remaining in
+the simulation caused simulated time to continue far beyond the timetable; the
+run was stopped manually after more than 1,900 simulated hours. The config was
+then corrected by setting:
+
+`qsim.endTime = 30:00:00`
+
+### Successful Iteration-0 PT test
+
+- MATSim version: 2025.0
+- Java version: 21
+- Population loaded: 324,043 persons
+- SwissRailRaptor routes: 6,925
+- SwissRailRaptor departures: 47,226
+- SwissRailRaptor route stops: 130,758
+- SwissRailRaptor stop facilities: 30,079
+- SwissRailRaptor transfer connections: 1,729,986
+- QSim completed through 30:00:00.
+- Iteration 0 completed.
+- Leg histogram PT segments: 179,650
+- Process shut down normally.
+- No fatal error or `OutOfMemoryError` occurred.
+- Iteration runtime reported by `stopwatch.csv`: approximately 6 minutes and
+  23 seconds, excluding initial scenario loading and routing preparation.
+
+The output was written to:
+
+`scenarios/munich_base_2023/output/pt_test`
+
+Scenario outputs are excluded from Git.
+
+### Warnings and limitations
+
+- MATSim enlarged storage capacity on short PT pseudolinks. This was non-fatal
+  but modifies PT pseudonetwork flow dynamics.
+- Bus and tram routes are not mapped to the real road network.
+- Transit vehicle types and capacities are generic converter defaults.
+- No automatic car/PT mode-choice strategy is configured.
+- PT crowding and capacities are not calibrated for the 5% population sample.
+- The timetable represents 2026 and must not be labelled as a historical 2023
+  timetable or as a 2040 timetable.
+
+### Status
+
+- The current MVV GTFS feed was converted successfully.
+- MATSim schedule-based PT routing and explicit transit vehicle simulation were
+  verified technically.
+- The generated 2026 PT files are retained as a current reference and as a
+  potential starting point for documented BAU-2040 and Fast-Track-2040 PT
+  modifications.

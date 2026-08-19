@@ -22,17 +22,18 @@ Counts exclude headers; checksums are SHA-256.
 | `shapes.txt` | 3,460,257 | `E765F6E9DB4EF101BA9D78E8F8645D873F91A955B79F8006CF3412B667C32146` |
 | `transfers.txt` | 299,395 | `BAA04E338567F719CAA1DC1DB501E8E8D0979BBE05B59AC6EE1423F5DDF6BCCA` |
 
-`Infrastructure_measures.xlsx` has SHA-256 `EEE883B4F7EDFDF06130E7F3A8E8BF24D743E055431DCE6CDC690A973BE585EE` for the audited version.
+`Infrastructure_measures.xlsx` has SHA-256 `D96EA464BE764965CF4FD2760CCE17DD8AEB0A2661F7B82525678F0229122460` for the version used to transcribe rows 13, 18 and 19. The workbook remains an unchanged external substantive input.
 
 ## Derived artifacts
 
 | Artifact | Purpose | SHA-256 |
 |---|---|---|
 | `generated/gtfs2037_raw.zip` | Unchanged ZIP packaging of the nine source files | `571AFF1D55354F8819D4AAB75F2240F0A780773BF45BC5053FCB79B90645918D` |
-| `generated/gtfs2037_munich_clean.zip` | Spatially filtered and mode-corrected BAU feed | `91518C445DC1699396A7D377C18075DB78D164BC9813B2929B6F7242B8070B0A` |
-| `generated/gtfs2037_munich_fast_track.zip` | BAU plus approved Fast Track services | `6F89D39827EE3279162C2E1648C563ED93B59F14D13722F682CD20F41B466579` |
+| `generated/gtfs2037_munich_clean.zip` | Spatially filtered and mode-corrected immutable processing basis | `91518C445DC1699396A7D377C18075DB78D164BC9813B2929B6F7242B8070B0A` |
+| `generated/gtfs2037_munich_bau.zip` | Clean feed plus shared Poccistraße and Berduxstraße measures | `41D04B06D4134F71EF21468D5109264E9B61702B135E601B5875E5D6C490FF54` |
+| `generated/gtfs2037_munich_fast_track.zip` | Common BAU feed plus approved Fast Track services | `3F82E66EB7B0999D210B639BC85571CC59D06E9969FA53146FA5CA43D9578A0F` |
 
-The generated artifacts are Git-ignored. Their executable rules are version-controlled in `fast_track_service_specification.csv`, `fast_track_stop_decisions.csv`, Java source code, tests and PowerShell launchers.
+The generated artifacts are Git-ignored. Their executable rules are version-controlled in `common_service_specification.csv`, `fast_track_service_specification.csv`, `fast_track_stop_decisions.csv`, Java source code, tests and PowerShell launchers.
 
 ## Known source limitations
 

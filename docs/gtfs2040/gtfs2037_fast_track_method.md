@@ -20,7 +20,7 @@ The versioned [`fast_track_service_specification.csv`](../../original-input-data
 
 The unchanged raw feed was audited before modification. The audit is in [`gtfs2037_raw_audit.md`](gtfs2037_raw_audit.md). The Munich feed was then selected by trips serving at least two distinct stops inside the base-network extent while retaining each selected trip’s complete stop sequence. Referenced stops, parents, shapes, agencies, services and valid transfers were retained. The custom `München=1` field was used only as a plausibility check. Route types were corrected in the derived feed to standard GTFS tram `0`, subway `1`, rail `2` and bus `3`; the source files were not edited. The technical service is `service_id=1` on 13 February 2026.
 
-The cleaned BAU feed is `original-input-data/mvv_gtfs_2037/generated/gtfs2037_munich_clean.zip`, SHA-256 `91518C445DC1699396A7D377C18075DB78D164BC9813B2929B6F7242B8070B0A`. Its spatial filter and integrity results are documented in [`gtfs2037_munich_filter_method.md`](gtfs2037_munich_filter_method.md).
+The immutable processing basis is `gtfs2037_munich_clean.zip` (SHA-256 `91518C445DC1699396A7D377C18075DB78D164BC9813B2929B6F7242B8070B0A`). A separate common-measures stage adds the Poccistraße regional stop and Berduxstraße S-Bahn stop to both scenarios and documents the Sendlinger Spange without changing the regular timetable. Its method is documented in [`gtfs2037_common_measures_method.md`](gtfs2037_common_measures_method.md). The resulting BAU feed is `gtfs2037_munich_bau.zip`, SHA-256 `41D04B06D4134F71EF21468D5109264E9B61702B135E601B5875E5D6C490FF54`; the Fast Track builder uses this BAU feed as its baseline.
 
 ## Fast Track services
 
@@ -49,19 +49,19 @@ Both Nordring lines use a regularized scenario timetable from 04:30 through 24:0
 
 Future-station coordinates are scenario proxies, not official platform locations. Existing interchange parents are reused where appropriate, while new directional platforms use stable `FT_` IDs. Esperantoplatz uses an approved square-centroid proxy. Impler-/Poccistraße uses the approved midpoint of the existing Implerstraße and Poccistraße parents. Cosimapark uses Cosimabad as a proxy. Dedicated platforms are created beneath the existing Münchner Freiheit, Hauptbahnhof and Englschalking parents.
 
-The two U9 Impler-/Poccistraße platforms connect bidirectionally to five existing U3/U6 platforms. This creates 20 directed transfer records. Each uses 300 seconds, a transparent walking-time scenario assumption rather than an operationally validated interchange time.
+The two U9 Impler-/Poccistraße platforms connect bidirectionally to five existing U3/U6 platforms and the two common regional-rail platforms. The Fast Track feed retains the 20 previously established directed U9–U3/U6 relations and adds eight directed U9–regional relations, giving 28 U9-related transfer relations in total. Each uses 300 seconds, a transparent walking-time scenario assumption rather than an operationally validated interchange time. The BAU feed separately contains eight 180-second regional–U3/U6 relations derived from the existing Poccistraße transfer matrix.
 
 ## Build result
 
-The deterministic Fast Track ZIP is `original-input-data/mvv_gtfs_2037/generated/gtfs2037_munich_fast_track.zip`, SHA-256 `6F89D39827EE3279162C2E1648C563ED93B59F14D13722F682CD20F41B466579`.
+The deterministic Fast Track ZIP is `original-input-data/mvv_gtfs_2037/generated/gtfs2037_munich_fast_track.zip`, SHA-256 `3F82E66EB7B0999D210B639BC85571CC59D06E9969FA53146FA5CA43D9578A0F`.
 
 | Object | BAU | Fast Track | Difference |
 |---|---:|---:|---:|
 | Routes | 1,733 | 1,736 | +3 |
 | Trips | 70,620 | 71,300 | +680 |
-| Stops | 54,627 | 54,651 | +24 |
-| Stop times | 1,342,376 | 1,347,608 | +5,232 |
-| Transfers | 95,876 | 95,896 | +20 |
+| Stops | 54,631 | 54,655 | +24 |
+| Stop times | 1,341,931 | 1,348,045 | +6,114 |
+| Transfers | 95,884 | 95,912 | +28 |
 
 The 680 new trips comprise 520 U9, 80 FT-NR-A and 80 FT-NR-B trips. Separately, 398 existing U4 trips are extended without changing their number of departures. Their obsolete optional `shape_id` is cleared; no unsupported shape is invented. Agency, calendar and shape tables remain byte-identical to BAU.
 

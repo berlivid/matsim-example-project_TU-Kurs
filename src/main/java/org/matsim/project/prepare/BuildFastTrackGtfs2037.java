@@ -51,8 +51,8 @@ import org.w3c.dom.NodeList;
 
 /**
  * Plans and, after all decisions have been approved, builds the Fast Track
- * GTFS-2037 scenario feed. The unchanged cleaned feed is always treated as
- * the baseline. Large GTFS tables are streamed and only compact metadata for
+ * GTFS-2037 scenario feed. The BAU feed containing the shared measures is
+ * always treated as the baseline. Large GTFS tables are streamed and only compact metadata for
  * relevant routes, trips and stops is retained in memory.
  *
  * <p>{@code --analyze} always writes a reproducible preflight report and does
@@ -63,7 +63,7 @@ import org.w3c.dom.NodeList;
 public final class BuildFastTrackGtfs2037 {
 
     private static final Path BASE_ZIP = Path.of(
-            "original-input-data/mvv_gtfs_2037/generated/gtfs2037_munich_clean.zip"
+            "original-input-data/mvv_gtfs_2037/generated/gtfs2037_munich_bau.zip"
     );
     private static final Path WORKBOOK = Path.of(
             "original-input-data/mvv_gtfs_2037/Infrastructure_measures.xlsx"
@@ -1127,9 +1127,14 @@ public final class BuildFastTrackGtfs2037 {
                                 "Transfer target is not an existing GTFS platform: " + target
                         );
                     }
-                    if (!platformUsedByComparisonSubway(target)) {
+                    boolean commonRegionalPlatform = target.startsWith(
+                            "BAU_POCCISTRASSE_RAIL_D")
+                            && "106206".equals(targetStop.parentStation());
+                    if (!platformUsedByComparisonSubway(target)
+                            && !commonRegionalPlatform) {
                         throw new IllegalStateException(
-                                "Transfer target is not used by U3 or U6 in the baseline: "
+                                "Transfer target is neither a U3/U6 platform nor an approved "
+                                        + "common Poccistraße regional platform: "
                                         + target
                         );
                     }
@@ -1977,7 +1982,7 @@ public final class BuildFastTrackGtfs2037 {
                 throws Exception {
             Files.createDirectories(BUILD_REPORT.getParent());
             String report = "# Fast Track GTFS 2037 build report\n\n"
-                    + "The feed was created from the unchanged cleaned Munich GTFS baseline. "
+                    + "The feed was created from the deterministic BAU GTFS containing the shared Poccistraße and Berduxstraße measures. "
                     + "All critical entries in the versioned service and stop specifications "
                     + "were approved before build mode was permitted.\n\n"
                     + "- Baseline SHA-256: `" + sha256(BASE_ZIP) + "`\n"

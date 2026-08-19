@@ -45,6 +45,7 @@ scenarios/munich_*/output/
 /original-input-data/mvv_gtfs_2037/raw/*.txt
 /original-input-data/mvv_gtfs_2037/generated/*.zip
 /original-input-data/mvv_gtfs_2037/generated/fast_track_preflight/
+/original-input-data/mvv_gtfs_2037/generated/common_measures_preflight/
 /scenarios/munich_*/input_transit/*.xml.gz
 
 # Microsoft Office lock files

@@ -58,6 +58,9 @@ public final class CreateGtfs2037MunichTransit {
 
     private static final LocalDate SERVICE_DATE = LocalDate.parse("2026-02-13");
     private static final String CRS = "EPSG:31468";
+    private static final Path BASE_ROAD_NETWORK = Path.of(
+            "scenarios/munich_base_2023/studyNetworkDense.xml"
+    );
     private static final String S8 = "S8_Prognose_Herrsching-Schwaigerlohe";
     private static final String U4 = "MUC_U4_neu Prognose";
     private static final List<String> FAST_TRACK_LINES = List.of(
@@ -67,16 +70,24 @@ public final class CreateGtfs2037MunichTransit {
             "FT_U9_IMPLER_POCCI_D0", "FT_U9_IMPLER_POCCI_D1"
     );
     private static final List<String> EXISTING_INTERCHANGE_PLATFORMS = List.of(
-            "106211", "106212", "108590", "108591", "108592"
+            "106211", "106212", "108590", "108591", "108592",
+            "BAU_POCCISTRASSE_RAIL_D0", "BAU_POCCISTRASSE_RAIL_D1"
+    );
+    private static final List<String> COMMON_POCCI_RAIL = List.of(
+            "BAU_POCCISTRASSE_RAIL_D0", "BAU_POCCISTRASSE_RAIL_D1"
+    );
+    private static final List<String> COMMON_POCCI_SUBWAY = List.of("106211", "106212");
+    private static final List<String> COMMON_BERDUX = List.of(
+            "BAU_BERDUXSTRASSE_S2_D0", "BAU_BERDUXSTRASSE_S2_D1"
     );
     private static final List<Profile> PROFILES = List.of(
             new Profile(
                     "BAU 2040", "bau",
                     Path.of("scenarios/munich_bau_2040/config_bau.xml"),
                     Path.of("original-input-data/mvv_gtfs_2037/generated/"
-                            + "gtfs2037_munich_clean.zip"),
+                            + "gtfs2037_munich_bau.zip"),
                     Path.of("scenarios/munich_bau_2040/input_transit"),
-                    54_627, 1_733, 70_620, 95_876, false
+                    54_631, 1_733, 70_620, 95_884, false
             ),
             new Profile(
                     "Fast Track 2040", "fast-track",
@@ -84,7 +95,7 @@ public final class CreateGtfs2037MunichTransit {
                     Path.of("original-input-data/mvv_gtfs_2037/generated/"
                             + "gtfs2037_munich_fast_track.zip"),
                     Path.of("scenarios/munich_fast_track_2040/input_transit"),
-                    54_651, 1_736, 71_300, 95_896, true
+                    54_655, 1_736, 71_300, 95_912, true
             )
     );
 
@@ -117,7 +128,7 @@ public final class CreateGtfs2037MunichTransit {
 
     private static ConversionResult validateExistingOutput(Profile profile)
             throws Exception {
-        Path baseNetworkFile = resolveConfiguredNetwork(profile.configFile());
+        Path baseNetworkFile = BASE_ROAD_NETWORK;
         Scenario base = loadRoadScenario(baseNetworkFile);
         RoadReference road = RoadReference.from(
                 base.getNetwork(), sha256(baseNetworkFile), baseNetworkFile
@@ -167,7 +178,7 @@ public final class CreateGtfs2037MunichTransit {
     private static ConversionResult convert(Profile profile) throws Exception {
         requireRegularFile(profile.configFile());
         requireRegularFile(profile.gtfsFile());
-        Path baseNetworkFile = resolveConfiguredNetwork(profile.configFile());
+        Path baseNetworkFile = BASE_ROAD_NETWORK;
         requireRegularFile(baseNetworkFile);
 
         Scenario scenario = loadRoadScenario(baseNetworkFile);
@@ -326,6 +337,7 @@ public final class CreateGtfs2037MunichTransit {
         }
         requireLine(schedule, S8);
         requireLine(schedule, U4);
+        validateCommonMeasures(schedule);
         if (profile.fastTrack()) {
             requireLineDepartures(schedule, "FT_U9", 520);
             requireLineDepartures(schedule, "FT_NR_A", 80);
@@ -349,6 +361,38 @@ public final class CreateGtfs2037MunichTransit {
         }
     }
 
+    private static void validateCommonMeasures(TransitSchedule schedule) {
+        long pocciDepartures = departureCountServingAny(schedule, COMMON_POCCI_RAIL);
+        long berduxDepartures = departureCountServingAny(schedule, COMMON_BERDUX);
+        if (pocciDepartures != 234 || berduxDepartures != 203) {
+            throw new IllegalStateException("Common-stop service counts differ: Poccistraße="
+                    + pocciDepartures + ", Berduxstraße=" + berduxDepartures);
+        }
+        for (TransitLine line : schedule.getTransitLines().values()) {
+            String source = line.getName() == null ? line.getId().toString() : line.getName();
+            if (source.matches(".*S\\d+X.*") && line.getRoutes().values().stream()
+                    .anyMatch(route -> route.getStops().stream().anyMatch(stop ->
+                            COMMON_BERDUX.stream().anyMatch(id ->
+                                    stop.getStopFacility().getId().toString().equals(id)
+                                            || stop.getStopFacility().getId().toString().startsWith(id + "."))))) {
+                throw new IllegalStateException("Express S-Bahn serves Berduxstraße: " + source);
+            }
+        }
+        for (String rail : COMMON_POCCI_RAIL) for (String subway : COMMON_POCCI_SUBWAY) {
+            requireTransfer(schedule, rail, subway, 180);
+            requireTransfer(schedule, subway, rail, 180);
+        }
+    }
+
+    private static long departureCountServingAny(TransitSchedule schedule, List<String> stopIds) {
+        return schedule.getTransitLines().values().stream()
+                .flatMap(line -> line.getRoutes().values().stream())
+                .filter(route -> route.getStops().stream().anyMatch(stop ->
+                        stopIds.stream().anyMatch(id -> stop.getStopFacility().getId().toString().equals(id)
+                                || stop.getStopFacility().getId().toString().startsWith(id + "."))))
+                .mapToLong(route -> route.getDepartures().size()).sum();
+    }
+
     private static void validateImplerPocciTransfers(TransitSchedule schedule) {
         int verified = 0;
         for (String planned : IMPLER_POCCI_PLATFORMS) {
@@ -357,9 +401,9 @@ public final class CreateGtfs2037MunichTransit {
                 verified += requireTransfer(schedule, existing, planned, 300);
             }
         }
-        if (verified != 20) {
+        if (verified != 28) {
             throw new IllegalStateException(
-                    "Expected 20 Impler-/Poccistraße transfer relations, found " + verified
+                    "Expected 28 Impler-/Poccistraße transfer relations, found " + verified
             );
         }
     }

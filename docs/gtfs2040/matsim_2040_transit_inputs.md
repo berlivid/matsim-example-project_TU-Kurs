@@ -1,5 +1,7 @@
 # MATSim public-transport inputs for the 2040 scenarios
 
+> **Current integration status (20 August 2026):** both MATSim input sets were regenerated from the current BAU and Fast Track GTFS ZIPs. Full readback and focused transit-routing validation passed. No full or calibrated scenario simulation was run.
+
 ## Analytical purpose
 
 This step translates the two approved GTFS representations into MATSim inputs. It does not change the transport-policy scenarios themselves. BAU represents the cleaned 2037 forecast service, while Fast Track adds the previously documented U9 trunk, U4 extension and two Nordring services. Both representations use the same road network so that later differences between model results cannot be attributed to different background road infrastructure.
@@ -14,23 +16,23 @@ The road-network input was resolved from each existing scenario configuration ra
 
 | Measure | BAU 2040 | Fast Track 2040 | Difference |
 |---|---:|---:|---:|
-| Combined network nodes | 249,190 | 249,212 | +22 |
-| Combined network links | 561,977 | 562,016 | +39 |
-| Transit stop facilities | 80,751 | 80,792 | +41 |
+| Combined network nodes | 249,194 | 249,216 | +22 |
+| Combined network links | 561,990 | 562,029 | +39 |
+| Transit stop facilities | 80,764 | 80,805 | +41 |
 | Transit lines | 1,733 | 1,736 | +3 |
 | Transit routes | 14,303 | 14,309 | +6 |
 | Departures | 70,620 | 71,300 | +680 |
 | Transit vehicles | 70,620 | 71,300 | +680 |
-| Minimum-transfer relations | 95,876 | 95,896 | +20 |
+| Minimum-transfer relations | 95,884 | 95,912 | +28 |
 
-The Fast Track schedule contains `FT_U9` (520 departures: 259 in direction 0 and 261 in direction 1), `FT_NR_A` (80 departures) and `FT_NR_B` (80 departures). Exact U9 direction/time duplicates are absent; positive sub-two-minute intervals are deliberately retained. The U4 retains its number of departures and serves the four new directional Cosimapark and Englschalking platform records. The 20 explicitly modelled transfer relations between the two new Impler-/Poccistraße platforms and five existing interchange platforms survive GTFS conversion, file writing and MATSim reloading with their specified transfer times. The S8 schedule signature is identical in BAU and Fast Track.
+The Fast Track schedule contains `FT_U9` (520 departures: 259 in direction 0 and 261 in direction 1), `FT_NR_A` (80 departures) and `FT_NR_B` (80 departures). Exact U9 direction/time duplicates are absent; positive sub-two-minute intervals are deliberately retained. The U4 retains its number of departures and serves the four new directional Cosimapark and Englschalking platform records. BAU contains eight directed 180-second Poccistraße regional–U3/U6 transfers. Fast Track retains the 20 previously established directed U9–U3/U6 relations and adds eight directed U9–regional relations, giving 28 U9-related relations in total. All survive GTFS conversion and MATSim reloading. The S8 schedule signature is identical in BAU and Fast Track.
 
 Current output checksums:
 
 | File | BAU SHA-256 | Fast Track SHA-256 |
 |---|---|---|
-| Combined network | `D6E74CCD154282CE723769F734A7AFB03A23BECA1AC9AE2DEDDB3549991E033D` | `377D8E053B410FC503D2534C3D85A9D395E7ED43736AE425F6820983CC6B6006` |
-| Transit schedule | `2CBEBBD0966C8CD0F02DB85CF4DA52DD66F9BA8883BFD1936E1CD534CA644817` | `C51EA48B6B7F6CFF5CC02418AA8DC9CE38F65F68720954D739F7E69FFDE41EB5` |
+| Combined network | `DBE26DE64FFF835F218A8B78001697C114D5C45E1B497B3B27C459CBDA586E12` | `18E38F8E6B0F62129FF59EA6B97716AC4E6C7C8E4C2CF1C5378C07B3423D9401` |
+| Transit schedule | `FD8496A4B751EB46C7964FD285ED075BC7E62513152B9284FA7BCE93B28CC30B` | `D032A77481947C189EB69E486A132CF9348B4DD8A89384BDCFE8019C19C6A3B6` |
 | Transit vehicles | `03F9617EB5D8E0CD464C4C8BF5B4ADC051B78431883BDD21B6A46CFB4B37CDCB` | `57F79CF0C15745A86EE517F8F2D27647F2EA323337EDBEA924B7DE1A2A6B0786` |
 
 ## Validation and reproducibility
@@ -55,7 +57,7 @@ $env:MAVEN_OPTS='-Xmx12g'
 
 Both production configurations now use `input_transit/network-with-pt.xml.gz`, `input_transit/transitSchedule.xml.gz` and `input_transit/transitVehicles.xml.gz` relative to their scenario directory. Transit is enabled and the CRS is `EPSG:31468`. Population, scoring, routing, capacity factors, strategy settings and mode-choice parameters were preserved. The machine-readable comparison is [`matsim_2040_config_comparison.csv`](matsim_2040_config_comparison.csv).
 
-The project runners install SwissRailRaptor whenever transit is enabled. Full configuration loading confirmed 336,208 persons in each unchanged production population and all network, schedule and vehicle references. Focused daytime routes verified U6 to U9 at Münchner Freiheit; U9 interchange at Hauptbahnhof; the U9 to U3 interchange at Impler-/Poccistraße; U4 interchange at Englschalking; complete FT-NR-A and FT-NR-B journeys; the U4 extension; absence of the new lines in BAU; and an existing representative PT connection in BAU. The Impler-/Poccistraße route exits U9 at `FT_U9_IMPLER_POCCI_D0`, boards U3 at `106212`, and includes at least the documented 300-second transfer requirement. No additional transfer fix was required.
+The project runners install SwissRailRaptor whenever transit is enabled. Full configuration loading confirmed 336,208 persons in each unchanged production population and all network, schedule and vehicle references. Focused daytime routes verified both new common stops, a regional-to-U3/U6 transfer at Poccistraße, U6 to U9 at Münchner Freiheit, U9 interchange at Hauptbahnhof, the U9-to-U3 interchange at Impler-/Poccistraße, U4 interchange at Englschalking, complete FT-NR-A and FT-NR-B journeys, the U4 extension, absence of the new lines in BAU, and an existing representative BAU connection. The regional-to-U3/U6 test used 192 seconds of transfer/access time against the explicit 180-second minimum. The Impler-/Poccistraße test retains at least its documented 300-second requirement. No further transfer fix was required.
 
 Separate iteration-zero runs used a deterministic two-person population created in memory, one PT traveller and one car traveller, a fixed seed of 4711 and a 09:30–11:00 QSim window. Both BAU and Fast Track started successfully; the PT traveller boarded and arrived, and the car traveller arrived. The production population was not loaded or modified. Smoke outputs are ignored under each scenario's `smoke-output/` directory.
 

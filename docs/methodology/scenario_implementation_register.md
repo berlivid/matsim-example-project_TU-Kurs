@@ -19,21 +19,18 @@ The CSV register is authoritative for row-level decisions: [`scenario_implementa
 
 | Status | Measures | Interpretation |
 |---|---:|---|
-| Implemented and tested | 10 | Nordring, second S-Bahn trunk, three forecast tram projects, U5 Pasing, U5 Freiham, U6 Martinsried, U9 and U4 East |
+| Implemented and tested | 12 | Poccistraße, Berduxstraße, Nordring, second S-Bahn trunk, three forecast tram projects, U5 Pasing, U5 Freiham, U6 Martinsried, U9 and U4 East |
 | Partially or indirectly represented | 5 | Daglfing–Johanneskirchen capacity, Westkreuz junction, Sendlinger Spange, Paul-Gerhardt-Allee and the new Hauptbahnhof |
-| Still required | 6 | Pedestrian zones, mobility hubs, Poccistraße regional stop, Berduxstraße S-Bahn stop, Olympic Village and Media Village |
+| Still required | 4 | Pedestrian zones, mobility hubs, Olympic Village and Media Village |
 | Intentionally not modelled | 6 | Autonomous operation, cycle express route, park corridors and the three measures excluded from both scenarios |
 
 ### Public-transport completeness
 
 The cleaned forecast feed substantively represents the second S-Bahn trunk: representative S18X, S23X and S24X patterns serve `München Hbf tief 2. Stammstrecke`, `Marienplatz Marienhof 2. Stammstrecke` and `Ostbahnhof 2. Stammstrecke`. It also contains S20 patterns between Pasing, Heimeranplatz, Mittersendling and Solln. This is evidence of a Sendlinger-Spange-related operating path, but not evidence that additional capacity, disruption resilience or a specific frequency improvement has been modelled. The measure therefore remains indirect pending an explicit operating comparison.
 
-Two BAU station measures are absent despite matching place names in `stops.txt`:
+The common-measures stage adds dedicated rail-platform records rather than reusing bus or underground platform IDs. Poccistraße is inserted in 234 eligible regional trips on the six Excel-specified routes. Berduxstraße is inserted in 203 regular S2 trips identified by the exact route and complete calling pattern; express routes are excluded. Project-internal current-GTFS evidence supports 60 seconds dwell at each new stop; no separate braking/acceleration penalty can be identified. Eight directed 180-second transfers connect the new Poccistraße rail platforms to U3/U6. Existing parent-station centroids are transparent scenario-assumption proxies, not official future platform coordinates. Both measures are inherited unchanged by Fast Track.
 
-- **Poccistraße regional stop:** facilities 106207–106210 are served by buses and 106211–106212 by U-Bahn services. No rail-mode route serves Poccistraße.
-- **Berduxstraße S-Bahn station:** parent 162054 and platform variants based on 162055 are served only by buses. No rail-mode route stops there.
-
-Stop-table presence is therefore not treated as implementation. Both measures require an evidenced BAU rail service specification and must then be inherited unchanged by Fast Track.
+The Sendlinger Spange remains indirect by design. Excel specifies no published normal-weekday timetable change, so existing S20 and other timetable rows remain unchanged. Operational stability, diversions and disruption benefits are not represented in the normal-day MATSim simulation.
 
 The Nordring, U9 and U4 extension are complete within their documented strategic-scenario assumptions. The four-track Daglfing–Johanneskirchen project remains only an enabling condition; neither physical railway capacity nor freight interaction is simulated.
 
@@ -67,7 +64,7 @@ Autonomous public transport is excluded as a technology label because automation
 
 ## Prioritized next implementation list
 
-1. **Complete the BAU rail feed.** Resolve the Poccistraße regional stop and Berduxstraße S-Bahn station, then determine whether the existing S20 pattern fully represents the Sendlinger Spange. This is the highest priority because these are common BAU/Fast Track supply measures and omissions would bias the scenario baseline.
+1. **Regenerate and validate MATSim transit inputs.** Convert the rebuilt BAU and Fast Track GTFS feeds, rerun focused routing checks for both new stations, and only then regard the activated configs as current.
 2. **Specify village demand without double counting.** Obtain official site boundaries and decide separately how permanent residents, relocated residents, Media Village accommodation, workplaces and temporary Games demand relate to the existing 2040 population.
 3. **Audit Paul-Gerhardt-Allee against demographic and road-source provenance.** Establish whether its residents and road access are already embedded before changing population or network files.
 

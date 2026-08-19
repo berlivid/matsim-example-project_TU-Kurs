@@ -63,7 +63,7 @@ class BuildFastTrackGtfs2037Test {
     @Test
     void generatedU9ImplementsApprovedCountsTimesAndDwells() throws IOException {
         Path baseline = Path.of("original-input-data/mvv_gtfs_2037/generated/"
-                + "gtfs2037_munich_clean.zip");
+                + "gtfs2037_munich_bau.zip");
         Path fastTrack = Path.of("original-input-data/mvv_gtfs_2037/generated/"
                 + "gtfs2037_munich_fast_track.zip");
 

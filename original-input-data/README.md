@@ -3,7 +3,7 @@
 This directory separates external source data, versioned processing decisions and reproducible generated artifacts from final MATSim scenario inputs.
 
 - `mvv_gtfs_2037/raw/` contains unchanged forecast GTFS source files and is never edited by the processing tools.
-- `mvv_gtfs_2037/fast_track_service_specification.csv` and `fast_track_stop_decisions.csv` are version-controlled modelling decisions.
+- `mvv_gtfs_2037/common_service_specification.csv`, `fast_track_service_specification.csv` and `fast_track_stop_decisions.csv` are version-controlled modelling decisions.
 - `mvv_gtfs_2037/generated/` contains reproducible GTFS ZIP files and preflight reports; large generated artifacts are Git-ignored.
 - `munich-demography/` documents inputs used to derive the common 2040 population.
 

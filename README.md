@@ -2,7 +2,7 @@
 
 This repository supports a political-science master’s thesis comparing two Munich transport scenarios for 2040:
 
-- **BAU 2040:** the cleaned GTFS 2037 forecast and the common background road network;
+- **BAU 2040:** the cleaned GTFS 2037 forecast plus the common Poccistraße and Berduxstraße rail stops and the common background road network;
 - **Fast Track 2040:** BAU plus U9, the U4 extension and two Nordring services associated with infrastructure that could be accelerated for a hypothetical Munich Olympic Games.
 
 Pricing is outside the final thesis scope. Scenario results must be interpreted as modelled contrasts under common assumptions, not as causal forecasts with exact real-world probabilities.
@@ -21,19 +21,23 @@ Authoritative methods:
 
 ## Current status
 
-The BAU and Fast Track GTFS feeds and separate MATSim network/schedule/vehicle files have been generated and validated. Public transport is activated in both production configurations, and focused routing and iteration-zero smoke tests have passed. No calibrated or full BAU/Fast Track simulation has been run. Olympic Village and Media Village demand/facility representation, remaining road and non-PT measures, calibration, sensitivities and final runs remain pending.
+The BAU and Fast Track GTFS feeds and their activated MATSim transit inputs have been rebuilt and revalidated with the common Poccistraße and Berduxstraße measures. The Sendlinger Spange is documented as an indirect normal-day representation without added GTFS rows. Focused readback and transit-routing tests pass; no calibrated or full BAU/Fast Track simulation has been run.
 
 ## Reproduction
 
 ```powershell
 # Targeted tests
+.\mvnw.cmd -q -Dtest=BuildCommonGtfs2037MeasuresTest test
 .\mvnw.cmd -q -Dtest=BuildFastTrackGtfs2037Test test
+
+# Common BAU measures
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\src\main\scripts\gtfs2040\build_common_gtfs2037.ps1 -Mode build
 
 # Fast Track GTFS
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\src\main\scripts\gtfs2040\build_fast_track_gtfs2037.ps1 -Mode build
 
-# Fast Track MATSim transit inputs only
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\src\main\scripts\gtfs2040\build_matsim_2040_transit.ps1 -Scenario fast-track
+# Both MATSim transit input sets
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\src\main\scripts\gtfs2040\build_matsim_2040_transit.ps1 -Scenario all
 ```
 
 Large raw and generated inputs are excluded from Git. Specifications, source code, scripts, tests and methodology documents remain version-controlled.

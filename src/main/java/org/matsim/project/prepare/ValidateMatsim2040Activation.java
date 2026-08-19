@@ -16,6 +16,7 @@ import org.matsim.core.scenario.ScenarioUtils;
 import org.matsim.facilities.FacilitiesUtils;
 import org.matsim.facilities.Facility;
 import org.matsim.pt.routes.TransitPassengerRoute;
+import org.matsim.pt.transitSchedule.api.Departure;
 import org.matsim.pt.transitSchedule.api.TransitLine;
 import org.matsim.pt.transitSchedule.api.TransitRoute;
 import org.matsim.pt.transitSchedule.api.TransitRouteStop;
@@ -70,6 +71,10 @@ public final class ValidateMatsim2040Activation {
         boolean hasA = findLine(scenario, "FT_NR_A") != null;
         boolean hasB = findLine(scenario, "FT_NR_B") != null;
         require(hasU9 == fastTrack && hasA == fastTrack && hasB == fastTrack, label + ": scenario-specific lines mismatch");
+        require(departuresServing(scenario, "BAU_POCCISTRASSE_RAIL_") == 234,
+                label + ": Poccistraße must be served by 234 regional trips");
+        require(departuresServing(scenario, "BAU_BERDUXSTRASSE_S2_") == 203,
+                label + ": Berduxstraße must be served by 203 regular S2 trips");
 
         System.out.printf("CONFIG PASS %s: persons=%d nodes=%d links=%d stops=%d lines=%d routes=%d departures=%d vehicles=%d%n",
                 label, scenario.getPopulation().getPersons().size(), scenario.getNetwork().getNodes().size(),
@@ -97,6 +102,14 @@ public final class ValidateMatsim2040Activation {
                 new LeastCostRaptorRouteSelector(),
                 new DefaultRaptorStopFinder(new DefaultRaptorIntermodalAccessEgress(), java.util.Map.of()),
                 new DefaultRaptorInVehicleCostCalculator(), new DefaultRaptorTransferCostCalculator());
+        RoutingAnchor pocc = precedingServiceAnchor(scenario, "BAU_POCCISTRASSE_RAIL_");
+        RoutingAnchor berdux = precedingServiceAnchor(scenario, "BAU_BERDUXSTRASSE_S2_");
+        route(router, scenario, "Poccistrasse-regional-reachable", pocc.fromStopId(),
+                pocc.insertedStopId(), pocc.departureTime(), Set.of());
+        route(router, scenario, "Berduxstrasse-S2-reachable", berdux.fromStopId(),
+                berdux.insertedStopId(), berdux.departureTime(), Set.of("S2_Prognose_Petershausen/Altomünster-Holzkirchen"));
+        route(router, scenario, "Poccistrasse-regional-to-U3-U6", pocc.fromStopId(),
+                "106233", pocc.departureTime(), Set.of());
         if (fastTrack) {
             TransitLine u6 = findLine(scenario, "MUC_U6_neu Prognose");
             TransitRoute u6South = u6.getRoutes().values().stream().filter(r -> hasStop(r, "Münchner Freiheit")
@@ -134,6 +147,28 @@ public final class ValidateMatsim2040Activation {
 
     private static TransitStopFacility namedStop(TransitRoute route, String name) {
         return route.getStops().stream().map(TransitRouteStop::getStopFacility).filter(s -> name.equals(s.getName())).findFirst().orElseThrow();
+    }
+
+    private record RoutingAnchor(String fromStopId, String insertedStopId, double departureTime) {}
+
+    private static RoutingAnchor precedingServiceAnchor(Scenario scenario, String insertedPrefix) {
+        for (TransitLine line : scenario.getTransitSchedule().getTransitLines().values()) {
+            for (TransitRoute route : line.getRoutes().values()) {
+                List<TransitRouteStop> stops = route.getStops();
+                for (int i = 1; i < stops.size(); i++) {
+                    String inserted = stops.get(i).getStopFacility().getId().toString();
+                    if (!inserted.startsWith(insertedPrefix)) continue;
+                    for (Departure departure : route.getDepartures().values()) {
+                        double time = departure.getDepartureTime()
+                                + stops.get(i - 1).getDepartureOffset().orElse(stops.get(i - 1).getArrivalOffset().orElse(0));
+                        if (time >= 9.5 * 3600 && time <= 10.5 * 3600) {
+                            return new RoutingAnchor(stops.get(i - 1).getStopFacility().getId().toString(), inserted, time);
+                        }
+                    }
+                }
+            }
+        }
+        throw new IllegalStateException("No daytime service anchor for " + insertedPrefix);
     }
 
     private static void route(SwissRailRaptor router, Scenario scenario, String test, String fromId, String toId,
@@ -185,6 +220,21 @@ public final class ValidateMatsim2040Activation {
         if (test.startsWith("U6-to-U9")) {
             require(lines.stream().anyMatch(x -> x.contains("FT_U9_MUENCHNER_FREIHEIT")), test + ": U9 was not boarded at Muenchner Freiheit");
         }
+        if (test.startsWith("Poccistrasse-regional-reachable")) {
+            require(lines.stream().anyMatch(x -> x.contains("BAU_POCCISTRASSE_RAIL_")),
+                    test + ": no regional trip reached the new platform; actual=" + lines);
+        }
+        if (test.startsWith("Berduxstrasse-S2-reachable")) {
+            require(lines.stream().anyMatch(x -> x.contains("BAU_BERDUXSTRASSE_S2_")),
+                    test + ": S2 did not reach the new platform; actual=" + lines);
+        }
+        if (test.startsWith("Poccistrasse-regional-to-U3-U6")) {
+            require(lines.stream().anyMatch(x -> x.contains("BAU_POCCISTRASSE_RAIL_")),
+                    test + ": regional leg did not alight at Poccistraße; actual=" + lines);
+            require(lines.stream().anyMatch(x -> x.contains("106211") || x.contains("106212")),
+                    test + ": subway leg did not board at Poccistraße; actual=" + lines);
+            require(other >= 180, test + ": 180-second minimum transfer was not represented; other=" + other);
+        }
         double total = elements.stream().filter(Leg.class::isInstance).map(Leg.class::cast)
                 .mapToDouble(leg -> leg.getTravelTime().orElse(0)).sum();
         System.out.printf("ROUTE PASS %s: %s -> %s depart=%s lines=%s transfers=%d inVehicle=%.0f other=%.0f total=%.0f%n",
@@ -227,6 +277,14 @@ public final class ValidateMatsim2040Activation {
                 .toList();
         require(matches.size() <= 1, "Ambiguous MATSim line for " + gtfsRouteId);
         return matches.isEmpty() ? null : matches.getFirst();
+    }
+
+    private static long departuresServing(Scenario scenario, String stopPrefix) {
+        return scenario.getTransitSchedule().getTransitLines().values().stream()
+                .flatMap(line -> line.getRoutes().values().stream())
+                .filter(route -> route.getStops().stream().anyMatch(stop ->
+                        stop.getStopFacility().getId().toString().startsWith(stopPrefix)))
+                .mapToLong(route -> route.getDepartures().size()).sum();
     }
 
     private static void require(boolean condition, String message) {

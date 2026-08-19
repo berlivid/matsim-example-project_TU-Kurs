@@ -1,5 +1,15 @@
 # MATSim Run Log
 
+## 2026-08-19: initial common BAU/Fast Track rail-measure build (superseded)
+
+- Read rows 13, 18 and 19 of the unchanged infrastructure workbook and transcribed the executable rules into `common_service_specification.csv`.
+- The fail-closed analyzer reported zero blockers. It selected 234 Poccistraße regional trips (117 per direction) and 203 regular S2 trips for Berduxstraße (94 direction 0; 109 direction 1).
+- Existing parent centroids `106206` and `162054` are used only as explicit spatial scenario proxies. Four new directional rail-platform IDs prevent bus or underground platforms from being reclassified.
+- The forecast feed encoded zero median dwell. This provisional choice was superseded on 20 August after stronger project-internal current-GTFS evidence supported 60 seconds.
+- The Sendlinger Spange creates no GTFS row because the workbook specifies no published regular-weekday timetable change. Normal-day MATSim does not represent disruption resilience or diversion operations.
+- Built provisional zero-dwell artifacts. Their obsolete hashes are intentionally omitted; the current artifacts and hashes are recorded in the 20 August entry below.
+- MATSim transit inputs were not regenerated in this initial step. This status was superseded by the 20 August regeneration and validation; no simulation was run.
+
 This file records technical runs and data-preparation steps in chronological
 order. Methodological details are documented separately under `docs/methodology`.
 
@@ -266,3 +276,12 @@ Scenario outputs are excluded from Git.
 - Added reproducible full-load/reference validation and focused SwissRailRaptor queries. All required Fast Track services and platform interchanges were routable; BAU excludes U9 and both Nordring lines.
 - Confirmed the Impler-/Poccistraße route uses the dedicated U9 platform and existing U3 platform with the documented minimum-transfer assumption. No transfer-data change was required.
 - Ran separate iteration-zero, 09:30–11:00 controller tests with one synthetic PT agent and one synthetic car agent per scenario. Both agents completed in both scenarios. No production population was loaded, and no full simulation was run.
+
+## 20 August 2026 — common-stop dwell correction and transit regeneration
+
+- Audited positive intermediate passenger-stop dwell observations in the project-internal current MVV GTFS. Regular S2 provided 9,079 observations (median 60 seconds; 10th–90th percentile 60–120 seconds). RE5, RB40 and RB54 provided 2,934 regional observations (median 60 seconds; 10th–90th percentile 60–240 seconds).
+- Applied 60 seconds dwell at Poccistraße and Berduxstraße. Arrival/departure records do not identify braking and acceleration separately, so no additional penalty was added. All later trip times shift by 60 seconds; trip counts, departure patterns and express exclusions remain unchanged.
+- Added eight directed 180-second Poccistraße regional–U3/U6 transfers, derived from the existing station transfer matrix. Fast Track additionally contains 28 directed 300-second U9 relations to U3/U6 and regional platforms.
+- Rebuilt both deterministic GTFS feeds: BAU `41D04B06D4134F71EF21468D5109264E9B61702B135E601B5875E5D6C490FF54`; Fast Track `3F82E66EB7B0999D210B639BC85571CC59D06E9969FA53146FA5CA43D9578A0F`. Repeat builds produced identical hashes.
+- Regenerated and reloaded both MATSim input sets. BAU has 249,194 nodes, 561,990 links, 80,764 stop facilities and 70,620 departures; Fast Track has 249,216 nodes, 562,029 links, 80,805 stop facilities and 71,300 departures.
+- Focused SwissRailRaptor tests reached both new stops and completed the Poccistraße regional-to-U3/U6 transfer with 192 seconds of transfer/access time. All retained Fast Track service tests passed. No full simulation was run.

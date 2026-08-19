@@ -1,5 +1,9 @@
 # Methodology: Munich Population 2040
 
+## Role in the thesis design
+
+The same projected population and five-percent sample are used in BAU and Fast Track. This keeps transport demand constant so that differences are interpreted as modelled infrastructure and service contrasts, not causal forecasts with exact real-world probabilities. Pricing is outside the final thesis scope. Olympic Village and Media Village residents, activities and facilities are not yet represented and remain pending before substantive scenario runs.
+
 ## Purpose
 
 This document describes how the 2040 MATSim population is derived from the

@@ -1,69 +1,43 @@
-# matsim-example-project
+# Munich MATSim 2040 scenario project
 
-A small example of how to use MATSim as a library.
+This repository supports a political-science master’s thesis comparing two Munich transport scenarios for 2040:
 
-By default, this project uses the latest (pre-)release. In order to use a different version, edit `pom.xml`.
+- **BAU 2040:** the cleaned GTFS 2037 forecast and the common background road network;
+- **Fast Track 2040:** BAU plus U9, the U4 extension and two Nordring services associated with infrastructure that could be accelerated for a hypothetical Munich Olympic Games.
 
-A recommended directory structure is as follows:
-* `src` for sources
-* `original-input-data` for original input data (typically not in MATSim format)
-* `scenarios` for MATSim scenarios, i.e. MATSim input and output data.  A good way is the following:
-  * One subdirectory for each scenario, e.g. `scenarios/mySpecialScenario01`.
-  * This minimally contains a config file, a network file, and a population file.
-  * Output goes one level down, e.g. `scenarios/mySpecialScenario01/output-from-a-good-run/...`.
-  
-  
-### Import into eclipse
+Pricing is outside the final thesis scope. Scenario results must be interpreted as modelled contrasts under common assumptions, not as causal forecasts with exact real-world probabilities.
 
-1. download a modern version of eclipse. This should have maven and git included by default.
-1. `file->import->git->projects from git->clone URI` and clone as specified above.  _It will go through a 
-sequence of windows; it is important that you import as 'general project'._
-1. `file->import->maven->existing maven projects`
+## Common model basis
 
-Sometimes, step 3 does not work, in particular after previously failed attempts.  Sometimes, it is possible to
-right-click to `configure->convert to maven project`.  If that fails, the best thing seems to remove all 
-pieces of the failed attempt in the directory and start over.
+The project uses MATSim 2025.0 and Java 21, the existing Munich model, a projected 2040 population derived from its five-percent sample, coordinate system `EPSG:31468`, and one shared road network. The GTFS service date 13 February 2026 is only the technical date that activates the forecast feed; it is not the scenario year.
 
-### Import into IntelliJ
+Authoritative methods:
 
-`File -> New -> Project from Version Control` paste the repository url and hit 'clone'. IntelliJ usually figures out
-that the project is a maven project. If not: `Right click on pom.xml -> import as maven project`.
+- [Population 2040](docs/methodology/population_2040.md)
+- [GTFS filtering](docs/gtfs2040/gtfs2037_munich_filter_method.md)
+- [BAU and Fast Track public transport](docs/gtfs2040/gtfs2037_fast_track_method.md)
+- [MATSim transit inputs](docs/gtfs2040/matsim_2040_transit_inputs.md)
+- [Run log](docs/run_log/run_log.md)
 
-### Java Version
+## Current status
 
-The project uses Java 11. Usually a suitable SDK is packaged within IntelliJ or Eclipse. Otherwise, one must install a 
-suitable sdk manually, which is available [here](https://openjdk.java.net/)
+The BAU and Fast Track GTFS feeds and separate MATSim network/schedule/vehicle files have been generated and validated. Public transport is activated in both production configurations, and focused routing and iteration-zero smoke tests have passed. No calibrated or full BAU/Fast Track simulation has been run. Olympic Village and Media Village demand/facility representation, remaining road and non-PT measures, calibration, sensitivities and final runs remain pending.
 
-### Building and Running it locally
+## Reproduction
 
-You can build an executable jar-file by executing the following command:
+```powershell
+# Targeted tests
+.\mvnw.cmd -q -Dtest=BuildFastTrackGtfs2037Test test
 
-```sh
-./mvnw clean package
+# Fast Track GTFS
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\src\main\scripts\gtfs2040\build_fast_track_gtfs2037.ps1 -Mode build
+
+# Fast Track MATSim transit inputs only
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\src\main\scripts\gtfs2040\build_matsim_2040_transit.ps1 -Scenario fast-track
 ```
 
-or on Windows:
+Large raw and generated inputs are excluded from Git. Specifications, source code, scripts, tests and methodology documents remain version-controlled.
 
-```sh
-mvnw.cmd clean package
-```
+## Licensing
 
-This will download all necessary dependencies (it might take a while the first time it is run) and create a file `matsim-example-project-0.0.1-SNAPSHOT.jar` in the top directory. This jar-file can either be double-clicked to start the MATSim GUI, or executed with Java on the command line:
-
-```sh
-java -jar matsim-example-project-0.0.1-SNAPSHOT.jar
-```
-
-
-
-### Licenses
-(The following paragraphs need to be adjusted according to the specifications of your project.)
-
-The **MATSim program code** in this repository is distributed under the terms of the [GNU General Public License as published by the Free Software Foundation (version 2)](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html). The MATSim program code are files that reside in the `src` directory hierarchy and typically end with `*.java`.
-
-The **MATSim input files, output files, analysis data and visualizations** are licensed under a <a rel="license" href="http://creativecommons.org/licenses/by/4.0/">Creative Commons Attribution 4.0 International License</a>.
-<a rel="license" href="http://creativecommons.org/licenses/by/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by/4.0/80x15.png" /></a><br /> MATSim input files are those that are used as input to run MATSim. They often, but not always, have a header pointing to matsim.org. They typically reside in the `scenarios` directory hierarchy. MATSim output files, analysis data, and visualizations are files generated by MATSim runs, or by postprocessing.  They typically reside in a directory hierarchy starting with `output`.
-
-**Other data files**, in particular in `original-input-data`, have their own individual licenses that need to be individually clarified with the copyright holders.
-
-
+MATSim program code follows the repository’s GNU GPL v2 terms. MATSim inputs, outputs and analyses follow their stated data licences; external source data retain the licences and conditions of their providers.

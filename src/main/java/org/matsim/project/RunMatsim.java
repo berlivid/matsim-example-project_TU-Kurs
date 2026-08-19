@@ -18,6 +18,7 @@
  * *********************************************************************** */
 package org.matsim.project;
 
+import ch.sbb.matsim.routing.pt.raptor.SwissRailRaptorModule;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.core.config.Config;
 import org.matsim.core.config.ConfigUtils;
@@ -53,6 +54,9 @@ public class RunMatsim{
 		// ---
 		
 		Controler controler = new Controler( scenario ) ;
+		if (config.transit().isUseTransit()) {
+			controler.addOverridingModule(new SwissRailRaptorModule());
+		}
 		
 		// possibly modify controler here
 

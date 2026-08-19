@@ -18,6 +18,7 @@
  * *********************************************************************** */
 package org.matsim.project;
 
+import ch.sbb.matsim.routing.pt.raptor.SwissRailRaptorModule;
 import org.apache.logging.log4j.core.tools.picocli.CommandLine;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.application.MATSimApplication;
@@ -63,6 +64,9 @@ public class RunMatsimApplication extends MATSimApplication {
 
 	@Override
 	protected void prepareControler(Controler controler) {
+		if (controler.getConfig().transit().isUseTransit()) {
+			controler.addOverridingModule(new SwissRailRaptorModule());
+		}
 
 		// possibly modify controler here
 

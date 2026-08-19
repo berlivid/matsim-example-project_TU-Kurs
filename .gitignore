@@ -38,6 +38,7 @@ scenarios/munich_*/output/
 
 # MATSim output directories at any directory level
 **/output/
+**/smoke-output/
 
 # Archived GTFS source data and generated transit artifacts
 /original-input-data/mvv_gtfs/*.zip

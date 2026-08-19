@@ -237,7 +237,14 @@ public final class BuildFastTrackGtfs2037 {
                             splitPipe(table.get(row, "excluded_stops")),
                             table.get(row, "source_fact"),
                             table.get(row, "model_assumption"),
-                            Boolean.parseBoolean(table.get(row, "creates_gtfs_service"))
+                            Boolean.parseBoolean(table.get(row, "creates_gtfs_service")),
+                            table.get(row, "deduplication_key"),
+                            table.get(row, "source_trip_selection_rule"),
+                            parseOptionalInteger(table.get(row,
+                                    "intermediate_dwell_seconds")),
+                            parseOptionalInteger(table.get(row, "origin_dwell_seconds")),
+                            parseOptionalInteger(table.get(row, "terminal_dwell_seconds")),
+                            table.get(row, "dwell_sensitivity_note")
                     );
                     if (services.put(spec.measureId(), spec) != null) {
                         throw new IllegalStateException(
@@ -255,6 +262,29 @@ public final class BuildFastTrackGtfs2037 {
                         "Service specification does not contain exactly the expected measures: "
                                 + services.keySet()
                 );
+            }
+            ServiceSpec u9 = services.get("FT-U9");
+            if (!"direction_id+first_stop_departure_time".equals(
+                    u9.deduplicationKey())
+                    || !"lexicographically_smallest_source_trip_id".equals(
+                            u9.sourceTripSelectionRule())
+                    || u9.intermediateDwellSeconds() != 20
+                    || u9.originDwellSeconds() != 0
+                    || u9.terminalDwellSeconds() != 0) {
+                throw new IllegalStateException(
+                        "FT-U9 requires the approved deterministic deduplication rule "
+                                + "and 0/20/0-second origin/intermediate/terminal dwell."
+                );
+            }
+            for (String measure : List.of("FT-NR-A", "FT-NR-B")) {
+                ServiceSpec nordring = services.get(measure);
+                if (nordring.intermediateDwellSeconds() != 0
+                        || !nordring.dwellSensitivityNote().contains("60 seconds")) {
+                    throw new IllegalStateException(
+                            measure + " must retain zero dwell and document the future "
+                                    + "60-second sensitivity test."
+                    );
+                }
             }
         }
 
@@ -708,8 +738,9 @@ public final class BuildFastTrackGtfs2037 {
                     case "extend_route" -> "Extend all existing U4 trips at Arabellapark; "
                             + "preserve their original timetable and calculate only new segment times.";
                     case "create_route" -> service.routeId().equals("FT_U9")
-                            ? "Use U6 departures observed at Münchner Freiheit and Harras; "
-                                    + "use U3 as a headway plausibility check."
+                            ? "Retain one U9 trip per direction and exact U6 anchor time; "
+                                    + "select the lexicographically smallest source trip for "
+                                    + "duplicate keys and retain positive sub-two-minute intervals."
                             : service.firstDeparture().isBlank()
                                     ? "Generate " + service.departuresPerDirection()
                                             + " departures per direction at "
@@ -869,14 +900,24 @@ public final class BuildFastTrackGtfs2037 {
                     "observed_median_headway", "observed_median_moving_speed",
                     "observed_median_dwell", "proposed_first_departure",
                     "proposed_last_departure", "derivation_uncertainty",
+                    "applied_intermediate_dwell_seconds", "origin_dwell_seconds",
+                    "terminal_dwell_seconds", "deduplication_key",
+                    "source_trip_selection_rule", "dwell_sensitivity_note",
                     "build_ready", "generation_rule"
             ))) {
                 for (ServicePlan plan : plans) {
+                    ServiceSpec specification = services.get(plan.measureId());
                     writer.write(List.of(
                             plan.measureId(), plan.routeId(), plan.action(),
                             plan.comparisonRoutes(), plan.earliest(), plan.latest(),
                             plan.medianHeadway(), plan.medianSpeed(), plan.medianDwell(),
                             plan.proposedFirst(), plan.proposedLast(), plan.uncertainty(),
+                            Integer.toString(specification.intermediateDwellSeconds()),
+                            Integer.toString(specification.originDwellSeconds()),
+                            Integer.toString(specification.terminalDwellSeconds()),
+                            specification.deduplicationKey(),
+                            specification.sourceTripSelectionRule(),
+                            specification.dwellSensitivityNote(),
                             Boolean.toString(plan.buildReady()), plan.generationRule()
                     ));
                 }
@@ -918,6 +959,7 @@ public final class BuildFastTrackGtfs2037 {
             }
             text.append("\n## Service derivation\n\n");
             for (ServicePlan plan : analysis.plans()) {
+                ServiceSpec specification = services.get(plan.measureId());
                 text.append("### ").append(plan.measureId()).append("\n\n")
                         .append("- Action: ").append(plan.action()).append("\n")
                         .append("- Comparison routes: ").append(plan.comparisonRoutes()).append("\n")
@@ -926,6 +968,17 @@ public final class BuildFastTrackGtfs2037 {
                         .append("- Observed median headway: ").append(plan.medianHeadway()).append("\n")
                         .append("- Observed median moving speed: ").append(plan.medianSpeed()).append("\n")
                         .append("- Observed median dwell: ").append(plan.medianDwell()).append("\n")
+                        .append("- Applied intermediate dwell: ")
+                        .append(specification.intermediateDwellSeconds()).append(" seconds\n")
+                        .append("- Origin/terminal dwell: ")
+                        .append(specification.originDwellSeconds()).append("/")
+                        .append(specification.terminalDwellSeconds()).append(" seconds\n")
+                        .append("- Deduplication key: ")
+                        .append(specification.deduplicationKey()).append("\n")
+                        .append("- Source selection: ")
+                        .append(specification.sourceTripSelectionRule()).append("\n")
+                        .append("- Dwell sensitivity: ")
+                        .append(specification.dwellSensitivityNote()).append("\n")
                         .append("- Proposed first departure: ").append(plan.proposedFirst()).append("\n")
                         .append("- Proposed last departure: ").append(plan.proposedLast()).append("\n")
                         .append("- Uncertainty: ").append(plan.uncertainty()).append("\n")
@@ -1015,8 +1068,8 @@ public final class BuildFastTrackGtfs2037 {
                     continue;
                 }
                 double speed = parseLeadingDouble(plan.medianSpeed(), 32.0);
-                int dwell = parseLeadingInteger(plan.medianDwell(),
-                        plan.routeId().startsWith("FT_NR_") ? 60 : 30);
+                ServiceSpec specification = services.get(plan.measureId());
+                int dwell = specification.intermediateDwellSeconds();
                 timings.put(plan.measureId(), new DerivedTiming(speed, dwell));
             }
 
@@ -1134,7 +1187,7 @@ public final class BuildFastTrackGtfs2037 {
             }
             StopMapping north = mapping.get(0);
             StopMapping south = mapping.get(mapping.size() - 1);
-            int index = 0;
+            List<U9TemplateCandidate> candidates = new ArrayList<>();
             for (Map.Entry<String, List<Call>> entry : comparisonTrips.entrySet()) {
                 Trip template = trips.get(entry.getKey());
                 if (template == null || !U6.equals(template.routeId())) {
@@ -1147,7 +1200,17 @@ public final class BuildFastTrackGtfs2037 {
                     continue;
                 }
                 int direction = northIndex < southIndex ? 0 : 1;
-                int departure = calls.get(direction == 0 ? northIndex : southIndex).departure();
+                int departure = calls.get(direction == 0 ? northIndex : southIndex)
+                        .departure();
+                candidates.add(new U9TemplateCandidate(
+                        direction, departure, template.id()
+                ));
+            }
+            Map<U9Key, String> selectedTemplates = selectU9Templates(candidates);
+            int index = 0;
+            for (Map.Entry<U9Key, String> selected : selectedTemplates.entrySet()) {
+                int direction = selected.getKey().direction();
+                int departure = selected.getKey().departure();
                 List<StopMapping> ordered = new ArrayList<>(mapping);
                 if (direction == 1) {
                     Collections.reverse(ordered);
@@ -1209,7 +1272,7 @@ public final class BuildFastTrackGtfs2037 {
                     clock += segmentSeconds(previous, mapping, timing.speedKmh());
                 }
                 int arrival = clock;
-                int departure = i == ordered.size() - 1
+                int departure = i == 0 || i == ordered.size() - 1
                         ? arrival : arrival + timing.dwellSeconds();
                 calls.add(new GeneratedCall(
                         direction.equals("0") ? mapping.direction0Id() : mapping.direction1Id(),
@@ -1943,6 +2006,16 @@ public final class BuildFastTrackGtfs2037 {
                     + matsim.minimalTransferRelations() + "\n"
                     + "- Explicit Impler-/Poccistraße relations verified: "
                     + matsim.verifiedFastTrackTransfers() + "\n\n"
+                    + "## Approved timetable rules\n\n"
+                    + "U9 retains one departure for each direction and exact U6 anchor "
+                    + "departure time. If several U6 trips produce the same key, the "
+                    + "lexicographically smallest source `trip_id` is selected. Positive "
+                    + "sub-two-minute intervals remain because their source trips have "
+                    + "distinguishable full-length or short-turn patterns. The five "
+                    + "intermediate U9 stops have 20-second dwell; origin and terminal "
+                    + "dwell are zero. Nordring intermediate dwell remains zero in the main "
+                    + "scenario; a future 60-second sensitivity test is documented but not "
+                    + "implemented.\n\n"
                     + "New and extended trips have an empty optional `shape_id`; no shape was "
                     + "invented. Existing S8 rows were copied without modification. All new "
                     + "station coordinates are approved scenario proxies rather than official "
@@ -2054,6 +2127,23 @@ public final class BuildFastTrackGtfs2037 {
 
     private static int parseOptionalInteger(String value) {
         return value == null || value.isBlank() ? 0 : parseInteger(value, "integer");
+    }
+
+    static Map<U9Key, String> selectU9Templates(
+            List<U9TemplateCandidate> candidates
+    ) {
+        Map<U9Key, String> selected = new TreeMap<>(
+                Comparator.comparingInt(U9Key::direction)
+                        .thenComparingInt(U9Key::departure)
+        );
+        for (U9TemplateCandidate candidate : candidates) {
+            selected.merge(
+                    new U9Key(candidate.direction(), candidate.departure()),
+                    candidate.sourceTripId(),
+                    (left, right) -> left.compareTo(right) <= 0 ? left : right
+            );
+        }
+        return Collections.unmodifiableMap(new LinkedHashMap<>(selected));
     }
 
     private static double parseDouble(String value, String field) {
@@ -2453,8 +2543,20 @@ public final class BuildFastTrackGtfs2037 {
             List<String> excludedStops,
             String sourceFact,
             String modelAssumption,
-            boolean createsService
+            boolean createsService,
+            String deduplicationKey,
+            String sourceTripSelectionRule,
+            int intermediateDwellSeconds,
+            int originDwellSeconds,
+            int terminalDwellSeconds,
+            String dwellSensitivityNote
     ) {
+    }
+
+    record U9Key(int direction, int departure) {
+    }
+
+    record U9TemplateCandidate(int direction, int departure, String sourceTripId) {
     }
 
     private record StopDecision(

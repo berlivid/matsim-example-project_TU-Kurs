@@ -167,4 +167,4 @@ For the later BAU/Fast Track comparison, this cleaned feed should be frozen as a
 
 ## Recommended next step
 
-The next implementation step is to map each infrastructure-matrix measure to the existing route, trip, stop and shape identifiers documented in the raw audit and route inventory, then define separate, reviewable inclusion rules for BAU and Fast Track. Before changing timetables, investigate the source sequence responsible for `pt_0` and decide whether the broad rectangular regional boundary is analytically appropriate for both scenarios or whether a documented network-proximity boundary is required. U9, the U4 extension, the S-Bahn Nordring and other missing projects should only be added after that common-baseline decision.
+The cleaned feed is now frozen as the BAU public-transport baseline. Fast Track additions are implemented in a separate derived ZIP under version-controlled service and stop specifications; see [`gtfs2037_fast_track_method.md`](gtfs2037_fast_track_method.md). Scenario configs remain inactive pending a focused configuration and routing smoke test.

@@ -252,3 +252,17 @@ Scenario outputs are excluded from Git.
 - The generated 2026 PT files are retained as a current reference and as a
   potential starting point for documented BAU-2040 and Fast-Track-2040 PT
   modifications.
+
+## 2040 GTFS and MATSim transit preparation — 19 August 2026
+
+- The cleaned BAU GTFS remained unchanged: SHA-256 `91518C445DC1699396A7D377C18075DB78D164BC9813B2929B6F7242B8070B0A`.
+- Fast Track GTFS was rebuilt with 520 U9 trips, 160 Nordring trips and 398 extended U4 trips: SHA-256 `6F89D39827EE3279162C2E1648C563ED93B59F14D13722F682CD20F41B466579`.
+- U9 exact direction/time duplicates were removed; positive sub-two-minute intervals were retained; five intermediate stops use 20-second dwell.
+- Fast Track MATSim inputs contain 71,300 departures and vehicles. Both published input sets passed read-only MATSim reference, road-network, S8, U4, transfer and PT-only-link validation.
+- BAU and Fast Track configs remain inactive. No full 2040 simulation was run.
+## 19 August 2026 — 2040 public-transport activation and smoke tests
+
+- Activated the scenario-local combined network, transit schedule and transit vehicles in both production configs; set `useTransit=true` and `EPSG:31468` without changing population, scoring, capacity, strategy or mode-choice settings.
+- Added reproducible full-load/reference validation and focused SwissRailRaptor queries. All required Fast Track services and platform interchanges were routable; BAU excludes U9 and both Nordring lines.
+- Confirmed the Impler-/Poccistraße route uses the dedicated U9 platform and existing U3 platform with the documented minimum-transfer assumption. No transfer-data change was required.
+- Ran separate iteration-zero, 09:30–11:00 controller tests with one synthetic PT agent and one synthetic car agent per scenario. Both agents completed in both scenarios. No production population was loaded, and no full simulation was run.

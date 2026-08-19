@@ -4,16 +4,16 @@ The feed was created from the unchanged cleaned Munich GTFS baseline. All critic
 
 - Baseline SHA-256: `91518C445DC1699396A7D377C18075DB78D164BC9813B2929B6F7242B8070B0A`
 - Output: `original-input-data/mvv_gtfs_2037/generated/gtfs2037_munich_fast_track.zip`
-- SHA-256: `A601EF17EE9FDBB3355F8F0B890FE831A8D93E8992F8B4235BBCA98F86714F86`
+- SHA-256: `6F89D39827EE3279162C2E1648C563ED93B59F14D13722F682CD20F41B466579`
 - New routes: 3
-- New trips: 698
-  - FT_U9: 538
+- New trips: 680
+  - FT_U9: 520
   - FT_NR_A: 80
   - FT_NR_B: 80
 - Extended U4 trips: 398
 - New stop rows: 24
 - New directed transfer relations: 20
-- Validated rows: {agency.txt=18, calendar.txt=1, routes.txt=1736, trips.txt=71318, stops.txt=54651, shapes.txt=1441848, stop_times.txt=1347734, transfers.txt=95896}
+- Validated rows: {agency.txt=18, calendar.txt=1, routes.txt=1736, trips.txt=71300, stops.txt=54651, shapes.txt=1441848, stop_times.txt=1347608, transfers.txt=95896}
 
 ## MATSim conversion verification
 
@@ -22,8 +22,12 @@ The completed ZIP was converted in memory for the technical service date 2026-02
 - Transit stops: 54651
 - Transit lines: 1736
 - Transit routes: 14309
-- Departures: 71318
+- Departures: 71300
 - Minimal transfer-time relations: 95896
 - Explicit Impler-/Poccistraße relations verified: 20
+
+## Approved timetable rules
+
+U9 retains one departure for each direction and exact U6 anchor departure time. If several U6 trips produce the same key, the lexicographically smallest source `trip_id` is selected. Positive sub-two-minute intervals remain because their source trips have distinguishable full-length or short-turn patterns. The five intermediate U9 stops have 20-second dwell; origin and terminal dwell are zero. Nordring intermediate dwell remains zero in the main scenario; a future 60-second sensitivity test is documented but not implemented.
 
 New and extended trips have an empty optional `shape_id`; no shape was invented. Existing S8 rows were copied without modification. All new station coordinates are approved scenario proxies rather than official future platform locations. The 300-second Impler-/Poccistraße transfer time and the regularized Nordring timetable are scenario assumptions, not operationally validated values.

@@ -113,10 +113,21 @@ public final class CreateGtfs2037MunichTransit {
             printResults(existing.values());
             return;
         }
-        List<Profile> selected = selectProfiles(args);
+        boolean analyzeMobilityHubs = args.length == 3
+                && "--analyze-mobility-hubs".equals(args[0]);
+        String[] selectionArgs = analyzeMobilityHubs
+                ? new String[] {args[1], args[2]}
+                : args;
+        List<Profile> selected = selectProfiles(selectionArgs);
+        if (analyzeMobilityHubs && (selected.size() != 1
+                || !selected.getFirst().fastTrack())) {
+            throw new IllegalArgumentException(
+                    "Mobility Hub analysis requires --scenario fast-track."
+            );
+        }
         Map<String, ConversionResult> results = new LinkedHashMap<>();
         for (Profile profile : selected) {
-            ConversionResult result = convert(profile);
+            ConversionResult result = convert(profile, !analyzeMobilityHubs);
             results.put(profile.key(), result);
             System.gc();
         }
@@ -154,13 +165,16 @@ public final class CreateGtfs2037MunichTransit {
         validatePseudoLinks(scenario.getNetwork(), road);
         validateScheduleAndVehicles(scenario);
         validateScenarioContent(scenario.getTransitSchedule(), profile);
+        if (profile.fastTrack()) {
+            FastTrackMobilityHubs.validatePublished(scenario.getTransitSchedule());
+        }
         validatePedestrianZoneActivityReferences(profile, pedestrianZones);
         return new ConversionResult(
                 profile, baseNetworkFile, road.sourceFileSha256(),
                 road.semanticSha256(), lineSignature(scenario.getTransitSchedule(), S8),
                 lineDepartureCount(scenario.getTransitSchedule(), U4), baseCounts,
                 Counts.from(scenario), output, sha256(output.network()),
-                sha256(output.schedule()), sha256(output.vehicles())
+                sha256(output.schedule()), sha256(output.vehicles()), true
         );
     }
 
@@ -180,7 +194,8 @@ public final class CreateGtfs2037MunichTransit {
         );
     }
 
-    private static ConversionResult convert(Profile profile) throws Exception {
+    private static ConversionResult convert(Profile profile, boolean publishOutput)
+            throws Exception {
         List<FastTrackPedestrianZones.Restriction> pedestrianZones =
                 pedestrianZoneRestrictions(profile);
         requireRegularFile(profile.configFile());
@@ -220,6 +235,21 @@ public final class CreateGtfs2037MunichTransit {
                 scenario.getTransitSchedule(), scenario.getTransitVehicles()
         ).run(TransportMode.pt);
 
+        FastTrackMobilityHubs.Application mobilityHubs = null;
+        if (profile.fastTrack()) {
+            if (publishOutput) {
+                mobilityHubs = FastTrackMobilityHubs.applyApproved(
+                        scenario.getTransitSchedule()
+                );
+            } else {
+                FastTrackMobilityHubs.analyzeApproved(
+                        scenario.getTransitSchedule(),
+                        Path.of("target/mobility-hubs-analysis/"
+                                + "approved_transfer_relations_preview.csv")
+                );
+            }
+        }
+
         validateRoadComponent(scenario.getNetwork(), road);
         if (profile.fastTrack()) {
             FastTrackPedestrianZones.apply(scenario.getNetwork(), pedestrianZones);
@@ -232,6 +262,27 @@ public final class CreateGtfs2037MunichTransit {
         validateScenarioContent(scenario.getTransitSchedule(), profile);
         validatePedestrianZoneActivityReferences(profile, pedestrianZones);
         Counts generatedCounts = Counts.from(scenario);
+
+        OutputFiles output = new OutputFiles(
+                profile.outputDirectory().resolve("network-with-pt.xml.gz"),
+                profile.outputDirectory().resolve("transitSchedule.xml.gz"),
+                profile.outputDirectory().resolve("transitVehicles.xml.gz")
+        );
+        if (!publishOutput) {
+            return new ConversionResult(
+                    profile, baseNetworkFile, road.sourceFileSha256(),
+                    road.semanticSha256(), sourceS8Signature, u4Departures,
+                    baseCounts, generatedCounts, output,
+                    "NOT_WRITTEN", "NOT_WRITTEN", "NOT_WRITTEN", false
+            );
+        }
+
+        String existingNetworkSha256 = profile.fastTrack()
+                && Files.isRegularFile(output.network())
+                ? sha256(output.network()) : null;
+        String existingVehiclesSha256 = profile.fastTrack()
+                && Files.isRegularFile(output.vehicles())
+                ? sha256(output.vehicles()) : null;
 
         Files.createDirectories(profile.outputDirectory());
         Path work = Files.createTempDirectory(
@@ -254,6 +305,14 @@ public final class CreateGtfs2037MunichTransit {
             validatePseudoLinks(verified.getNetwork(), road);
             validateScheduleAndVehicles(verified);
             validateScenarioContent(verified.getTransitSchedule(), profile);
+            if (mobilityHubs != null) {
+                FastTrackMobilityHubs.validateApplied(
+                        verified.getTransitSchedule(), mobilityHubs
+                );
+                FastTrackMobilityHubs.validatePublished(
+                        verified.getTransitSchedule()
+                );
+            }
             Counts verifiedCounts = Counts.from(verified);
             if (!generatedCounts.equals(verifiedCounts)) {
                 throw new IllegalStateException(
@@ -277,18 +336,27 @@ public final class CreateGtfs2037MunichTransit {
             verified = null;
             System.gc();
 
-            OutputFiles output = new OutputFiles(
-                    profile.outputDirectory().resolve("network-with-pt.xml.gz"),
-                    profile.outputDirectory().resolve("transitSchedule.xml.gz"),
-                    profile.outputDirectory().resolve("transitVehicles.xml.gz")
-            );
+            String candidateNetworkSha256 = sha256(candidate.network());
+            String candidateVehiclesSha256 = sha256(candidate.vehicles());
+            if (existingNetworkSha256 != null
+                    && !existingNetworkSha256.equals(candidateNetworkSha256)) {
+                throw new IllegalStateException(
+                        "Fast Track network bytes would change during the Mobility Hub build."
+                );
+            }
+            if (existingVehiclesSha256 != null
+                    && !existingVehiclesSha256.equals(candidateVehiclesSha256)) {
+                throw new IllegalStateException(
+                        "Fast Track vehicle bytes would change during the Mobility Hub build."
+                );
+            }
             publish(candidate, output);
             return new ConversionResult(
                     profile, baseNetworkFile, road.sourceFileSha256(),
                     road.semanticSha256(), sourceS8Signature, u4Departures,
                     baseCounts, verifiedCounts, output,
                     sha256(output.network()), sha256(output.schedule()),
-                    sha256(output.vehicles())
+                    sha256(output.vehicles()), true
             );
         } finally {
             deleteTemporaryTree(work);
@@ -982,6 +1050,7 @@ public final class CreateGtfs2037MunichTransit {
             System.out.println("  Network: " + result.output().network());
             System.out.println("  Schedule: " + result.output().schedule());
             System.out.println("  Vehicles: " + result.output().vehicles());
+            System.out.println("  Published: " + result.published());
             System.out.println("  Base road-network file SHA-256: "
                     + result.baseNetworkFileSha256());
             System.out.println("  Road semantic SHA-256: " + result.roadSemanticSha256());
@@ -1068,7 +1137,8 @@ public final class CreateGtfs2037MunichTransit {
             OutputFiles output,
             String networkSha256,
             String scheduleSha256,
-            String vehiclesSha256
+            String vehiclesSha256,
+            boolean published
     ) {
     }
 }

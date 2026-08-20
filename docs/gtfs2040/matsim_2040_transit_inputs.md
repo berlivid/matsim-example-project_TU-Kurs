@@ -1,14 +1,14 @@
 # MATSim public-transport inputs for the 2040 scenarios
 
-> **Current integration status (20 August 2026):** both MATSim input sets were regenerated from the current BAU and Fast Track GTFS ZIPs. The Fast Track network additionally contains the pedestrian-zone car restriction on 12 spatial links and one technical boundary connector. Full readback and focused transit/car-routing validation passed. No full or calibrated scenario simulation was run.
+> **Current integration status (20 August 2026):** both MATSim input sets derive from the current BAU and Fast Track GTFS ZIPs. The Fast Track network contains the pedestrian-zone car restriction on 12 spatial links and one technical boundary connector, and its schedule contains the approved Mobility Hub transfer-time proxy. Full readback, focused tests and a two-person iteration-zero smoke test passed. No full or calibrated scenario simulation was run.
 
 ## Analytical purpose
 
-This step translates the two approved GTFS representations into MATSim inputs and applies the approved Fast Track road restriction. BAU represents the cleaned 2037 forecast service, while Fast Track adds the previously documented U9 trunk, U4 extension and two Nordring services. Both representations use the same base road network. Fast Track removes only `car` from 12 spatially selected links in the planned Herzog-Wilhelm-Straße and Kreuzstraße pedestrian areas and from one technical boundary connector; this deliberate scenario difference must be considered when interpreting results.
+This step translates the two approved GTFS representations into MATSim inputs and applies the approved Fast Track road and transfer-time assumptions. BAU represents the cleaned 2037 forecast service, while Fast Track adds the previously documented U9 trunk, U4 extension and two Nordring services. Both representations use the same base road network. Fast Track removes only `car` from 12 spatially selected links in the planned Herzog-Wilhelm-Straße and Kreuzstraße pedestrian areas and from one technical boundary connector. It also changes 790 existing directed cross-stop transfer-time values at the twelve approved Mobility Hubs. These deliberate scenario differences must be considered when interpreting results.
 
 ## Shared conversion rule
 
-Both feeds are converted with the same Java implementation in `CreateGtfs2037MunichTransit`. The technical service date is 13 February 2026. GTFS coordinates are transformed from WGS84 to EPSG:31468, standard GTFS route types are used, stops are not merged, and GTFS minimum transfer times are included. MATSim then adds a public-transport pseudonetwork and one transit vehicle per departure. Pseudolinks permit only the MATSim `pt` mode and therefore cannot be used by cars.
+Both feeds are converted with the same Java implementation in `CreateGtfs2037MunichTransit`. The technical service date is 13 February 2026. GTFS coordinates are transformed from WGS84 to EPSG:31468, standard GTFS route types are used, stops are not merged, and GTFS minimum transfer times are included. MATSim then adds a public-transport pseudonetwork and one transit vehicle per departure. Pseudolinks permit only the MATSim `pt` mode and therefore cannot be used by cars. As the final Fast Track schedule post-processing step, `FastTrackMobilityHubs` reads the approved versioned StopArea specification, derives eligible relations from the converted schedule and applies the 20%, 15% and 10% class reductions with a 60-second floor. Analyze mode writes only a temporary preview; build mode validates a temporary XML candidate and publishes only after successful readback.
 
 The road-network input is the project input `scenarios/munich_base_2023/studyNetworkDense.xml` (SHA-256 `FFE53A5CF7386D9255F9C1A7DF0DFD388410F9C84635582699C1826C3AF0572E`) with 212,772 nodes and 499,435 links. A semantic digest covers road-node coordinates and attributes and road-link endpoints, length, free speed, capacity, lanes, allowed modes and attributes. BAU must reproduce this digest unchanged. For Fast Track, validation adds `car` back only for digest comparison on the 13 specified links; equality with the base digest (`B0B3B94A898427CFED6220077773C5C9366374FBDC03E9828BC2B1F0E08830B5`) therefore proves that no other road property or link changed.
 
@@ -33,22 +33,27 @@ The machine-readable restriction is [`fast_track_pedestrian_zone_links.csv`](../
 
 The Fast Track schedule contains `FT_U9` (520 departures: 259 in direction 0 and 261 in direction 1), `FT_NR_A` (80 departures) and `FT_NR_B` (80 departures). Exact U9 direction/time duplicates are absent; positive sub-two-minute intervals are deliberately retained. The U4 retains its number of departures and serves the four new directional Cosimapark and Englschalking platform records. BAU contains eight directed 180-second Poccistraße regional–U3/U6 transfers. Fast Track retains the 20 previously established directed U9–U3/U6 relations and adds eight directed U9–regional relations, giving 28 U9-related relations in total. All survive GTFS conversion and MATSim reloading. The S8 schedule signature is identical in BAU and Fast Track.
 
+The Mobility Hub step changes exactly 790 existing directed cross-stop relations and leaves 103 self-relations unchanged, including two zero-second Ostbahnhof self-relations. It creates and deletes no relation, so the Fast Track total remains 95,912. Original affected values span 180–300 seconds; implemented values span 144–255 seconds. The 60-second floor binds no current relation. TransitLine, TransitRoute, stop-facility and departure ID sets are unchanged by this post-processing step.
+
 Current output checksums:
 
 | File | BAU SHA-256 | Fast Track SHA-256 |
 |---|---|---|
 | Combined network | `DBE26DE64FFF835F218A8B78001697C114D5C45E1B497B3B27C459CBDA586E12` | `815840C96DD8AA5B6168E14F1DD0BC92B880C4D1912A83F4D9C57AEF0C16DDA5` |
-| Transit schedule | `FD8496A4B751EB46C7964FD285ED075BC7E62513152B9284FA7BCE93B28CC30B` | `D032A77481947C189EB69E486A132CF9348B4DD8A89384BDCFE8019C19C6A3B6` |
+| Transit schedule | `FD8496A4B751EB46C7964FD285ED075BC7E62513152B9284FA7BCE93B28CC30B` | `EC2E07DAD41FEFCEA587B56B5C803DB3A47AD1D4ED1AC7DF5C5D830127EE0921` |
 | Transit vehicles | `03F9617EB5D8E0CD464C4C8BF5B4ADC051B78431883BDD21B6A46CFB4B37CDCB` | `57F79CF0C15745A86EE517F8F2D27647F2EA323337EDBEA924B7DE1A2A6B0786` |
 
 ## Validation and reproducibility
 
-The tool validates the converted objects before writing and loads all three compressed files again with MATSim before publication. It checks schedule-to-network links, route-network links, departure-to-vehicle and vehicle-to-type references, transfer endpoints and times, PT-only pseudolink modes, preservation of every road-network element and scenario-specific services. For the pedestrian zone it requires the exact 13 links and expected pre-build modes, removes only `car`, verifies the post-build modes after readback, and compares the normalized Fast Track road digest with the unchanged base digest. A directed breadth-first car-routing check requires all four perimeter nodes to remain mutually reachable, and a full component check requires every remaining car link to belong to the largest routable component. A separate validation mode reloads both published scenarios and compares their common base road source, S8 and U4 departure counts directly.
+The tool validates the converted objects before writing and loads all three compressed files again with MATSim before publication. It checks schedule-to-network links, route-network links, departure-to-vehicle and vehicle-to-type references, transfer endpoints and times, PT-only pseudolink modes, preservation of every road-network element and scenario-specific services. For the pedestrian zone it requires the exact 13 links and expected pre-build modes, removes only `car`, verifies the post-build modes after readback, and compares the normalized Fast Track road digest with the unchanged base digest. A directed breadth-first car-routing check requires all four perimeter nodes to remain mutually reachable, and a full component check requires every remaining car link to belong to the largest routable component. For Mobility Hubs it validates exactly 12 hubs, four per class, unique and existing StopAreas, 790 formula-conforming cross-stop changes, 103 excluded self-relations, unchanged direction and relation sets, unchanged schedule structure IDs and exact agreement with the approved preview references. A separate validation mode reloads both published scenarios and compares their common base road source, S8 and U4 departure counts directly.
 
 Run the complete conversion from the project root with:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\src\main\scripts\gtfs2040\build_matsim_2040_transit.ps1 -Scenario all
+
+# Fast-Track-only Mobility Hub analysis without publication
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\src\main\scripts\gtfs2040\build_matsim_2040_transit.ps1 -Scenario fast-track -Mode analyze
 ```
 
 Validate already generated outputs without repeating GTFS conversion with:
@@ -65,13 +70,19 @@ Run only the focused pedestrian-zone tests with:
 .\mvnw.cmd -q -Dtest=FastTrackPedestrianZonesTest test
 ```
 
+Run only the focused Mobility Hub tests with:
+
+```powershell
+.\mvnw.cmd -q "-Dtest=FastTrackMobilityHubsTest" test
+```
+
 ## Configuration activation and focused technical tests
 
 Both production configurations use `input_transit/network-with-pt.xml.gz`, `input_transit/transitSchedule.xml.gz` and `input_transit/transitVehicles.xml.gz` relative to their scenario directory. Transit is enabled and the CRS is `EPSG:31468`. Scoring, capacity factors, strategy settings and mode-choice parameters remain aligned. Fast Track references the separate village-relocation population documented in the [population methodology](../methodology/population_2040.md) and its scenario-local network contains the pedestrian-zone restriction. BAU configuration, population and network remain unchanged. The machine-readable configuration comparison is [`matsim_2040_config_comparison.csv`](matsim_2040_config_comparison.csv).
 
 The project runners install SwissRailRaptor whenever transit is enabled. Full configuration loading confirmed 336,208 persons in each production population and all network, schedule and vehicle references. BAU loads the unchanged common population; Fast Track loads its derived village-relocation population. Focused daytime routes verified both new common stops, a regional-to-U3/U6 transfer at Poccistraße, U6 to U9 at Münchner Freiheit, U9 interchange at Hauptbahnhof, the U9-to-U3 interchange at Impler-/Poccistraße, U4 interchange at Englschalking, complete FT-NR-A and FT-NR-B journeys, the U4 extension, absence of the new lines in BAU, and an existing representative BAU connection. The regional-to-U3/U6 test used 192 seconds of transfer/access time against the explicit 180-second minimum. The Impler-/Poccistraße test retains at least its documented 300-second requirement. No further transfer fix was required.
 
-Separate iteration-zero runs used a deterministic two-person population created in memory, one PT traveller and one car traveller, a fixed seed of 4711 and a 09:30–11:00 QSim window. Both BAU and Fast Track started successfully; the PT traveller boarded and arrived, and the car traveller arrived. The production population was not loaded or modified. Smoke outputs are ignored under each scenario's `smoke-output/` directory.
+Separate iteration-zero runs use a deterministic two-person population created in memory, one PT traveller and one car traveller, a fixed seed of 4711 and a 09:30–11:00 QSim window. The Mobility Hub implementation was tested with the productive Fast Track inputs in the new directory `smoke-output-mobility-hubs-20260820-2317`: the controller completed normally, the PT traveller boarded and arrived, the car traveller arrived, and neither person produced a stuck event. The production population was not loaded or modified. An optional second runner argument selects a new output directory and activates fail-if-exists protection.
 
 Reproduce the checks from the project root:
 
@@ -79,11 +90,11 @@ Reproduce the checks from the project root:
 .\mvnw.cmd -q -DskipTests compile
 .\mvnw.cmd -q -DskipTests exec:java '-Dexec.mainClass=org.matsim.project.prepare.ValidateMatsim2040Activation'
 .\mvnw.cmd -q -DskipTests exec:java '-Dexec.mainClass=org.matsim.project.RunMatsim2040TransitSmokeTest' '-Dexec.args=bau'
-.\mvnw.cmd -q -DskipTests exec:java '-Dexec.mainClass=org.matsim.project.RunMatsim2040TransitSmokeTest' '-Dexec.args=fast-track'
+.\mvnw.cmd -q -DskipTests exec:java '-Dexec.mainClass=org.matsim.project.RunMatsim2040TransitSmokeTest' '-Dexec.args=fast-track scenarios/munich_fast_track_2040/smoke-output-unique-name'
 ```
 
 These checks establish technical executability only. They do not validate behavioural calibration, demand forecasts or policy effects, and no calibrated or full BAU/Fast Track simulation has been completed.
 
 ## Limitations and implications
 
-The combined networks contain synthetic PT links constructed from stop sequences; they are routing infrastructure for MATSim, not surveyed railway geometry. Parent stations and other unserved GTFS facilities may legitimately have no network link, whereas every facility used by a transit route is required to have one. Vehicle capacities remain MATSim converter defaults rather than operator-specific forecasts. The Fast Track pedestrian-zone representation changes car routing only; it does not value the public-space benefit and does not yet distinguish delivery, emergency, resident, taxi or bicycle access. The Fast Track population includes simple Olympic Village and Media Village activity relocations on existing links. Event-time demand, calibration, sensitivity analysis and substantive scenario runs remain pending.
+The combined networks contain synthetic PT links constructed from stop sequences; they are routing infrastructure for MATSim, not surveyed railway geometry. Parent stations and other unserved GTFS facilities may legitimately have no network link, whereas every facility used by a transit route is required to have one. Vehicle capacities remain MATSim converter defaults rather than operator-specific forecasts. The Fast Track pedestrian-zone representation changes car routing only; it does not value the public-space benefit and does not yet distinguish delivery, emergency, resident, taxi or bicycle access. Mobility Hubs are represented only through existing PT transfer times: physical infrastructure, shared mobility, parking and public-space quality are absent. MCube modal-split values are not imported, and no causal modal-split effect is supportable without active calibrated mode choice. The Fast Track population includes simple Olympic Village and Media Village activity relocations on existing links. Event-time demand, calibration, sensitivity analysis and substantive scenario runs remain pending.

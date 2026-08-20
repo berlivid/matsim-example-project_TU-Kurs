@@ -10,6 +10,7 @@ Statuses mean:
 
 - **implemented and tested**: the intended service or mechanism is present and has passed at least structural MATSim validation; measure-specific checks already exist or the audited stop pattern is explicit;
 - **partially or indirectly represented**: an operating pattern, population distribution or enabling assumption is present, but the physical or behavioural effect is incomplete;
+- **specified; implementation pending**: the sites, scope and deterministic parameter rule are approved and previewed, but the production scenario input has deliberately not yet been rewritten;
 - **still required**: the matrix includes the measure but the necessary representation is absent or substantively unresolved;
 - **intentionally not modelled**: the matrix excludes it or the current model cannot represent its intended effect without a new calibrated method.
 
@@ -19,9 +20,10 @@ The CSV register is authoritative for row-level decisions: [`scenario_implementa
 
 | Status | Measures | Interpretation |
 |---|---:|---|
-| Implemented and tested | 13 | Poccistraße, Berduxstraße, Nordring, second S-Bahn trunk, three forecast tram projects, U5 Pasing, U5 Freiham, U6 Martinsried, U9, U4 East and the pedestrian-zone car restriction |
+| Implemented and tested | 14 | Poccistraße, Berduxstraße, Nordring, second S-Bahn trunk, three forecast tram projects, U5 Pasing, U5 Freiham, U6 Martinsried, U9, U4 East, the pedestrian-zone car restriction and Mobility Hubs |
 | Partially or indirectly represented | 7 | Daglfing–Johanneskirchen capacity, Westkreuz junction, Sendlinger Spange, Paul-Gerhardt-Allee, the new Hauptbahnhof, Olympic Village and Media Village |
-| Still required | 1 | Mobility hubs |
+| Specified; implementation pending | 0 | None |
+| Still required | 0 | None |
 | Intentionally not modelled | 6 | Autonomous operation, cycle express route, park corridors and the three measures excluded from both scenarios |
 
 ### Public-transport completeness
@@ -62,20 +64,20 @@ BAU and Fast Track retain the same byte-identical base road source. The Fast Tra
 
 This represents only the modelled car restriction. Public-space quality, greening and pedestrian amenity remain absent. The build checks all 13 links before and after modification, normalizes only these removals against the shared base-road semantic digest, verifies directed car connectivity between four perimeter nodes and requires every remaining car link to belong to the largest routable component. It stops if an activity explicitly references a restricted link. The current Fast Track population has zero such references, so no activity or population edit was made.
 
-Cycling and park-corridor benefits cannot be represented credibly while bicycle travel is not routed on a calibrated link network. Mobility hubs also lack a defined facility inventory and a represented parking, shared-mobility or access mechanism. Arbitrary changes to scoring or mode constants are not recommended.
+Cycling and park-corridor benefits cannot be represented credibly while bicycle travel is not routed on a calibrated link network. The twelve approved Fast Track Mobility Hubs have a versioned node inventory and a deterministic final schedule post-processor that changes exactly 790 existing directed cross-stop `minimalTransferTimes`; 103 self-relations remain unchanged. This is a deliberately narrow public-transport transfer proxy. Parking, shared mobility, physical hub construction and public-space quality remain outside the model. The full method is documented in [`mobility_hubs_fast_track.md`](mobility_hubs_fast_track.md).
 
 Autonomous public transport is excluded as a technology label because automation itself has no direct MATSim passenger effect. Only independently evidenced changes to frequency, travel time or capacity could be modelled, and none are specified in the matrix.
 
 ## Prioritized next implementation list
 
-1. **Regenerate and validate MATSim transit inputs.** Convert the rebuilt BAU and Fast Track GTFS feeds, rerun focused routing checks for both new stations, and only then regard the activated configs as current.
+1. **Regenerate and validate MATSim transit inputs when source GTFS changes.** Convert the rebuilt BAU and Fast Track GTFS feeds, rerun focused routing checks for both new stations, and only then regard the activated configs as current.
 2. **Refine village demand without double counting.** Obtain official site boundaries and decide separately how permanent residents, relocated residents, Media Village accommodation, workplaces and temporary Games demand relate to the existing 2040 population.
-3. **Audit Paul-Gerhardt-Allee against demographic and road-source provenance.** Establish whether its residents and road access are already embedded before changing population or network files.
+3. **Plan sensitivity analysis before substantive interpretation.** Treat the Mobility Hub reductions as transparent assumptions and do not infer causal modal-split effects without an activated and calibrated mode-choice setup.
 
-Only after these tasks should lower-priority non-PT measures be considered. The pedestrian-zone car restriction is complete under its documented link-level assumption; any later treatment of deliveries, emergency access, residents, taxis, bicycles or construction phasing requires a separate decision. Mobility hubs need named sites and a mechanism that affects represented modes. Cycle and park-corridor measures should remain outside the quantified comparison unless a calibrated active-mode model is added.
+Only after these tasks should lower-priority non-PT measures be considered. The pedestrian-zone car restriction is complete under its documented link-level assumption; any later treatment of deliveries, emergency access, residents, taxis, bicycles or construction phasing requires a separate decision. The Mobility Hub transfer-time proxy is implemented and technically tested, but shared mobility and physical hub features remain outside the model. Cycle and park-corridor measures should remain outside the quantified comparison unless a calibrated active-mode model is added.
 
 ## Validation and limitations
 
-This is an implementation audit, not a simulation result. The village update changes only the derived Fast Track population and its production population reference. The pedestrian-zone implementation changes only the allowed modes of the 12 spatially selected Fast Track road links and the one technical boundary connector. BAU, both GTFS feeds and facilities remain unchanged; no substantive simulation was run.
+This is an implementation audit, not a substantive simulation result. The village update changes only the derived Fast Track population and its production population reference. The pedestrian-zone implementation changes only the allowed modes of the 12 spatially selected Fast Track road links and the one technical boundary connector. The Mobility Hub implementation changes only the values of 790 existing Fast Track transfer relations; the relation set and all schedule structure IDs remain unchanged. BAU, both GTFS feeds and all non-schedule Fast Track inputs remain unchanged. Only a two-person iteration-zero technical smoke test was run.
 
 The forecast GTFS is a supplied planning dataset rather than an independently certified operational timetable. Physical railway capacity, construction disruption, station-concourse capacity, pedestrian amenity, cycling quality and land-use development are not automatically created by the PT pseudonetwork. Each later implementation must retain the register's distinction between source facts, modelling decisions and explicit assumptions.

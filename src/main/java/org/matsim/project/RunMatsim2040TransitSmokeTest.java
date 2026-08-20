@@ -6,8 +6,10 @@ import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.TransportMode;
 import org.matsim.api.core.v01.events.PersonArrivalEvent;
 import org.matsim.api.core.v01.events.PersonEntersVehicleEvent;
+import org.matsim.api.core.v01.events.PersonStuckEvent;
 import org.matsim.api.core.v01.events.handler.PersonArrivalEventHandler;
 import org.matsim.api.core.v01.events.handler.PersonEntersVehicleEventHandler;
+import org.matsim.api.core.v01.events.handler.PersonStuckEventHandler;
 import org.matsim.api.core.v01.population.Activity;
 import org.matsim.api.core.v01.population.Person;
 import org.matsim.api.core.v01.population.Plan;
@@ -27,8 +29,11 @@ public final class RunMatsim2040TransitSmokeTest {
     private RunMatsim2040TransitSmokeTest() { }
 
     public static void main(String[] args) {
-        if (args.length != 1 || !(args[0].equals("bau") || args[0].equals("fast-track"))) {
-            throw new IllegalArgumentException("Use bau or fast-track");
+        if (args.length < 1 || args.length > 2
+                || !(args[0].equals("bau") || args[0].equals("fast-track"))) {
+            throw new IllegalArgumentException(
+                    "Use bau|fast-track [new-output-directory]"
+            );
         }
         String scenarioName = args[0];
         Path root = Path.of("").toAbsolutePath().normalize();
@@ -38,8 +43,13 @@ public final class RunMatsim2040TransitSmokeTest {
         config.plans().setInputFile(null);
         config.controller().setFirstIteration(0);
         config.controller().setLastIteration(0);
-        config.controller().setOutputDirectory(scenarioDir.resolve("smoke-output").toString());
-        config.controller().setOverwriteFileSetting(OutputDirectoryHierarchy.OverwriteFileSetting.deleteDirectoryIfExists);
+        Path smokeOutput = args.length == 2
+                ? root.resolve(args[1]).normalize()
+                : scenarioDir.resolve("smoke-output");
+        config.controller().setOutputDirectory(smokeOutput.toString());
+        config.controller().setOverwriteFileSetting(args.length == 2
+                ? OutputDirectoryHierarchy.OverwriteFileSetting.failIfDirectoryExists
+                : OutputDirectoryHierarchy.OverwriteFileSetting.deleteDirectoryIfExists);
         config.global().setRandomSeed(4711);
         config.qsim().setStartTime(9.5 * 3600);
         config.qsim().setEndTime(11 * 3600);
@@ -69,10 +79,15 @@ public final class RunMatsim2040TransitSmokeTest {
         controler.addOverridingModule(new SwissRailRaptorModule());
         controler.getEvents().addHandler(events);
         controler.run();
-        if (!events.arrivals.contains("smoke-pt") || !events.arrivals.contains("smoke-car") || !events.boarded.contains("smoke-pt")) {
-            throw new IllegalStateException("Smoke agents did not complete correctly: arrivals=" + events.arrivals + ", boarded=" + events.boarded);
+        if (!events.arrivals.contains("smoke-pt") || !events.arrivals.contains("smoke-car")
+                || !events.boarded.contains("smoke-pt") || !events.stuck.isEmpty()) {
+            throw new IllegalStateException("Smoke agents did not complete correctly: arrivals="
+                    + events.arrivals + ", boarded=" + events.boarded
+                    + ", stuck=" + events.stuck);
         }
-        System.out.println("SMOKE PASS " + scenarioName + ": PT boarded and arrived; car arrived; output=" + config.controller().getOutputDirectory());
+        System.out.println("SMOKE PASS " + scenarioName
+                + ": PT boarded and arrived; car arrived; no smoke agent stuck; output="
+                + config.controller().getOutputDirectory());
     }
 
     private static TransitStopFacility stop(Scenario scenario, String id) {
@@ -94,14 +109,19 @@ public final class RunMatsim2040TransitSmokeTest {
         scenario.getPopulation().addPerson(person);
     }
 
-    private static final class SmokeEvents implements PersonArrivalEventHandler, PersonEntersVehicleEventHandler {
+    private static final class SmokeEvents implements PersonArrivalEventHandler,
+            PersonEntersVehicleEventHandler, PersonStuckEventHandler {
         private final Set<String> arrivals = new HashSet<>();
         private final Set<String> boarded = new HashSet<>();
+        private final Set<String> stuck = new HashSet<>();
         @Override public void handleEvent(PersonArrivalEvent event) {
             if (event.getPersonId().toString().startsWith("smoke-")) arrivals.add(event.getPersonId().toString());
         }
         @Override public void handleEvent(PersonEntersVehicleEvent event) {
             if (event.getPersonId().toString().startsWith("smoke-")) boarded.add(event.getPersonId().toString());
+        }
+        @Override public void handleEvent(PersonStuckEvent event) {
+            if (event.getPersonId().toString().startsWith("smoke-")) stuck.add(event.getPersonId().toString());
         }
     }
 }

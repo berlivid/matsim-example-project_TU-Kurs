@@ -51,6 +51,10 @@ Future-station coordinates are scenario proxies, not official platform locations
 
 The two U9 Impler-/Poccistraße platforms connect bidirectionally to five existing U3/U6 platforms and the two common regional-rail platforms. The Fast Track feed retains the 20 previously established directed U9–U3/U6 relations and adds eight directed U9–regional relations, giving 28 U9-related transfer relations in total. Each uses 300 seconds, a transparent walking-time scenario assumption rather than an operationally validated interchange time. The BAU feed separately contains eight 180-second regional–U3/U6 relations derived from the existing Poccistraße transfer matrix.
 
+### Approved Mobility Hub transfer-time proxy
+
+Twelve Fast Track Mobility Hubs are implemented as a separate scenario assumption, with four hubs in each of three analytical classes: large, medium and small. The versioned hub and StopArea inventory and deterministic relation-level references are documented in [`docs/methodology/mobility_hubs_fast_track.md`](../methodology/mobility_hubs_fast_track.md). After GTFS conversion, pseudonetwork creation and vehicle creation, the final Fast Track schedule post-processor changes exactly 790 positive existing directed cross-stop `minimalTransferTimes` inside the approved interchange complexes. It applies reductions of 20%, 15% and 10%, respectively, subject to a 60-second floor; 103 self-relations remain unchanged, and no relation or reverse direction is created. BAU is outside the measure.
+
 ## Build result
 
 The deterministic Fast Track ZIP is `original-input-data/mvv_gtfs_2037/generated/gtfs2037_munich_fast_track.zip`, SHA-256 `3F82E66EB7B0999D210B639BC85571CC59D06E9969FA53146FA5CA43D9578A0F`.
@@ -79,7 +83,8 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\src\main\scripts\gtfs2
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\src\main\scripts\gtfs2040\build_fast_track_gtfs2037.ps1 -Mode build
 
 # Rebuild only Fast Track MATSim transit inputs
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\src\main\scripts\gtfs2040\build_matsim_2040_transit.ps1 -Scenario fast-track
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\src\main\scripts\gtfs2040\build_matsim_2040_transit.ps1 -Scenario fast-track -Mode analyze
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\src\main\scripts\gtfs2040\build_matsim_2040_transit.ps1 -Scenario fast-track -Mode build
 
 # Read-only validation of both published MATSim input sets
 $env:MAVEN_OPTS='-Xmx12g'
@@ -96,5 +101,6 @@ Generated ZIP and MATSim XML files are Git-ignored. Specifications, Java code, t
 - Vehicle capacities remain uncertain and use converter defaults.
 - Scenario configuration activation and earlier small smoke tests are documented separately.
 - Olympic Village and Media Village have a simple relocated-demand population representation; facilities and differentiated Games-time demand remain pending.
+- The Mobility Hub transfer-time proxy is implemented and technically tested; shared mobility, parking and physical hub features remain outside the model, and no causal modal-split effect can be inferred without calibrated mode choice.
 - Remaining road and non-PT infrastructure measures are not yet implemented.
 - Final calibration, the Nordring dwell sensitivity, other sensitivity tests and substantive BAU/Fast Track runs remain pending.

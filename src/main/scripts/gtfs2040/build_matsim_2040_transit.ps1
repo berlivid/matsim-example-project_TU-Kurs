@@ -1,6 +1,9 @@
 param(
     [ValidateSet('all', 'bau', 'fast-track')]
-    [string]$Scenario = 'all'
+    [string]$Scenario = 'all',
+
+    [ValidateSet('build', 'analyze')]
+    [string]$Mode = 'build'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -19,7 +22,13 @@ try {
         throw "Maven compilation failed with exit code $LASTEXITCODE."
     }
 
-    $converterArgs = if ($Scenario -eq 'all') {
+    if ($Mode -eq 'analyze' -and $Scenario -ne 'fast-track') {
+        throw "Mobility Hub analysis is Fast-Track-only; use -Scenario fast-track."
+    }
+
+    $converterArgs = if ($Mode -eq 'analyze') {
+        '--analyze-mobility-hubs --scenario fast-track'
+    } elseif ($Scenario -eq 'all') {
         '--all'
     } else {
         "--scenario $Scenario"

@@ -1,0 +1,26 @@
+2026-08-20T23:17:33,083  WARN PrepareForSimImpl:265 'usePersonIdForMissingVehicleId' is deprecated. It will be removed soon.
+2026-08-20T23:17:45,380  WARN RandomizingTimeDistanceTravelDisutilityFactory:113 There will be no routing randomness. The randomization of the travel disutility requires the monetary distance rate to be different than zero. Continuing anyway.
+2026-08-20T23:17:45,380  WARN RandomizingTimeDistanceTravelDisutilityFactory:118 There will be no routing randomness. The randomization of the travel disutility requires the travel time cost rate to be different than zero. Continuing anyway.
+2026-08-20T23:17:48,407  WARN NetworkRoutingProvider:137 [mode: car; routingMode: car] Using deprecated routing module without access/egress. Consider using AccessEgressNetworkRouter instead.
+2026-08-20T23:17:51,532  WARN NetworkRoutingProvider:137 [mode: car; routingMode: car] Using deprecated routing module without access/egress. Consider using AccessEgressNetworkRouter instead.
+2026-08-20T23:17:52,816  WARN NetworkRoutingProvider:137 [mode: car; routingMode: car] Using deprecated routing module without access/egress. Consider using AccessEgressNetworkRouter instead.
+2026-08-20T23:17:52,862  WARN NetworkRoutingProvider:137 [mode: car; routingMode: car] Using deprecated routing module without access/egress. Consider using AccessEgressNetworkRouter instead.
+2026-08-20T23:17:54,114  WARN QueueWithBuffer:504 Link pt_0 too small: enlarge storage capacity from: 1.388888888888889 Vehicles to: 2.5 Vehicles.  This is not fatal, but modifies the traffic flow dynamics.
+2026-08-20T23:17:54,115  WARN QueueWithBuffer:504 Link pt_1 too small: enlarge storage capacity from: 2.811932747731571 Vehicles to: 21.08949560798678 Vehicles.  This is not fatal, but modifies the traffic flow dynamics.
+2026-08-20T23:17:54,115  WARN QueueWithBuffer:504 Link pt_10 too small: enlarge storage capacity from: 2.3268477656342146 Vehicles to: 17.45135824225661 Vehicles.  This is not fatal, but modifies the traffic flow dynamics.
+2026-08-20T23:17:54,115  WARN QueueWithBuffer:504 Link pt_100 too small: enlarge storage capacity from: 1.388888888888889 Vehicles to: 2.5 Vehicles.  This is not fatal, but modifies the traffic flow dynamics.
+2026-08-20T23:17:54,115  WARN QueueWithBuffer:504 Link pt_1000 too small: enlarge storage capacity from: 26.99990264715321 Vehicles to: 202.49926985364905 Vehicles.  This is not fatal, but modifies the traffic flow dynamics.
+2026-08-20T23:17:54,115  WARN QueueWithBuffer:504 Link pt_10000 too small: enlarge storage capacity from: 7.543111193374248 Vehicles to: 56.57333395030686 Vehicles.  This is not fatal, but modifies the traffic flow dynamics.
+2026-08-20T23:17:54,115  WARN QueueWithBuffer:504 Link pt_10001 too small: enlarge storage capacity from: 1.388888888888889 Vehicles to: 8.911677984510133 Vehicles.  This is not fatal, but modifies the traffic flow dynamics.
+2026-08-20T23:17:54,116  WARN QueueWithBuffer:504 Link pt_10002 too small: enlarge storage capacity from: 8.471633548363474 Vehicles to: 63.53725161272605 Vehicles.  This is not fatal, but modifies the traffic flow dynamics.
+2026-08-20T23:17:54,116  WARN QueueWithBuffer:504 Link pt_10003 too small: enlarge storage capacity from: 1.388888888888889 Vehicles to: 2.5 Vehicles.  This is not fatal, but modifies the traffic flow dynamics.
+2026-08-20T23:17:54,116  WARN QueueWithBuffer:504 Link pt_10004 too small: enlarge storage capacity from: 7.0055389365173815 Vehicles to: 52.54154202388036 Vehicles.  This is not fatal, but modifies the traffic flow dynamics.
+2026-08-20T23:17:54,116  WARN QueueWithBuffer:504 Link pt_10005 too small: enlarge storage capacity from: 7.4628557301399 Vehicles to: 55.97141797604925 Vehicles.  This is not fatal, but modifies the traffic flow dynamics.
+2026-08-20T23:17:54,116  WARN QueueWithBuffer:507 Additional warnings of this type are suppressed.
+2026-08-20T23:18:08,732  WARN CharyparNagelActivityScoring:271 The first and the last activity do not have the same type. 
+2026-08-20T23:18:08,732  WARN CharyparNagelActivityScoring:272 Will score the first activity from midnight to its end, and the last activity from its start to midnight.
+2026-08-20T23:18:08,732  WARN CharyparNagelActivityScoring:273 Because of the nonlinear function, this is not the same as scoring from start to end.
+2026-08-20T23:18:08,735  WARN CharyparNagelActivityScoring:274 first activity: act [type=home][coord=[x=4469347.62 | y=5336075.06]][linkId=195042][startTime=undefined][endTime=10:00:00][duration=undefined][facilityId=null]
+2026-08-20T23:18:08,736  WARN CharyparNagelActivityScoring:275 last activity: act [type=work][coord=[x=4468253.7 | y=5334636.36]][linkId=437574][startTime=10:03:57][endTime=undefined][duration=undefined][facilityId=null]
+2026-08-20T23:18:08,736  WARN CharyparNagelActivityScoring:276 This may also happen when plans are not completed when the simulation ends.
+2026-08-20T23:18:08,736  WARN CharyparNagelActivityScoring:278 Additional warnings of this type are suppressed.

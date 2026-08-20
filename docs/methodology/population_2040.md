@@ -2,15 +2,15 @@
 
 ## Role in the thesis design
 
-The same projected population and five-percent sample are used in BAU and Fast Track. This keeps transport demand constant so that differences are interpreted as modelled infrastructure and service contrasts, not causal forecasts with exact real-world probabilities. Pricing is outside the final thesis scope. Olympic Village and Media Village residents, activities and facilities are not yet represented and remain pending before substantive scenario runs.
+BAU and Fast Track use the same projected five-percent population as their demographic baseline. Fast Track then relocates a fixed number of existing `home` and `work` activity locations to the Olympic Village and Media Village. The number of persons, activity times, modes, plan structures and person attributes remain unchanged. The resulting comparison therefore represents a simple spatial demand scenario, not a causal forecast of Games-related population or employment.
 
 ## Purpose
 
-This document describes how the 2040 MATSim population is derived from the
-existing 5% Munich population. The objective is to provide one identical demand
-input for the BAU 2040 and Fast Track 2040 infrastructure scenarios. Keeping the
-demand identical allows differences between the scenarios to be attributed to
-their infrastructure assumptions.
+This document describes how the common 2040 MATSim population is derived from
+the existing 5% Munich population and how the Fast Track village population is
+derived from that unchanged baseline. BAU continues to represent the common
+demographic projection. Fast Track additionally represents a transparent,
+scenario-specific relocation of existing demand.
 
 ## Relevant files
 
@@ -24,6 +24,9 @@ their infrastructure assumptions.
   `original-input-data/munich-demography/munich_boundary.json`
 - Source documentation:
   `original-input-data/munich-demography/README.md`
+- Measure source:
+  `original-input-data/mvv_gtfs_2037/Infrastructure_measures.xlsx`, first
+  worksheet, rows 20-21 and columns L-R
 
 ### Preparation classes
 
@@ -31,14 +34,18 @@ their infrastructure assumptions.
   `src/main/java/org/matsim/project/prepare/AnalyzeMunichPopulation.java`
 - Population generation:
   `src/main/java/org/matsim/project/prepare/CreateMunichPopulation2040.java`
+- Fast Track village relocation:
+  `src/main/java/org/matsim/project/prepare/CreateFastTrackVillagePopulation2040.java`
 
 ### Generated scenario inputs
 
 - `scenarios/munich_bau_2040/population_2040.xml`
 - `scenarios/munich_fast_track_2040/population_2040.xml`
+- `scenarios/munich_fast_track_2040/population_2040_fast_track.xml`
 
-The generated XML files are excluded from Git because they are large and can be
-reproduced by running `CreateMunichPopulation2040`.
+The generated XML files are excluded from Git because they are large. The two
+common files are reproduced by `CreateMunichPopulation2040`; the scenario-specific
+Fast Track file is then reproduced by `CreateFastTrackVillagePopulation2040`.
 
 ## Spatial classification
 
@@ -134,12 +141,57 @@ Generated IDs follow this pattern:
 munich2040_<clone number>_from_<source person ID>
 ```
 
+## Fast Track village relocation
+
+The production Fast Track population is derived from the unchanged local
+`population_2040.xml`. WGS84 input follows the conventional latitude/longitude
+notation below; the transformation passes longitude as x and latitude as y to
+MATSim. Both coordinates are transformed to `EPSG:31468`.
+
+In the inspected workbook range, cells `L20` and `L21` both cite the official
+Munich City Council decision at
+`https://www.olympiabewerbung-muenchen.com/wp-content/uploads/Beschluss_der_Vollversammlung_Stadtrat_Muenchen.pdf`.
+Cells M-R contain no further substantive source or implementation value. The
+two WGS84 centroids and relocation counts are explicit scenario inputs supplied
+for this implementation; they are not inferred from the blank workbook cells.
+
+| Site | WGS84 latitude | WGS84 longitude | EPSG:31468 x | EPSG:31468 y | Car link | Distance to link |
+|---|---:|---:|---:|---:|---|---:|
+| Olympic Village | 48.153739 | 11.658821 | 4,474,723.879 | 5,335,134.368 | `3215` | 2.0 m |
+| Media Village | 48.142233 | 11.657852 | 4,474,646.104 | 5,333,855.294 | `416540` | 190.0 m |
+
+The nearest-link search considers only links whose allowed modes include
+`car` and measures the shortest Euclidean distance to each link segment. A
+build fails if the nearest such link is more than 1,000 metres away; no road
+link is invented.
+
+The builder sorts eligible person IDs before applying fixed-seed shuffles
+(`20402021` for Home and `20402022` for Work). It assigns persons in this order:
+
+| Site | Home persons | Work persons | Changed Home activities | Changed Work activities |
+|---|---:|---:|---:|---:|
+| Olympic Village | 525 | 175 | 1,050 | 175 |
+| Media Village | 175 | 58 | 350 | 58 |
+
+Home-eligible persons have at least one `home` activity in the selected plan.
+Work-eligible persons have at least one `work` activity and are excluded if
+they were already selected for a Home relocation. This keeps the two effects
+analytically distinct. Every matching activity in the selected plan is moved
+to the same site coordinate and assigned the site's car link. Other plans and
+all other activity fields remain unchanged. No person is added or removed.
+
 ## Scenario configuration
 
-Both 2040 configs use the generated local population:
+BAU uses the unchanged common population:
 
 ```xml
 <param name="inputPlansFile" value="population_2040.xml" />
+```
+
+Fast Track uses the derived village population:
+
+```xml
+<param name="inputPlansFile" value="population_2040_fast_track.xml" />
 ```
 
 Because the model continues to represent a 5% sample, the capacity factors
@@ -162,8 +214,10 @@ remain:
 | Without home activity | 107,618 |
 | Without home coordinate | 0 |
 
-The BAU and Fast Track population files were also compared using SHA-256 and
-were byte-identical in the validation run.
+The common BAU and Fast Track source populations remain byte-identical with
+SHA-256 `FF93581E4FF105BE86408102BFA3D45CC0CC06C200763DA01B0DC344C4323C6B`.
+The derived Fast Track file contains the same 336,208 persons and differs only
+through the documented selected-plan activity coordinates and link references.
 
 ## Assumptions and limitations
 
@@ -184,7 +238,16 @@ were byte-identical in the validation run.
 - Age-specific mobility changes cannot currently be represented.
 - The approach scales resident demand but does not separately model changing
   commuter, visitor or freight demand.
-- BAU 2040 and Fast Track 2040 deliberately use identical initial demand.
+- BAU retains the common demand distribution; Fast Track changes only the
+  documented village activity locations.
+- The relocation counts are modelling assumptions for a five-percent sample.
+  They are not independently derived resident or job forecasts.
+- The two points are demand centroids, not official parcel boundaries or
+  building locations.
+- Existing car links provide routing access. No new local street network,
+  facility capacity or pedestrian access is represented.
+- Permanent residents, temporary athlete/media accommodation, workers and
+  visitors are not separated behaviourally.
 - This is a demand-scaling method, not a demographic population synthesis or a
   calibration of the 2023 base scenario.
 
@@ -202,6 +265,10 @@ In IntelliJ:
 
 3. Confirm that `Total persons` equals 336,208 and `Home inside Munich` equals
    80,935.
+4. Run `CreateFastTrackVillagePopulation2040.main()` to generate
+   `scenarios/munich_fast_track_2040/population_2040_fast_track.xml`.
+5. Run `CreateFastTrackVillagePopulation2040Test` and rerun the builder; confirm
+   that the output SHA-256 is unchanged.
 
 The line `Expected from 2023 data` in the analysis output is a 2023 reference.
 It is not the expected 2040 value.

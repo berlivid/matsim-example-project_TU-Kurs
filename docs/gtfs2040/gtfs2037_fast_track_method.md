@@ -94,7 +94,7 @@ Generated ZIP and MATSim XML files are Git-ignored. Specifications, Java code, t
 - Future station coordinates and new running times use explicit proxies and derivations.
 - Neither U9 nor Nordring has an operationally validated timetable.
 - Vehicle capacities remain uncertain and use converter defaults.
-- Scenario configuration activation and small smoke tests are pending.
-- Olympic Village and Media Village still require population and facility representation.
+- Scenario configuration activation and earlier small smoke tests are documented separately.
+- Olympic Village and Media Village have a simple relocated-demand population representation; facilities and differentiated Games-time demand remain pending.
 - Remaining road and non-PT infrastructure measures are not yet implemented.
 - Final calibration, the Nordring dwell sensitivity, other sensitivity tests and substantive BAU/Fast Track runs remain pending.

@@ -95,7 +95,7 @@
     </module>
 
     <module name="plans">
-        <param name="inputPlansFile" value="population_2040.xml" />
+        <param name="inputPlansFile" value="population_2040_fast_track.xml" />
     </module>
 
     <module name="planCalcScore" >

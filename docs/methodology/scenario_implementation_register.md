@@ -20,8 +20,8 @@ The CSV register is authoritative for row-level decisions: [`scenario_implementa
 | Status | Measures | Interpretation |
 |---|---:|---|
 | Implemented and tested | 12 | Poccistraße, Berduxstraße, Nordring, second S-Bahn trunk, three forecast tram projects, U5 Pasing, U5 Freiham, U6 Martinsried, U9 and U4 East |
-| Partially or indirectly represented | 5 | Daglfing–Johanneskirchen capacity, Westkreuz junction, Sendlinger Spange, Paul-Gerhardt-Allee and the new Hauptbahnhof |
-| Still required | 4 | Pedestrian zones, mobility hubs, Olympic Village and Media Village |
+| Partially or indirectly represented | 7 | Daglfing–Johanneskirchen capacity, Westkreuz junction, Sendlinger Spange, Paul-Gerhardt-Allee, the new Hauptbahnhof, Olympic Village and Media Village |
+| Still required | 2 | Pedestrian zones and mobility hubs |
 | Intentionally not modelled | 6 | Autonomous operation, cycle express route, park corridors and the three measures excluded from both scenarios |
 
 ### Public-transport completeness
@@ -36,7 +36,9 @@ The Nordring, U9 and U4 extension are complete within their documented strategic
 
 ## Population and place-based measures
 
-The BAU and Fast Track population files are byte-identical, with SHA-256 `FF93581E4FF105BE86408102BFA3D45CC0CC06C200763DA01B0DC344C4323C6B`. Consequently, no Fast Track-specific Olympic or Media Village demand has yet been introduced.
+BAU retains `population_2040.xml`. Fast Track uses `population_2040_fast_track.xml`, deterministically derived from the byte-identical common source population (SHA-256 `FF93581E4FF105BE86408102BFA3D45CC0CC06C200763DA01B0DC344C4323C6B`). The builder relocates 525 Home persons and 175 Work persons to the Olympic Village, and 175 Home persons and 58 Work persons to the Media Village. It creates no new persons and preserves activity times, modes, plan structures and person attributes.
+
+The demand centroids are transformed from supplied WGS84 coordinates to `EPSG:31468`. Olympic Village uses `(4474723.879, 5335134.368)` and car link `3215` at 2.0 metres. Media Village uses `(4474646.104, 5333855.294)` and car link `416540` at 190.0 metres. These are scenario assumptions and routing anchors, not official site boundaries or invented roads.
 
 Existing activities were counted as a diagnostic using circular spatial proxies in `EPSG:31468`. These buffers are not official development boundaries and must not be used to assign final population:
 
@@ -46,7 +48,7 @@ Existing activities were counted as a diagnostic using circular spatial proxies 
 | Media Village | 1 km around Trabrennbahn stop 107720 | 240 | 375 | 1,215 |
 | Paul-Gerhardt-Allee | 1 km around stop 109761 | 587 | 182 | 1,534 |
 
-These results demonstrate substantial pre-existing modelled activity. Adding the headline village populations on top of the current population would risk double counting. The next implementation must distinguish:
+The earlier diagnostics demonstrate substantial pre-existing modelled activity. The implemented relocation avoids increasing the total population, but future refinement must still distinguish:
 
 1. **relocation**, where existing synthetic persons or activities are moved while total population is conserved;
 2. **additional long-term population**, which must be reconciled with the demographic projection already used to create `population_2040.xml`;
@@ -65,13 +67,13 @@ Autonomous public transport is excluded as a technology label because automation
 ## Prioritized next implementation list
 
 1. **Regenerate and validate MATSim transit inputs.** Convert the rebuilt BAU and Fast Track GTFS feeds, rerun focused routing checks for both new stations, and only then regard the activated configs as current.
-2. **Specify village demand without double counting.** Obtain official site boundaries and decide separately how permanent residents, relocated residents, Media Village accommodation, workplaces and temporary Games demand relate to the existing 2040 population.
+2. **Refine village demand without double counting.** Obtain official site boundaries and decide separately how permanent residents, relocated residents, Media Village accommodation, workplaces and temporary Games demand relate to the existing 2040 population.
 3. **Audit Paul-Gerhardt-Allee against demographic and road-source provenance.** Establish whether its residents and road access are already embedded before changing population or network files.
 
 Only after these tasks should lower-priority non-PT measures be considered. Pedestrian-zone link closures need authoritative geometry and access rules. Mobility hubs need named sites and a mechanism that affects represented modes. Cycle and park-corridor measures should remain outside the quantified comparison unless a calibrated active-mode model is added.
 
 ## Validation and limitations
 
-This is a content audit, not a simulation result. It used the workbook, current documentation, both activated configs, route inventory, generated GTFS files, MATSim schedules and streaming population inspection. No GTFS, network, population, facility or configuration file was changed, and no simulation was run.
+This is an implementation audit, not a simulation result. The village update changes only the derived Fast Track population and its production population reference. BAU, GTFS, networks and facilities remain unchanged; no substantive simulation was run.
 
 The forecast GTFS is a supplied planning dataset rather than an independently certified operational timetable. Physical railway capacity, construction disruption, station-concourse capacity, pedestrian amenity, cycling quality and land-use development are not automatically created by the PT pseudonetwork. Each later implementation must retain the register's distinction between source facts, modelling decisions and explicit assumptions.

@@ -6,6 +6,6 @@ transit.transitScheduleFile,input_transit/transitSchedule.xml.gz,input_transit/t
 transit.vehiclesFile,input_transit/transitVehicles.xml.gz,input_transit/transitVehicles.xml.gz,same relative path and scenario-specific file
 transit.useTransit,true,true,identical
 global.coordinateSystem,EPSG:31468,EPSG:31468,identical
-plans.inputPlansFile,population_2040.xml,population_2040.xml,identical
+plans.inputPlansFile,population_2040.xml,population_2040_fast_track.xml,scenario-specific village relocation
 qsim.flowCapacityFactor,0.05,0.05,identical
 qsim.storageCapacityFactor,0.05,0.05,identical

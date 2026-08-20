@@ -1,0 +1,7 @@
+pattern	0+	5+	10+	15+	20+	25+	30+	35+	40+	45+	50+	55+	60+
+home---pt interaction	1	0	0	0	0	0	0	0	0	0	0	0	0
+home---work	1	0	0	0	0	0	0	0	0	0	0	0	0
+pt interaction---pt interaction	1	0	0	0	0	0	0	0	0	0	0	0	0
+pt interaction---work	1	0	0	0	0	0	0	0	0	0	0	0	0
+
+average leg duration: 120.25 seconds = 00:02:00

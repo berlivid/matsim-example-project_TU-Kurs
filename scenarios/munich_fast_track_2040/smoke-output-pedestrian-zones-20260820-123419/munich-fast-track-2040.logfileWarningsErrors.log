@@ -1,0 +1,152 @@
+2026-08-20T12:34:44,509  WARN PrepareForSimImpl:265 'usePersonIdForMissingVehicleId' is deprecated. It will be removed soon.
+2026-08-20T12:34:58,266 ERROR NetworkRoutingProvider:160 Network for mode 'car' has unreachable links and nodes. This may be caused by mode restrictions on certain links. Aborting.
+ If you restricted modes on some links, consider doing that with NetworkUtils.restrictModesAndCleanNetwork(). This makes sure, that the network is consistent for each mode.
+ If this network topology is intended, set the routing config parameter 'networkRouteConsistencyCheck' to 'disable'.
+2026-08-20T12:34:58,268 ERROR MatsimRuntimeModifications:76 Getting uncaught Exception in Thread org.matsim.project.RunMatsim2040TransitSmokeTest.main()
+com.google.inject.ProvisionException: Unable to provision, see the following errors:
+
+1) [Guice/ErrorInCustomProvider]: RuntimeException: Network for mode 'car' has unreachable links and nodes. This may be caused by mode restrictions on certain links. Aborting.
+  at TripRouterModule.install(TripRouterModule.java:68)
+      \_ installed by: Modules$CombinedModule -> Modules$CombinedModule -> AbstractModule$6 -> Modules$OverrideModule -> Controler$2 -> ControlerDefaultsModule -> TripRouterModule
+  while locating RoutingModule annotated with @Named("car")
+  while locating RoutingModule annotated with @Element(setName=,uniqueId=108, type=MAPBINDER, keyType=String)
+  at TripRouter.<init>(TripRouter.java:94)
+  while locating TripRouter
+
+Learn more:
+  https://github.com/google/guice/wiki/ERROR_IN_CUSTOM_PROVIDER
+
+1 error
+
+======================
+Full classname legend:
+======================
+AbstractModule$6:        "org.matsim.core.controler.AbstractModule$6"
+Controler$2:             "org.matsim.core.controler.Controler$2"
+ControlerDefaultsModule: "org.matsim.core.controler.ControlerDefaultsModule"
+Element:                 "com.google.inject.internal.Element"
+Modules$CombinedModule:  "com.google.inject.util.Modules$CombinedModule"
+Modules$OverrideModule:  "com.google.inject.util.Modules$OverrideModule"
+Named:                   "com.google.inject.name.Named"
+RoutingModule:           "org.matsim.core.router.RoutingModule"
+TripRouter:              "org.matsim.core.router.TripRouter"
+TripRouterModule:        "org.matsim.core.router.TripRouterModule"
+========================
+End of classname legend:
+========================
+
+	at com.google.inject.internal.InternalProvisionException.toProvisionException(InternalProvisionException.java:251) ~[guice-7.0.0.jar:?]
+	at com.google.inject.internal.InjectorImpl$1.get(InjectorImpl.java:1151) ~[guice-7.0.0.jar:?]
+	at org.matsim.core.controler.PrepareForSimImpl.lambda$run$0(PrepareForSimImpl.java:194) ~[matsim-2025.0.jar:?]
+	at org.matsim.core.population.algorithms.ParallelPersonAlgorithmUtils.run(ParallelPersonAlgorithmUtils.java:87) ~[matsim-2025.0.jar:?]
+	at org.matsim.core.controler.PrepareForSimImpl.run(PrepareForSimImpl.java:193) ~[matsim-2025.0.jar:?]
+	at org.matsim.core.controler.NewControler.prepareForSim(NewControler.java:114) ~[matsim-2025.0.jar:?]
+	at org.matsim.core.controler.AbstractController$1.run(AbstractController.java:83) ~[matsim-2025.0.jar:?]
+	at org.matsim.core.controler.MatsimRuntimeModifications.run(MatsimRuntimeModifications.java:70) ~[matsim-2025.0.jar:?]
+	at org.matsim.core.controler.MatsimRuntimeModifications.run(MatsimRuntimeModifications.java:53) ~[matsim-2025.0.jar:?]
+	at org.matsim.core.controler.AbstractController.run(AbstractController.java:92) ~[matsim-2025.0.jar:?]
+	at org.matsim.core.controler.NewControler.run(NewControler.java:83) ~[matsim-2025.0.jar:?]
+	at org.matsim.core.controler.Controler.run(Controler.java:259) ~[matsim-2025.0.jar:?]
+	at org.matsim.project.RunMatsim2040TransitSmokeTest.main(RunMatsim2040TransitSmokeTest.java:73) ~[classes/:?]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[?:?]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[?:?]
+	at org.codehaus.mojo.exec.AbstractExecJavaBase.executeMainMethod(AbstractExecJavaBase.java:402) ~[?:?]
+	at org.codehaus.mojo.exec.ExecJavaMojo.executeMainMethod(ExecJavaMojo.java:142) ~[?:?]
+	at org.codehaus.mojo.exec.AbstractExecJavaBase.doExecClassLoader(AbstractExecJavaBase.java:377) ~[?:?]
+	at org.codehaus.mojo.exec.AbstractExecJavaBase.lambda$execute$0(AbstractExecJavaBase.java:287) ~[?:?]
+	at java.base/java.lang.Thread.run(Thread.java:1583) [?:?]
+Caused by: java.lang.RuntimeException: Network for mode 'car' has unreachable links and nodes. This may be caused by mode restrictions on certain links. Aborting.
+	at org.matsim.core.router.NetworkRoutingProvider.checkNetwork(NetworkRoutingProvider.java:162) ~[matsim-2025.0.jar:?]
+	at org.matsim.core.router.NetworkRoutingProvider.get(NetworkRoutingProvider.java:101) ~[matsim-2025.0.jar:?]
+	at org.matsim.core.router.NetworkRoutingProvider.get(NetworkRoutingProvider.java:46) ~[matsim-2025.0.jar:?]
+	at com.google.inject.internal.ProviderInternalFactory.provision(ProviderInternalFactory.java:86) ~[guice-7.0.0.jar:?]
+	at com.google.inject.internal.InternalFactoryToInitializableAdapter.provision(InternalFactoryToInitializableAdapter.java:57) ~[guice-7.0.0.jar:?]
+	at com.google.inject.internal.ProviderInternalFactory.circularGet(ProviderInternalFactory.java:60) ~[guice-7.0.0.jar:?]
+	at com.google.inject.internal.InternalFactoryToInitializableAdapter.get(InternalFactoryToInitializableAdapter.java:47) ~[guice-7.0.0.jar:?]
+	at com.google.inject.internal.FactoryProxy.get(FactoryProxy.java:60) ~[guice-7.0.0.jar:?]
+	at com.google.inject.internal.InjectorImpl$1.get(InjectorImpl.java:1148) ~[guice-7.0.0.jar:?]
+	at org.matsim.core.router.TripRouter.<init>(TripRouter.java:98) ~[matsim-2025.0.jar:?]
+	at org.matsim.core.router.TripRouter$$FastClassByGuice$$ef689a.GUICE$TRAMPOLINE(<generated>) ~[?:?]
+	at org.matsim.core.router.TripRouter$$FastClassByGuice$$ef689a.apply(<generated>) ~[?:?]
+	at com.google.inject.internal.DefaultConstructionProxyFactory$FastClassProxy.newInstance(DefaultConstructionProxyFactory.java:82) ~[guice-7.0.0.jar:?]
+	at com.google.inject.internal.ConstructorInjector.provision(ConstructorInjector.java:114) ~[guice-7.0.0.jar:?]
+	at com.google.inject.internal.ConstructorInjector.construct(ConstructorInjector.java:91) ~[guice-7.0.0.jar:?]
+	at com.google.inject.internal.ConstructorBindingImpl$Factory.get(ConstructorBindingImpl.java:300) ~[guice-7.0.0.jar:?]
+	at com.google.inject.internal.InjectorImpl$1.get(InjectorImpl.java:1148) ~[guice-7.0.0.jar:?]
+	... 18 more
+2026-08-20T12:34:58,316 ERROR MatsimRuntimeModifications:82 ERROR --- This is an unexpected shutdown!
+2026-08-20T12:34:58,316 ERROR MatsimRuntimeModifications:85 Shutdown possibly caused by the following Exception:
+com.google.inject.ProvisionException: Unable to provision, see the following errors:
+
+1) [Guice/ErrorInCustomProvider]: RuntimeException: Network for mode 'car' has unreachable links and nodes. This may be caused by mode restrictions on certain links. Aborting.
+  at TripRouterModule.install(TripRouterModule.java:68)
+      \_ installed by: Modules$CombinedModule -> Modules$CombinedModule -> AbstractModule$6 -> Modules$OverrideModule -> Controler$2 -> ControlerDefaultsModule -> TripRouterModule
+  while locating RoutingModule annotated with @Named("car")
+  while locating RoutingModule annotated with @Element(setName=,uniqueId=108, type=MAPBINDER, keyType=String)
+  at TripRouter.<init>(TripRouter.java:94)
+  while locating TripRouter
+
+Learn more:
+  https://github.com/google/guice/wiki/ERROR_IN_CUSTOM_PROVIDER
+
+1 error
+
+======================
+Full classname legend:
+======================
+AbstractModule$6:        "org.matsim.core.controler.AbstractModule$6"
+Controler$2:             "org.matsim.core.controler.Controler$2"
+ControlerDefaultsModule: "org.matsim.core.controler.ControlerDefaultsModule"
+Element:                 "com.google.inject.internal.Element"
+Modules$CombinedModule:  "com.google.inject.util.Modules$CombinedModule"
+Modules$OverrideModule:  "com.google.inject.util.Modules$OverrideModule"
+Named:                   "com.google.inject.name.Named"
+RoutingModule:           "org.matsim.core.router.RoutingModule"
+TripRouter:              "org.matsim.core.router.TripRouter"
+TripRouterModule:        "org.matsim.core.router.TripRouterModule"
+========================
+End of classname legend:
+========================
+
+	at com.google.inject.internal.InternalProvisionException.toProvisionException(InternalProvisionException.java:251) ~[guice-7.0.0.jar:?]
+	at com.google.inject.internal.InjectorImpl$1.get(InjectorImpl.java:1151) ~[guice-7.0.0.jar:?]
+	at org.matsim.core.controler.PrepareForSimImpl.lambda$run$0(PrepareForSimImpl.java:194) ~[matsim-2025.0.jar:?]
+	at org.matsim.core.population.algorithms.ParallelPersonAlgorithmUtils.run(ParallelPersonAlgorithmUtils.java:87) ~[matsim-2025.0.jar:?]
+	at org.matsim.core.controler.PrepareForSimImpl.run(PrepareForSimImpl.java:193) ~[matsim-2025.0.jar:?]
+	at org.matsim.core.controler.NewControler.prepareForSim(NewControler.java:114) ~[matsim-2025.0.jar:?]
+	at org.matsim.core.controler.AbstractController$1.run(AbstractController.java:83) ~[matsim-2025.0.jar:?]
+	at org.matsim.core.controler.MatsimRuntimeModifications.run(MatsimRuntimeModifications.java:70) ~[matsim-2025.0.jar:?]
+	at org.matsim.core.controler.MatsimRuntimeModifications.run(MatsimRuntimeModifications.java:53) ~[matsim-2025.0.jar:?]
+	at org.matsim.core.controler.AbstractController.run(AbstractController.java:92) ~[matsim-2025.0.jar:?]
+	at org.matsim.core.controler.NewControler.run(NewControler.java:83) ~[matsim-2025.0.jar:?]
+	at org.matsim.core.controler.Controler.run(Controler.java:259) ~[matsim-2025.0.jar:?]
+	at org.matsim.project.RunMatsim2040TransitSmokeTest.main(RunMatsim2040TransitSmokeTest.java:73) ~[classes/:?]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[?:?]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[?:?]
+	at org.codehaus.mojo.exec.AbstractExecJavaBase.executeMainMethod(AbstractExecJavaBase.java:402) ~[?:?]
+	at org.codehaus.mojo.exec.ExecJavaMojo.executeMainMethod(ExecJavaMojo.java:142) ~[?:?]
+	at org.codehaus.mojo.exec.AbstractExecJavaBase.doExecClassLoader(AbstractExecJavaBase.java:377) ~[?:?]
+	at org.codehaus.mojo.exec.AbstractExecJavaBase.lambda$execute$0(AbstractExecJavaBase.java:287) ~[?:?]
+	at java.base/java.lang.Thread.run(Thread.java:1583) [?:?]
+Caused by: java.lang.RuntimeException: Network for mode 'car' has unreachable links and nodes. This may be caused by mode restrictions on certain links. Aborting.
+	at org.matsim.core.router.NetworkRoutingProvider.checkNetwork(NetworkRoutingProvider.java:162) ~[matsim-2025.0.jar:?]
+	at org.matsim.core.router.NetworkRoutingProvider.get(NetworkRoutingProvider.java:101) ~[matsim-2025.0.jar:?]
+	at org.matsim.core.router.NetworkRoutingProvider.get(NetworkRoutingProvider.java:46) ~[matsim-2025.0.jar:?]
+	at com.google.inject.internal.ProviderInternalFactory.provision(ProviderInternalFactory.java:86) ~[guice-7.0.0.jar:?]
+	at com.google.inject.internal.InternalFactoryToInitializableAdapter.provision(InternalFactoryToInitializableAdapter.java:57) ~[guice-7.0.0.jar:?]
+	at com.google.inject.internal.ProviderInternalFactory.circularGet(ProviderInternalFactory.java:60) ~[guice-7.0.0.jar:?]
+	at com.google.inject.internal.InternalFactoryToInitializableAdapter.get(InternalFactoryToInitializableAdapter.java:47) ~[guice-7.0.0.jar:?]
+	at com.google.inject.internal.FactoryProxy.get(FactoryProxy.java:60) ~[guice-7.0.0.jar:?]
+	at com.google.inject.internal.InjectorImpl$1.get(InjectorImpl.java:1148) ~[guice-7.0.0.jar:?]
+	at org.matsim.core.router.TripRouter.<init>(TripRouter.java:98) ~[matsim-2025.0.jar:?]
+	at org.matsim.core.router.TripRouter$$FastClassByGuice$$ef689a.GUICE$TRAMPOLINE(<generated>) ~[?:?]
+	at org.matsim.core.router.TripRouter$$FastClassByGuice$$ef689a.apply(<generated>) ~[?:?]
+	at com.google.inject.internal.DefaultConstructionProxyFactory$FastClassProxy.newInstance(DefaultConstructionProxyFactory.java:82) ~[guice-7.0.0.jar:?]
+	at com.google.inject.internal.ConstructorInjector.provision(ConstructorInjector.java:114) ~[guice-7.0.0.jar:?]
+	at com.google.inject.internal.ConstructorInjector.construct(ConstructorInjector.java:91) ~[guice-7.0.0.jar:?]
+	at com.google.inject.internal.ConstructorBindingImpl$Factory.get(ConstructorBindingImpl.java:300) ~[guice-7.0.0.jar:?]
+	at com.google.inject.internal.InjectorImpl$1.get(InjectorImpl.java:1148) ~[guice-7.0.0.jar:?]
+	... 18 more
+2026-08-20T12:35:03,401 ERROR MatsimRuntimeModifications:100 ERROR --- MATSim unexpectedly terminated. Please check the output or the logfile with warnings and errors for hints.
+2026-08-20T12:35:03,401 ERROR MatsimRuntimeModifications:101 ERROR --- results should not be used for further analysis.
+2026-08-20T12:35:03,401 ERROR MatsimRuntimeModifications:105 ERROR --- This was an unexpected shutdown! See the log file for a possible reason.

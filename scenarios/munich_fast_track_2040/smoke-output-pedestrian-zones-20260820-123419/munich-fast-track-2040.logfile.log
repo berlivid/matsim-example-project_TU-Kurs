@@ -1,0 +1,255 @@
+2026-08-20T12:34:43,099  INFO Gbl:64 JVM: 21.0.10; Eclipse Adoptium; mixed mode, sharing; 64-bit
+2026-08-20T12:34:43,101  INFO Gbl:68 OS: Windows 11; 10.0; amd64
+2026-08-20T12:34:43,102  INFO Gbl:71 CPU cores: 12
+2026-08-20T12:34:43,105  INFO Gbl:72 max. Memory: 3936.0MB (4127195136B)
+2026-08-20T12:34:43,106  INFO Gbl:114 MATSim-Build: r7f2ea0d07d20e164b577066595eddc23e3659473 ({2025-04-11 08:55:36})
+2026-08-20T12:34:43,107  INFO Gbl:76 Command: org.codehaus.plexus.classworlds.launcher.Launcher -q -DskipTests compile exec:java -Dexec.mainClass=org.matsim.project.RunMatsim2040TransitSmokeTest -Dexec.args=fast-track scenarios/munich_fast_track_2040/smoke-output-pedestrian-zones-20260820-123419
+2026-08-20T12:34:43,113  INFO ControlerListenerManagerImpl:112 calling notifyStartup on org.matsim.core.controler.ControlerDefaultsModule$1 with priority 0.0
+2026-08-20T12:34:43,114  INFO MemoryObserver:42 used RAM: 1179 MB  free: 657 MB  total: 1836 MB
+2026-08-20T12:34:43,281  INFO ControlerListenerManagerImpl:112 calling notifyStartup on org.matsim.guice.DependencyGraphControlerListener with priority 0.0
+2026-08-20T12:34:43,434  INFO ControlerListenerManagerImpl:112 calling notifyStartup on org.matsim.counts.CountsControlerListener with priority 0.0
+2026-08-20T12:34:43,435  INFO ControlerListenerManagerImpl:112 calling notifyStartup on org.matsim.analysis.ModeChoiceCoverageControlerListener with priority 0.0
+2026-08-20T12:34:43,435  INFO ControlerListenerManagerImpl:112 calling notifyStartup on org.matsim.analysis.ModeStatsControlerListener with priority 0.0
+2026-08-20T12:34:43,435  INFO ControlerListenerManagerImpl:112 calling notifyStartup on org.matsim.analysis.ScoreStatsControlerListener with priority 0.0
+2026-08-20T12:34:43,436  INFO ControlerListenerManagerImpl:115 all ControlerStartupListeners called.
+2026-08-20T12:34:43,438  INFO ControllerUtils:99 config dump before iterations start
+2026-08-20T12:34:43,465  INFO ControllerUtils:105 === logging config.xml skipped ===
+2026-08-20T12:34:43,465  INFO ControllerUtils:106 To enable debug output, set an environment variable i.e. export LOG_LEVEL='debug', or set log.setLogLevel(Level.DEBUG) in your run class.
+2026-08-20T12:34:43,466  INFO ControllerUtils:110 Complete config dump done.
+2026-08-20T12:34:43,466  INFO ControllerUtils:111 Checking consistency of config...
+2026-08-20T12:34:43,466  INFO ScoringConfigGroup$ScoringParameterSet:1607 NO OPENING OR CLOSING TIMES DEFINED!
+
+There is no activity type that has an opening *and* closing time (or opening time and late penalty) defined.
+This usually means that the activity chains can be shifted by an arbitrary
+number of hours without having an effect on the score of the plans, and thus
+resulting in wrong results / traffic patterns.
+If you are using MATSim without time adaptation, you can ignore this warning.
+
+
+2026-08-20T12:34:43,467  INFO VspConfigConsistencyCheckerImpl:62 NOT running vsp config consistency check because vsp defaults checking level is set to IGNORE
+2026-08-20T12:34:43,476  INFO ControllerUtils:113 Checking consistency of config done.
+2026-08-20T12:34:43,619  INFO PrepareForSimImpl:125 Network seems to be multimodal. Create car-only network which is handed over to PersonPrepareForSim.
+2026-08-20T12:34:43,627  INFO NetworkImpl:165  node # 1
+2026-08-20T12:34:43,627  INFO NetworkImpl:165  node # 4
+2026-08-20T12:34:43,628  INFO NetworkImpl:165  node # 16
+2026-08-20T12:34:43,628  INFO NetworkImpl:165  node # 64
+2026-08-20T12:34:43,628  INFO NetworkImpl:165  node # 256
+2026-08-20T12:34:43,628  INFO NetworkImpl:165  node # 1024
+2026-08-20T12:34:43,630  INFO NetworkImpl:165  node # 4096
+2026-08-20T12:34:43,637  INFO NetworkImpl:165  node # 16384
+2026-08-20T12:34:43,654  INFO NetworkImpl:165  node # 65536
+2026-08-20T12:34:43,678  INFO NetworkImpl:161  link # 1
+2026-08-20T12:34:43,678  INFO NetworkImpl:161  link # 4
+2026-08-20T12:34:43,678  INFO NetworkImpl:161  link # 16
+2026-08-20T12:34:43,679  INFO NetworkImpl:161  link # 64
+2026-08-20T12:34:43,679  INFO NetworkImpl:161  link # 256
+2026-08-20T12:34:43,683  INFO NetworkImpl:161  link # 1024
+2026-08-20T12:34:43,691  INFO NetworkImpl:161  link # 4096
+2026-08-20T12:34:43,723  INFO NetworkImpl:161  link # 16384
+2026-08-20T12:34:43,805  INFO NetworkImpl:161  link # 65536
+2026-08-20T12:34:44,048  INFO NetworkImpl:161  link # 262144
+2026-08-20T12:34:44,509  WARN PrepareForSimImpl:265 'usePersonIdForMissingVehicleId' is deprecated. It will be removed soon.
+2026-08-20T12:34:44,510  INFO Counter:70 [VehiclesImpl] added vehicle # 1
+2026-08-20T12:34:44,510  INFO Counter:70 [VehiclesImpl] added vehicle # 2
+2026-08-20T12:34:44,524  INFO EventsManagerImpl:139 === Logging of event-handlers skipped ===
+2026-08-20T12:34:44,524  INFO EventsManagerImpl:140 To enable debug output, set an environment variable i.e. export LOG_LEVEL='debug', or set log.setLogLevel(Level.DEBUG) in your run class.
+2026-08-20T12:34:44,524  INFO EventsManagerImpl:210     > org.matsim.pt.router.TransitScheduleChangedEvent
+2026-08-20T12:34:44,524  INFO EventsManagerImpl:139 === Logging of event-handlers skipped ===
+2026-08-20T12:34:44,525  INFO EventsManagerImpl:140 To enable debug output, set an environment variable i.e. export LOG_LEVEL='debug', or set log.setLogLevel(Level.DEBUG) in your run class.
+2026-08-20T12:34:44,525  INFO EventsManagerImpl:210     > org.matsim.pt.router.TransitScheduleChangedEvent
+2026-08-20T12:34:44,526  INFO SwissRailRaptorData:105 Preparing data for SwissRailRaptor...
+2026-08-20T12:34:55,728  INFO SwissRailRaptorData:258 SwissRailRaptor data preparation done. Took 11 seconds.
+2026-08-20T12:34:55,728  INFO SwissRailRaptorData:259 SwissRailRaptor statistics:  #routes = 14309
+2026-08-20T12:34:55,728  INFO SwissRailRaptorData:260 SwissRailRaptor statistics:  #departures = 71300
+2026-08-20T12:34:55,729  INFO SwissRailRaptorData:261 SwissRailRaptor statistics:  #routeStops = 262873
+2026-08-20T12:34:55,729  INFO SwissRailRaptorData:262 SwissRailRaptor statistics:  #stopFacilities = 62594
+2026-08-20T12:34:55,729  INFO SwissRailRaptorData:263 SwissRailRaptor statistics:  #transfers (between routeStops) = 4075945
+2026-08-20T12:34:55,741  INFO NetworkImpl:165  node # 1
+2026-08-20T12:34:55,742  INFO NetworkImpl:165  node # 4
+2026-08-20T12:34:55,742  INFO NetworkImpl:165  node # 16
+2026-08-20T12:34:55,742  INFO NetworkImpl:165  node # 64
+2026-08-20T12:34:55,742  INFO NetworkImpl:165  node # 256
+2026-08-20T12:34:55,743  INFO NetworkImpl:165  node # 1024
+2026-08-20T12:34:55,744  INFO NetworkImpl:165  node # 4096
+2026-08-20T12:34:55,745  INFO NetworkImpl:165  node # 16384
+2026-08-20T12:34:55,756  INFO NetworkImpl:165  node # 65536
+2026-08-20T12:34:55,777  INFO NetworkImpl:161  link # 1
+2026-08-20T12:34:55,777  INFO NetworkImpl:161  link # 4
+2026-08-20T12:34:55,777  INFO NetworkImpl:161  link # 16
+2026-08-20T12:34:55,777  INFO NetworkImpl:161  link # 64
+2026-08-20T12:34:55,778  INFO NetworkImpl:161  link # 256
+2026-08-20T12:34:55,780  INFO NetworkImpl:161  link # 1024
+2026-08-20T12:34:55,786  INFO NetworkImpl:161  link # 4096
+2026-08-20T12:34:55,813  INFO NetworkImpl:161  link # 16384
+2026-08-20T12:34:55,925  INFO NetworkImpl:161  link # 65536
+2026-08-20T12:34:56,244  INFO NetworkImpl:161  link # 262144
+2026-08-20T12:34:56,574  INFO NetworkRoutingProvider:151 Checking network for mode 'car' for consistency...
+2026-08-20T12:34:56,712  INFO MultimodalNetworkCleaner:104 running org.matsim.core.network.algorithms.MultimodalNetworkCleaner algorithm for modes [car] with connectivity modes []...
+2026-08-20T12:34:56,715  INFO MultimodalNetworkCleaner:108   checking 212767 nodes and 499423 links for dead-ends...
+2026-08-20T12:34:57,949  INFO MultimodalNetworkCleaner:126     The biggest cluster consists of 499422 links.
+2026-08-20T12:34:57,950  INFO MultimodalNetworkCleaner:127   done.
+2026-08-20T12:34:58,155  INFO MultimodalNetworkCleaner:151   resulting network contains 212766 nodes and 499422 links.
+2026-08-20T12:34:58,156  INFO MultimodalNetworkCleaner:153 done.
+2026-08-20T12:34:58,266 ERROR NetworkRoutingProvider:160 Network for mode 'car' has unreachable links and nodes. This may be caused by mode restrictions on certain links. Aborting.
+ If you restricted modes on some links, consider doing that with NetworkUtils.restrictModesAndCleanNetwork(). This makes sure, that the network is consistent for each mode.
+ If this network topology is intended, set the routing config parameter 'networkRouteConsistencyCheck' to 'disable'.
+2026-08-20T12:34:58,268 ERROR MatsimRuntimeModifications:76 Getting uncaught Exception in Thread org.matsim.project.RunMatsim2040TransitSmokeTest.main()
+com.google.inject.ProvisionException: Unable to provision, see the following errors:
+
+1) [Guice/ErrorInCustomProvider]: RuntimeException: Network for mode 'car' has unreachable links and nodes. This may be caused by mode restrictions on certain links. Aborting.
+  at TripRouterModule.install(TripRouterModule.java:68)
+      \_ installed by: Modules$CombinedModule -> Modules$CombinedModule -> AbstractModule$6 -> Modules$OverrideModule -> Controler$2 -> ControlerDefaultsModule -> TripRouterModule
+  while locating RoutingModule annotated with @Named("car")
+  while locating RoutingModule annotated with @Element(setName=,uniqueId=108, type=MAPBINDER, keyType=String)
+  at TripRouter.<init>(TripRouter.java:94)
+  while locating TripRouter
+
+Learn more:
+  https://github.com/google/guice/wiki/ERROR_IN_CUSTOM_PROVIDER
+
+1 error
+
+======================
+Full classname legend:
+======================
+AbstractModule$6:        "org.matsim.core.controler.AbstractModule$6"
+Controler$2:             "org.matsim.core.controler.Controler$2"
+ControlerDefaultsModule: "org.matsim.core.controler.ControlerDefaultsModule"
+Element:                 "com.google.inject.internal.Element"
+Modules$CombinedModule:  "com.google.inject.util.Modules$CombinedModule"
+Modules$OverrideModule:  "com.google.inject.util.Modules$OverrideModule"
+Named:                   "com.google.inject.name.Named"
+RoutingModule:           "org.matsim.core.router.RoutingModule"
+TripRouter:              "org.matsim.core.router.TripRouter"
+TripRouterModule:        "org.matsim.core.router.TripRouterModule"
+========================
+End of classname legend:
+========================
+
+	at com.google.inject.internal.InternalProvisionException.toProvisionException(InternalProvisionException.java:251) ~[guice-7.0.0.jar:?]
+	at com.google.inject.internal.InjectorImpl$1.get(InjectorImpl.java:1151) ~[guice-7.0.0.jar:?]
+	at org.matsim.core.controler.PrepareForSimImpl.lambda$run$0(PrepareForSimImpl.java:194) ~[matsim-2025.0.jar:?]
+	at org.matsim.core.population.algorithms.ParallelPersonAlgorithmUtils.run(ParallelPersonAlgorithmUtils.java:87) ~[matsim-2025.0.jar:?]
+	at org.matsim.core.controler.PrepareForSimImpl.run(PrepareForSimImpl.java:193) ~[matsim-2025.0.jar:?]
+	at org.matsim.core.controler.NewControler.prepareForSim(NewControler.java:114) ~[matsim-2025.0.jar:?]
+	at org.matsim.core.controler.AbstractController$1.run(AbstractController.java:83) ~[matsim-2025.0.jar:?]
+	at org.matsim.core.controler.MatsimRuntimeModifications.run(MatsimRuntimeModifications.java:70) ~[matsim-2025.0.jar:?]
+	at org.matsim.core.controler.MatsimRuntimeModifications.run(MatsimRuntimeModifications.java:53) ~[matsim-2025.0.jar:?]
+	at org.matsim.core.controler.AbstractController.run(AbstractController.java:92) ~[matsim-2025.0.jar:?]
+	at org.matsim.core.controler.NewControler.run(NewControler.java:83) ~[matsim-2025.0.jar:?]
+	at org.matsim.core.controler.Controler.run(Controler.java:259) ~[matsim-2025.0.jar:?]
+	at org.matsim.project.RunMatsim2040TransitSmokeTest.main(RunMatsim2040TransitSmokeTest.java:73) ~[classes/:?]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[?:?]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[?:?]
+	at org.codehaus.mojo.exec.AbstractExecJavaBase.executeMainMethod(AbstractExecJavaBase.java:402) ~[?:?]
+	at org.codehaus.mojo.exec.ExecJavaMojo.executeMainMethod(ExecJavaMojo.java:142) ~[?:?]
+	at org.codehaus.mojo.exec.AbstractExecJavaBase.doExecClassLoader(AbstractExecJavaBase.java:377) ~[?:?]
+	at org.codehaus.mojo.exec.AbstractExecJavaBase.lambda$execute$0(AbstractExecJavaBase.java:287) ~[?:?]
+	at java.base/java.lang.Thread.run(Thread.java:1583) [?:?]
+Caused by: java.lang.RuntimeException: Network for mode 'car' has unreachable links and nodes. This may be caused by mode restrictions on certain links. Aborting.
+	at org.matsim.core.router.NetworkRoutingProvider.checkNetwork(NetworkRoutingProvider.java:162) ~[matsim-2025.0.jar:?]
+	at org.matsim.core.router.NetworkRoutingProvider.get(NetworkRoutingProvider.java:101) ~[matsim-2025.0.jar:?]
+	at org.matsim.core.router.NetworkRoutingProvider.get(NetworkRoutingProvider.java:46) ~[matsim-2025.0.jar:?]
+	at com.google.inject.internal.ProviderInternalFactory.provision(ProviderInternalFactory.java:86) ~[guice-7.0.0.jar:?]
+	at com.google.inject.internal.InternalFactoryToInitializableAdapter.provision(InternalFactoryToInitializableAdapter.java:57) ~[guice-7.0.0.jar:?]
+	at com.google.inject.internal.ProviderInternalFactory.circularGet(ProviderInternalFactory.java:60) ~[guice-7.0.0.jar:?]
+	at com.google.inject.internal.InternalFactoryToInitializableAdapter.get(InternalFactoryToInitializableAdapter.java:47) ~[guice-7.0.0.jar:?]
+	at com.google.inject.internal.FactoryProxy.get(FactoryProxy.java:60) ~[guice-7.0.0.jar:?]
+	at com.google.inject.internal.InjectorImpl$1.get(InjectorImpl.java:1148) ~[guice-7.0.0.jar:?]
+	at org.matsim.core.router.TripRouter.<init>(TripRouter.java:98) ~[matsim-2025.0.jar:?]
+	at org.matsim.core.router.TripRouter$$FastClassByGuice$$ef689a.GUICE$TRAMPOLINE(<generated>) ~[?:?]
+	at org.matsim.core.router.TripRouter$$FastClassByGuice$$ef689a.apply(<generated>) ~[?:?]
+	at com.google.inject.internal.DefaultConstructionProxyFactory$FastClassProxy.newInstance(DefaultConstructionProxyFactory.java:82) ~[guice-7.0.0.jar:?]
+	at com.google.inject.internal.ConstructorInjector.provision(ConstructorInjector.java:114) ~[guice-7.0.0.jar:?]
+	at com.google.inject.internal.ConstructorInjector.construct(ConstructorInjector.java:91) ~[guice-7.0.0.jar:?]
+	at com.google.inject.internal.ConstructorBindingImpl$Factory.get(ConstructorBindingImpl.java:300) ~[guice-7.0.0.jar:?]
+	at com.google.inject.internal.InjectorImpl$1.get(InjectorImpl.java:1148) ~[guice-7.0.0.jar:?]
+	... 18 more
+2026-08-20T12:34:58,315  INFO MatsimRuntimeModifications:80 S H U T D O W N   ---   start shutdown.
+2026-08-20T12:34:58,316 ERROR MatsimRuntimeModifications:82 ERROR --- This is an unexpected shutdown!
+2026-08-20T12:34:58,316 ERROR MatsimRuntimeModifications:85 Shutdown possibly caused by the following Exception:
+com.google.inject.ProvisionException: Unable to provision, see the following errors:
+
+1) [Guice/ErrorInCustomProvider]: RuntimeException: Network for mode 'car' has unreachable links and nodes. This may be caused by mode restrictions on certain links. Aborting.
+  at TripRouterModule.install(TripRouterModule.java:68)
+      \_ installed by: Modules$CombinedModule -> Modules$CombinedModule -> AbstractModule$6 -> Modules$OverrideModule -> Controler$2 -> ControlerDefaultsModule -> TripRouterModule
+  while locating RoutingModule annotated with @Named("car")
+  while locating RoutingModule annotated with @Element(setName=,uniqueId=108, type=MAPBINDER, keyType=String)
+  at TripRouter.<init>(TripRouter.java:94)
+  while locating TripRouter
+
+Learn more:
+  https://github.com/google/guice/wiki/ERROR_IN_CUSTOM_PROVIDER
+
+1 error
+
+======================
+Full classname legend:
+======================
+AbstractModule$6:        "org.matsim.core.controler.AbstractModule$6"
+Controler$2:             "org.matsim.core.controler.Controler$2"
+ControlerDefaultsModule: "org.matsim.core.controler.ControlerDefaultsModule"
+Element:                 "com.google.inject.internal.Element"
+Modules$CombinedModule:  "com.google.inject.util.Modules$CombinedModule"
+Modules$OverrideModule:  "com.google.inject.util.Modules$OverrideModule"
+Named:                   "com.google.inject.name.Named"
+RoutingModule:           "org.matsim.core.router.RoutingModule"
+TripRouter:              "org.matsim.core.router.TripRouter"
+TripRouterModule:        "org.matsim.core.router.TripRouterModule"
+========================
+End of classname legend:
+========================
+
+	at com.google.inject.internal.InternalProvisionException.toProvisionException(InternalProvisionException.java:251) ~[guice-7.0.0.jar:?]
+	at com.google.inject.internal.InjectorImpl$1.get(InjectorImpl.java:1151) ~[guice-7.0.0.jar:?]
+	at org.matsim.core.controler.PrepareForSimImpl.lambda$run$0(PrepareForSimImpl.java:194) ~[matsim-2025.0.jar:?]
+	at org.matsim.core.population.algorithms.ParallelPersonAlgorithmUtils.run(ParallelPersonAlgorithmUtils.java:87) ~[matsim-2025.0.jar:?]
+	at org.matsim.core.controler.PrepareForSimImpl.run(PrepareForSimImpl.java:193) ~[matsim-2025.0.jar:?]
+	at org.matsim.core.controler.NewControler.prepareForSim(NewControler.java:114) ~[matsim-2025.0.jar:?]
+	at org.matsim.core.controler.AbstractController$1.run(AbstractController.java:83) ~[matsim-2025.0.jar:?]
+	at org.matsim.core.controler.MatsimRuntimeModifications.run(MatsimRuntimeModifications.java:70) ~[matsim-2025.0.jar:?]
+	at org.matsim.core.controler.MatsimRuntimeModifications.run(MatsimRuntimeModifications.java:53) ~[matsim-2025.0.jar:?]
+	at org.matsim.core.controler.AbstractController.run(AbstractController.java:92) ~[matsim-2025.0.jar:?]
+	at org.matsim.core.controler.NewControler.run(NewControler.java:83) ~[matsim-2025.0.jar:?]
+	at org.matsim.core.controler.Controler.run(Controler.java:259) ~[matsim-2025.0.jar:?]
+	at org.matsim.project.RunMatsim2040TransitSmokeTest.main(RunMatsim2040TransitSmokeTest.java:73) ~[classes/:?]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[?:?]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[?:?]
+	at org.codehaus.mojo.exec.AbstractExecJavaBase.executeMainMethod(AbstractExecJavaBase.java:402) ~[?:?]
+	at org.codehaus.mojo.exec.ExecJavaMojo.executeMainMethod(ExecJavaMojo.java:142) ~[?:?]
+	at org.codehaus.mojo.exec.AbstractExecJavaBase.doExecClassLoader(AbstractExecJavaBase.java:377) ~[?:?]
+	at org.codehaus.mojo.exec.AbstractExecJavaBase.lambda$execute$0(AbstractExecJavaBase.java:287) ~[?:?]
+	at java.base/java.lang.Thread.run(Thread.java:1583) [?:?]
+Caused by: java.lang.RuntimeException: Network for mode 'car' has unreachable links and nodes. This may be caused by mode restrictions on certain links. Aborting.
+	at org.matsim.core.router.NetworkRoutingProvider.checkNetwork(NetworkRoutingProvider.java:162) ~[matsim-2025.0.jar:?]
+	at org.matsim.core.router.NetworkRoutingProvider.get(NetworkRoutingProvider.java:101) ~[matsim-2025.0.jar:?]
+	at org.matsim.core.router.NetworkRoutingProvider.get(NetworkRoutingProvider.java:46) ~[matsim-2025.0.jar:?]
+	at com.google.inject.internal.ProviderInternalFactory.provision(ProviderInternalFactory.java:86) ~[guice-7.0.0.jar:?]
+	at com.google.inject.internal.InternalFactoryToInitializableAdapter.provision(InternalFactoryToInitializableAdapter.java:57) ~[guice-7.0.0.jar:?]
+	at com.google.inject.internal.ProviderInternalFactory.circularGet(ProviderInternalFactory.java:60) ~[guice-7.0.0.jar:?]
+	at com.google.inject.internal.InternalFactoryToInitializableAdapter.get(InternalFactoryToInitializableAdapter.java:47) ~[guice-7.0.0.jar:?]
+	at com.google.inject.internal.FactoryProxy.get(FactoryProxy.java:60) ~[guice-7.0.0.jar:?]
+	at com.google.inject.internal.InjectorImpl$1.get(InjectorImpl.java:1148) ~[guice-7.0.0.jar:?]
+	at org.matsim.core.router.TripRouter.<init>(TripRouter.java:98) ~[matsim-2025.0.jar:?]
+	at org.matsim.core.router.TripRouter$$FastClassByGuice$$ef689a.GUICE$TRAMPOLINE(<generated>) ~[?:?]
+	at org.matsim.core.router.TripRouter$$FastClassByGuice$$ef689a.apply(<generated>) ~[?:?]
+	at com.google.inject.internal.DefaultConstructionProxyFactory$FastClassProxy.newInstance(DefaultConstructionProxyFactory.java:82) ~[guice-7.0.0.jar:?]
+	at com.google.inject.internal.ConstructorInjector.provision(ConstructorInjector.java:114) ~[guice-7.0.0.jar:?]
+	at com.google.inject.internal.ConstructorInjector.construct(ConstructorInjector.java:91) ~[guice-7.0.0.jar:?]
+	at com.google.inject.internal.ConstructorBindingImpl$Factory.get(ConstructorBindingImpl.java:300) ~[guice-7.0.0.jar:?]
+	at com.google.inject.internal.InjectorImpl$1.get(InjectorImpl.java:1148) ~[guice-7.0.0.jar:?]
+	... 18 more
+2026-08-20T12:34:58,322  INFO ControlerListenerManagerImpl:128 calling notifyShutdown on org.matsim.core.controler.corelisteners.EventsHandlingImpl with priority 0.0
+2026-08-20T12:34:58,322  INFO ControlerListenerManagerImpl:128 calling notifyShutdown on org.matsim.core.controler.corelisteners.DumpDataAtEndImpl with priority 0.0
+2026-08-20T12:34:58,324  INFO ControlerListenerManagerImpl:135 calling notifyShutdown on org.matsim.analysis.ModeChoiceCoverageControlerListener with priority 0.0
+2026-08-20T12:34:58,324  INFO ControlerListenerManagerImpl:135 calling notifyShutdown on org.matsim.analysis.ScoreStatsControlerListener with priority 0.0
+2026-08-20T12:34:58,325  INFO ControlerListenerManagerImpl:135 calling notifyShutdown on org.matsim.analysis.IterationTravelStatsControlerListener with priority 0.0
+2026-08-20T12:34:58,326  INFO PersonWriter:36 Writing all Persons to personscsv
+2026-08-20T12:34:58,351  INFO PersonWriter:54 ...done
+2026-08-20T12:34:58,351  INFO ControlerListenerManagerImpl:135 calling notifyShutdown on org.matsim.analysis.LinkStatsControlerListener with priority 0.0
+2026-08-20T12:35:03,400  INFO ControlerListenerManagerImpl:138 all ControlerShutdownListeners called.
+2026-08-20T12:35:03,401 ERROR MatsimRuntimeModifications:100 ERROR --- MATSim unexpectedly terminated. Please check the output or the logfile with warnings and errors for hints.
+2026-08-20T12:35:03,401 ERROR MatsimRuntimeModifications:101 ERROR --- results should not be used for further analysis.
+2026-08-20T12:35:03,401  INFO MatsimRuntimeModifications:103 S H U T D O W N   ---   shutdown completed.
+2026-08-20T12:35:03,401 ERROR MatsimRuntimeModifications:105 ERROR --- This was an unexpected shutdown! See the log file for a possible reason.
+2026-08-20T12:35:03,403  INFO MemoryObserver:42 used RAM: 1903 MB  free: 721 MB  total: 2624 MB

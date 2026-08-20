@@ -128,6 +128,8 @@ public final class CreateGtfs2037MunichTransit {
 
     private static ConversionResult validateExistingOutput(Profile profile)
             throws Exception {
+        List<FastTrackPedestrianZones.Restriction> pedestrianZones =
+                pedestrianZoneRestrictions(profile);
         Path baseNetworkFile = BASE_ROAD_NETWORK;
         Scenario base = loadRoadScenario(baseNetworkFile);
         RoadReference road = RoadReference.from(
@@ -146,10 +148,13 @@ public final class CreateGtfs2037MunichTransit {
         requireRegularFile(output.schedule());
         requireRegularFile(output.vehicles());
         Scenario scenario = loadOutputScenario(output);
-        validateRoadComponent(scenario.getNetwork(), road);
+        validateRoadComponentForProfile(
+                scenario.getNetwork(), road, profile, pedestrianZones
+        );
         validatePseudoLinks(scenario.getNetwork(), road);
         validateScheduleAndVehicles(scenario);
         validateScenarioContent(scenario.getTransitSchedule(), profile);
+        validatePedestrianZoneActivityReferences(profile, pedestrianZones);
         return new ConversionResult(
                 profile, baseNetworkFile, road.sourceFileSha256(),
                 road.semanticSha256(), lineSignature(scenario.getTransitSchedule(), S8),
@@ -176,6 +181,8 @@ public final class CreateGtfs2037MunichTransit {
     }
 
     private static ConversionResult convert(Profile profile) throws Exception {
+        List<FastTrackPedestrianZones.Restriction> pedestrianZones =
+                pedestrianZoneRestrictions(profile);
         requireRegularFile(profile.configFile());
         requireRegularFile(profile.gtfsFile());
         Path baseNetworkFile = BASE_ROAD_NETWORK;
@@ -214,9 +221,16 @@ public final class CreateGtfs2037MunichTransit {
         ).run(TransportMode.pt);
 
         validateRoadComponent(scenario.getNetwork(), road);
+        if (profile.fastTrack()) {
+            FastTrackPedestrianZones.apply(scenario.getNetwork(), pedestrianZones);
+        }
+        validateRoadComponentForProfile(
+                scenario.getNetwork(), road, profile, pedestrianZones
+        );
         validatePseudoLinks(scenario.getNetwork(), road);
         validateScheduleAndVehicles(scenario);
         validateScenarioContent(scenario.getTransitSchedule(), profile);
+        validatePedestrianZoneActivityReferences(profile, pedestrianZones);
         Counts generatedCounts = Counts.from(scenario);
 
         Files.createDirectories(profile.outputDirectory());
@@ -234,7 +248,9 @@ public final class CreateGtfs2037MunichTransit {
             System.gc();
 
             Scenario verified = loadOutputScenario(candidate);
-            validateRoadComponent(verified.getNetwork(), road);
+            validateRoadComponentForProfile(
+                    verified.getNetwork(), road, profile, pedestrianZones
+            );
             validatePseudoLinks(verified.getNetwork(), road);
             validateScheduleAndVehicles(verified);
             validateScenarioContent(verified.getTransitSchedule(), profile);
@@ -479,11 +495,65 @@ public final class CreateGtfs2037MunichTransit {
 
     private static void validateRoadComponent(Network network, RoadReference road) {
         String digest = networkDigest(
-                network, road.nodeIds(), road.linkIds(), true
+                network, road.nodeIds(), road.linkIds(), true, Set.of()
         );
         if (!road.semanticSha256().equals(digest)) {
             throw new IllegalStateException(
                     "Base road-network properties changed while adding the PT pseudonetwork."
+            );
+        }
+    }
+
+    private static void validateRoadComponentForProfile(
+            Network network,
+            RoadReference road,
+            Profile profile,
+            List<FastTrackPedestrianZones.Restriction> pedestrianZones
+    ) {
+        Set<String> restoreCarForDigest = profile.fastTrack()
+                ? FastTrackPedestrianZones.linkIds(pedestrianZones)
+                : Set.of();
+        String digest = networkDigest(
+                network, road.nodeIds(), road.linkIds(), true, restoreCarForDigest
+        );
+        if (!road.semanticSha256().equals(digest)) {
+            throw new IllegalStateException(
+                    profile.label() + " road component differs beyond the approved "
+                            + "Fast Track pedestrian-zone car-mode removals."
+            );
+        }
+        if (profile.fastTrack()) {
+            FastTrackPedestrianZones.validateApplied(network, pedestrianZones);
+            FastTrackPedestrianZones.validatePerimeterCarConnectivity(network);
+            FastTrackPedestrianZones.validateCarNetworkConnected(network);
+        }
+    }
+
+    private static List<FastTrackPedestrianZones.Restriction>
+            pedestrianZoneRestrictions(Profile profile) throws Exception {
+        return profile.fastTrack()
+                ? FastTrackPedestrianZones.readSpecification(
+                        FastTrackPedestrianZones.SPECIFICATION
+                )
+                : List.of();
+    }
+
+    private static void validatePedestrianZoneActivityReferences(
+            Profile profile,
+            List<FastTrackPedestrianZones.Restriction> pedestrianZones
+    ) throws Exception {
+        if (!profile.fastTrack()) {
+            return;
+        }
+        long references = FastTrackPedestrianZones.countActivityLinkReferences(
+                FastTrackPedestrianZones.FAST_TRACK_POPULATION,
+                FastTrackPedestrianZones.linkIds(pedestrianZones)
+        );
+        if (references != 0) {
+            throw new IllegalStateException(
+                    references + " Fast Track activities explicitly reference pedestrian-zone "
+                            + "links. Resolve those link assignments explicitly; coordinate "
+                            + "proximity alone must not change activities."
             );
         }
     }
@@ -795,7 +865,8 @@ public final class CreateGtfs2037MunichTransit {
             Network network,
             Set<String> nodeIds,
             Set<String> linkIds,
-            boolean requireAll
+            boolean requireAll,
+            Set<String> restoreCarModeForLinks
     ) {
         MessageDigest digest = sha256Digest();
         put(digest, network.getName());
@@ -832,7 +903,11 @@ public final class CreateGtfs2037MunichTransit {
             put(digest, Double.toHexString(link.getFreespeed()));
             put(digest, Double.toHexString(link.getCapacity()));
             put(digest, Double.toHexString(link.getNumberOfLanes()));
-            link.getAllowedModes().stream().sorted().forEach(mode -> put(digest, mode));
+            Set<String> normalizedModes = new TreeSet<>(link.getAllowedModes());
+            if (restoreCarModeForLinks.contains(id)) {
+                normalizedModes.add(TransportMode.car);
+            }
+            normalizedModes.forEach(mode -> put(digest, mode));
             putAttributes(digest, link.getAttributes());
         });
         return HexFormat.of().withUpperCase().formatHex(digest.digest());
@@ -952,7 +1027,7 @@ public final class CreateGtfs2037MunichTransit {
             network.getLinks().keySet().forEach(id -> links.add(id.toString()));
             return new RoadReference(
                     Set.copyOf(nodes), Set.copyOf(links), sourceFileSha256,
-                    networkDigest(network, nodes, links, true), sourceFile
+                    networkDigest(network, nodes, links, true, Set.of()), sourceFile
             );
         }
     }

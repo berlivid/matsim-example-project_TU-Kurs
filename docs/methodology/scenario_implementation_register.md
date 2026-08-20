@@ -19,9 +19,9 @@ The CSV register is authoritative for row-level decisions: [`scenario_implementa
 
 | Status | Measures | Interpretation |
 |---|---:|---|
-| Implemented and tested | 12 | Poccistraße, Berduxstraße, Nordring, second S-Bahn trunk, three forecast tram projects, U5 Pasing, U5 Freiham, U6 Martinsried, U9 and U4 East |
+| Implemented and tested | 13 | Poccistraße, Berduxstraße, Nordring, second S-Bahn trunk, three forecast tram projects, U5 Pasing, U5 Freiham, U6 Martinsried, U9, U4 East and the pedestrian-zone car restriction |
 | Partially or indirectly represented | 7 | Daglfing–Johanneskirchen capacity, Westkreuz junction, Sendlinger Spange, Paul-Gerhardt-Allee, the new Hauptbahnhof, Olympic Village and Media Village |
-| Still required | 2 | Pedestrian zones and mobility hubs |
+| Still required | 1 | Mobility hubs |
 | Intentionally not modelled | 6 | Autonomous operation, cycle express route, park corridors and the three measures excluded from both scenarios |
 
 ### Public-transport completeness
@@ -58,9 +58,11 @@ Paul-Gerhardt-Allee already contains modelled residents and activities and exist
 
 ## Road, walking, cycling and hub measures
 
-The road component is identical between BAU and Fast Track. Therefore no Fast Track-specific pedestrian-zone, mobility-hub or other road intervention is currently present.
+BAU and Fast Track retain the same byte-identical base road source. The Fast Track build then applies the versioned [`fast_track_pedestrian_zone_links.csv`](../../original-input-data/mvv_gtfs_2037/fast_track_pedestrian_zone_links.csv): `car` is removed from 11 links on the planned southern Herzog-Wilhelm-Straße section and one link on Kreuzstraße. A thirteenth link, `126449`, is classified separately as a technical boundary connector. Once the three adjacent spatial links `39774`, `39775` and `85662` lose `car`, this one-way exit from node `340075407` is no longer reachable by car. Removing its `car` mode prevents an unusable residual link; it does not extend the spatial pedestrian-zone assumption. All links are retained, no other allowed mode is changed, and BAU is untouched. Exact `origid` plus spatial matching against current OSM centre lines supplies the mapping of the 12 spatial links; network topology supplies the connector classification. The City and Olympic planning documents supply the policy scope, not link-level traffic law.
 
-Verified motor-vehicle restrictions could be encoded by changing allowed modes on precisely identified car links, but this would represent only the car restriction. The public-space and pedestrian benefit would remain absent. Cycling and park-corridor benefits cannot be represented credibly while bicycle travel is not routed on a calibrated link network. Mobility hubs also lack a defined facility inventory and a represented parking, shared-mobility or access mechanism. Arbitrary changes to scoring or mode constants are not recommended.
+This represents only the modelled car restriction. Public-space quality, greening and pedestrian amenity remain absent. The build checks all 13 links before and after modification, normalizes only these removals against the shared base-road semantic digest, verifies directed car connectivity between four perimeter nodes and requires every remaining car link to belong to the largest routable component. It stops if an activity explicitly references a restricted link. The current Fast Track population has zero such references, so no activity or population edit was made.
+
+Cycling and park-corridor benefits cannot be represented credibly while bicycle travel is not routed on a calibrated link network. Mobility hubs also lack a defined facility inventory and a represented parking, shared-mobility or access mechanism. Arbitrary changes to scoring or mode constants are not recommended.
 
 Autonomous public transport is excluded as a technology label because automation itself has no direct MATSim passenger effect. Only independently evidenced changes to frequency, travel time or capacity could be modelled, and none are specified in the matrix.
 
@@ -70,10 +72,10 @@ Autonomous public transport is excluded as a technology label because automation
 2. **Refine village demand without double counting.** Obtain official site boundaries and decide separately how permanent residents, relocated residents, Media Village accommodation, workplaces and temporary Games demand relate to the existing 2040 population.
 3. **Audit Paul-Gerhardt-Allee against demographic and road-source provenance.** Establish whether its residents and road access are already embedded before changing population or network files.
 
-Only after these tasks should lower-priority non-PT measures be considered. Pedestrian-zone link closures need authoritative geometry and access rules. Mobility hubs need named sites and a mechanism that affects represented modes. Cycle and park-corridor measures should remain outside the quantified comparison unless a calibrated active-mode model is added.
+Only after these tasks should lower-priority non-PT measures be considered. The pedestrian-zone car restriction is complete under its documented link-level assumption; any later treatment of deliveries, emergency access, residents, taxis, bicycles or construction phasing requires a separate decision. Mobility hubs need named sites and a mechanism that affects represented modes. Cycle and park-corridor measures should remain outside the quantified comparison unless a calibrated active-mode model is added.
 
 ## Validation and limitations
 
-This is an implementation audit, not a simulation result. The village update changes only the derived Fast Track population and its production population reference. BAU, GTFS, networks and facilities remain unchanged; no substantive simulation was run.
+This is an implementation audit, not a simulation result. The village update changes only the derived Fast Track population and its production population reference. The pedestrian-zone implementation changes only the allowed modes of the 12 spatially selected Fast Track road links and the one technical boundary connector. BAU, both GTFS feeds and facilities remain unchanged; no substantive simulation was run.
 
 The forecast GTFS is a supplied planning dataset rather than an independently certified operational timetable. Physical railway capacity, construction disruption, station-concourse capacity, pedestrian amenity, cycling quality and land-use development are not automatically created by the PT pseudonetwork. Each later implementation must retain the register's distinction between source facts, modelling decisions and explicit assumptions.

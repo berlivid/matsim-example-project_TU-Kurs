@@ -9,7 +9,7 @@ The feed was created from the deterministic BAU GTFS containing the shared Pocci
 - New trips: 680
   - FT_U9: 520
   - FT_NR_A: 80
-  - FT_NR_B: 80
+  - FT_NR_B: 80 
 - Extended U4 trips: 398
 - New stop rows: 24
 - New directed transfer relations: 28

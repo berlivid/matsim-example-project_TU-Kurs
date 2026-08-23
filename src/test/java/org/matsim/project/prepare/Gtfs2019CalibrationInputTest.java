@@ -2,9 +2,11 @@ package org.matsim.project.prepare;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Files;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.matsim.core.config.ConfigUtils;
@@ -37,6 +39,8 @@ class Gtfs2019CalibrationInputTest {
         assertEquals(0, config.controller().getFirstIteration());
         assertEquals(0, config.controller().getLastIteration());
         assertEquals(2, config.qsim().getNumberOfThreads());
+        assertTrue(config.qsim().getEndTime().isDefined());
+        assertEquals(43 * 3_600, config.qsim().getEndTime().seconds());
         assertEquals("munich-calibration-2019", config.controller().getRunId());
         assertEquals(org.matsim.core.controler.OutputDirectoryHierarchy.OverwriteFileSetting.failIfDirectoryExists,
                 config.controller().getOverwriteFileSetting());
@@ -49,5 +53,33 @@ class Gtfs2019CalibrationInputTest {
     @Test
     void publishedScheduleRoutesStructurallyWithoutStartingQsim() {
         ValidateGtfs2019CalibrationInput.validateStructureOnly();
+    }
+
+    @Test
+    void afterMidnightServiceIsAcceptedAndProducesFiniteNextHourHorizon() {
+        double departure = 25.5 * 3_600;
+        double duration = 17 * 3_600;
+        Gtfs2019ScheduleTimePolicy.validateTiming("overnight", departure, duration);
+        assertEquals(43 * 3_600,
+                Gtfs2019ScheduleTimePolicy.nextWholeHour(departure + duration));
+    }
+
+    @Test
+    void excessiveRouteDurationIsRejected() {
+        assertThrows(IllegalStateException.class, () ->
+                Gtfs2019ScheduleTimePolicy.validateTiming("excessive", 0,
+                        Gtfs2019ScheduleTimePolicy.MAX_ACCEPTED_SERVICE_HORIZON));
+    }
+
+    @Test
+    void undefinedOrMismatchingEndTimeIsRejectedBeforeQsim() {
+        var audit = new Gtfs2019ScheduleTimePolicy.Audit(29.5 * 3_600,
+                32.5 * 3_600, 32.5 * 3_600, 42.5 * 3_600,
+                43 * 3_600, 1, 1, List.of());
+        assertThrows(IllegalStateException.class, () ->
+                Gtfs2019ScheduleTimePolicy.validateConfiguredEndTime(Double.NaN, audit));
+        assertThrows(IllegalStateException.class, () ->
+                Gtfs2019ScheduleTimePolicy.validateConfiguredEndTime(44 * 3_600, audit));
+        Gtfs2019ScheduleTimePolicy.validateConfiguredEndTime(43 * 3_600, audit);
     }
 }

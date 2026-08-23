@@ -6,11 +6,13 @@ This input is a **synthetic 2019 reference supply extracted from the combined
 forecast dataset**. It is not a historical MVV GTFS snapshot. The isolated
 Analyze/Build/Validate pipeline is implemented, the derived GTFS subset is
 referentially closed, and the MATSim network, schedule and vehicles pass
-structural and SwissRailRaptor tests. The full 324,043-person iteration-zero
-run is not yet accepted: two attempts loaded and prepared all inputs but ended
-during QSim cleanup, first through the one-thread QNet cleanup path and then
-through a 3.936 GB Java heap limit. A final run in a separate JVM with at least
-8 GB heap remains required before mode-choice calibration starts.
+structural, temporal and SwissRailRaptor tests. The full 324,043-person
+iteration-zero run is not yet accepted. An earlier local run was memory-limited;
+a later server run exposed an independent configuration defect: QSim had no
+finite end time and therefore continued after the timetable had finished. The
+generator and validator now apply the deterministic service-horizon policy
+described below. A new server run with at least 8 GB heap remains required
+before mode-choice calibration starts.
 
 No mode choice is enabled. BAU 2040, Fast Track 2040, GTFS 2037 and the current
 GTFS converter are independent and unchanged.
@@ -122,23 +124,82 @@ Every served facility has a valid network-link reference, every departure has
 a vehicle, all original road nodes and links remain present, and `car` remains
 allowed on every original car link.
 
-## Validation evidence and remaining blocker
+## Temporal audit and service horizon
 
-The focused JUnit tests pass. The produced inputs reload successfully and
-SwissRailRaptor returns representative bus, tram, subway and rail connections.
-The validation config uses the unchanged 5-% base population, `useTransit=true`,
-iteration 0 only, random seed 4711 and no mode-choice strategy.
+### Source-data observations
 
-Both full-population attempts loaded all four inputs and prepared all 324,043
-persons. The first inherited one QSim thread and hit an internal QNet cleanup
-null reference. The corrected config uses two QSim threads. Its run then
-reached QSim but exhausted the actual 3,936 MB Maven JVM heap during cleanup.
-No preceding missing-reference, unroutable-PT, invalid-schedule or invalid-
-vehicle exception was logged. Nevertheless, MATSim marked the run output as
-invalid, so it must not be used analytically.
+The complete MATSim schedule was audited without starting QSim. Its latest
+departure is `29:40:00`; the largest arrival and departure offsets are both
+`32:35:00`; and the latest resulting vehicle arrival is `42:30:00`. In total,
+1,271 departures arrive after `24:00:00`, 38 arrive after `30:00:00`, and 71
+MATSim route patterns have durations longer than eight hours. The eight-hour
+value is a review threshold only, not an exclusion criterion.
+
+The four route patterns exceeding 24 hours were traced through the synthetic
+subset to identical rows in the unchanged source ZIP:
+
+| MATSim route | Source GTFS trip | Source endpoints/headsign | Source time span | Duration |
+|---|---:|---|---:|---:|
+| `XXX---2089556_3_0` | `40252` | Dortmund Hbf to Capljina | 05:45--38:20 | 32:35 |
+| `XXX---2089556_3_1` | `40253` | Capljina to Dortmund Hbf | 05:30--38:00 | 32:30 |
+| `XXX---2089558_3_0` | `40256` | international coach to Dortmund Hbf | 11:00--38:20 | 27:20 |
+| `XXX---2089559_3_0` | `40257` | international coach to Tuzla | 05:30--33:00 | 27:30 |
+
+The latest vehicle arrival belongs to route `XXX---2089560_3_1`, source trip
+`40259`: its source stop times run from `25:30:00` to `42:30:00`. These values
+are already greater than 24 hours in both GTFS archives. They are monotonic and
+the GTFS-to-MATSim conversion merely subtracts the first stop time to obtain
+route offsets. Thus, the long offsets are not caused by an incorrect rollover
+calculation. They represent internally consistent overnight or multi-day
+long-distance coach services in the combined dataset. No route or trip is
+removed by this correction. Their substantive provenance cannot be verified
+independently because accompanying feed documentation is absent.
+
+### Technical correction and modelling rule
+
+The former validation config inherited `qsim.endTime=undefined` from
+`config_base.xml`; the `30:00:00` value visible in the XML belongs to the
+unused `hermes` module and does not bound QSim. With no QSim limit, remaining
+vehicles or agents kept the event queue alive after all scheduled services had
+ended, explaining server logs far beyond 33,000 simulated hours. This is a
+configuration defect, not a CPU-performance problem and not evidence of a
+five-digit GTFS time.
+
+The accepted service window permits monotonic overnight services whose final
+vehicle arrival is strictly below 48 hours. Forty-eight hours is a transparent
+fail-closed bound for this day-based calibration input: it covers every
+observed accepted service through `42:30:00` but requires explicit review of a
+trip spanning two complete service days or more. The operative QSim end time is
+derived as the first complete clock hour strictly after the latest vehicle
+arrival. The current schedule therefore produces `43:00:00`; no accepted
+service is truncated.
+
+`CreateGtfs2019CalibrationTransit` derives and writes this value whenever the
+transit input is rebuilt. Before QSim, the validator now rejects an undefined
+or non-finite end time, a route or vehicle exceeding the 48-hour bound, a
+configured horizon different from the derived value, or a vehicle arriving at
+or after QSim end time. It prints every route pattern over eight hours for
+review. These checks distinguish a technical safety rule from any claim that
+long-distance services are empirically representative of Munich travel.
+
+## Validation evidence and remaining step
+
+The focused JUnit tests pass. They cover an explicit finite end time, rejection
+of excessive route duration, acceptance of a valid after-midnight service,
+agreement between the schedule-derived and configured horizons, reference
+closure and representative PT routing. The produced inputs reload successfully
+and SwissRailRaptor returns representative bus, tram, subway and rail
+connections. The validation config uses the unchanged 5-% base population,
+`useTransit=true`, iteration 0 only, random seed 4711, two QSim threads,
+`qsim.endTime=43:00:00` and no mode-choice strategy. No full local QSim was run
+for this correction.
 
 The smallest remaining step is to run the shared IntelliJ configuration
-**03 Validate GTFS 2019 Calibration Input** on the Uni server. Its validator
+**03 Validate GTFS 2019 Calibration Input** on the Uni server. After pulling
+the correction, only the incomplete directory
+`scenarios/munich_calibration_2019/output/input-validation-qsim2` must be
+deleted. Step 02 does not need to be repeated because the three generated
+transit inputs are unchanged; step 03 must be rerun. Its validator
 repeats the structural and representative SwissRailRaptor checks and then
 executes `scenarios/munich_calibration_2019/config_input_validation.xml` in the
 same Java process. The run configuration provides 12 GB heap (8 GB is the
@@ -153,4 +214,4 @@ The approved assumptions are recorded in
 and derived ZIP files, the three MATSim transit inputs, and all validation
 outputs are intentionally ignored because they are large or generated. Java
 builders, focused tests, the validation config, this method note and the
-scenario README are suitable for version control. No commit was created.
+scenario README are suitable for version control.

@@ -9,10 +9,11 @@ combined forecast dataset**. It is not a historical MVV GTFS snapshot. The
 service date 13 February 2026 is only a technical activation date and must not
 be interpreted as the historical reference year.
 
-The GTFS subset, MATSim transit inputs, reference checks and representative
-SwissRailRaptor connections are structurally validated. Full end-to-end
-approval remains conditional on a normal iteration-zero shutdown on the Uni
-server. No mode-choice strategy is active in the validation configuration.
+The GTFS subset, MATSim transit inputs, reference checks, temporal checks and
+representative SwissRailRaptor connections are structurally validated. Full
+end-to-end approval remains conditional on a normal iteration-zero shutdown on
+the Uni server. No mode-choice strategy is active in the validation
+configuration.
 
 ## Required server input
 
@@ -42,7 +43,9 @@ configurations in order from the project root:
    `org.matsim.project.prepare.CreateGtfs2019CalibrationTransit` with an 8 GB
    maximum heap. It creates and rereads `network-with-pt.xml.gz`,
    `transitSchedule.xml.gz` and `transitVehicles.xml.gz` under
-   `scenarios/munich_calibration_2019/input_transit/`.
+   `scenarios/munich_calibration_2019/input_transit/`. It also audits all
+   schedule times and writes the finite, schedule-derived QSim end time to the
+   validation config.
 3. **03 Validate GTFS 2019 Calibration Input** runs
    `org.matsim.project.prepare.ValidateGtfs2019CalibrationInput` with a 12 GB
    maximum heap. It first repeats structural and representative PT-routing
@@ -53,15 +56,37 @@ The final validation requires at least 8 GB Java heap; 12 GB is recommended
 and is configured for step 3. Its output directory must not already exist
 because the configuration deliberately uses `failIfDirectoryExists`.
 
+## Recovery from the unbounded server run
+
+The non-terminating server run used `qsim.endTime=undefined`. The similarly
+named `hermes.endTime=30:00:00` did not control QSim. A read-only audit found
+the last accepted vehicle arrival at `42:30:00`; the corrected generator sets
+QSim end time to the first following complete hour, `43:00:00`. The validator
+now fails before QSim if the end time is missing, non-finite, inconsistent with
+the schedule, or if any accepted vehicle reaches it. Services reaching the
+following service day are retained, subject to a fail-closed 48-hour maximum.
+
+For the existing Uni-server checkout, use this exact recovery sequence:
+
+1. pull the correction commit;
+2. delete only
+   `scenarios/munich_calibration_2019/output/input-validation-qsim2`, which is
+   the incomplete output of the stopped run;
+3. rerun **03 Validate GTFS 2019 Calibration Input**.
+
+Do not rerun step 02 for this recovery: the GTFS subset and the three MATSim
+transit inputs did not change. Step 02 will apply the same time policy during a
+future clean transit rebuild. Step 01 is also unnecessary for this recovery.
+
 ## Local validation evidence and limitation
 
 The local build, referential checks and representative bus, tram, subway and
-rail routes passed. The local full-population attempt loaded and prepared all
-324,043 persons but stopped during QSim cleanup because the Maven JVM was
-limited to 3,936 MB heap. The preceding logs contained no broken GTFS
-reference, missing vehicle, invalid stop-link reference or representative
-PT-routing error. Nevertheless, MATSim correctly marked that run as invalid;
-its output must not be used for analysis.
+rail routes passed. Focused tests also cover the explicit finite end time,
+excessive-duration rejection and valid post-midnight service. No full local
+QSim was started for this correction. The earlier local full-population attempt
+was limited by a 3,936 MB Maven heap, while the later server attempt exposed
+the independent undefined-end-time defect. Neither incomplete output may be
+used for analysis.
 
 Consequently, the input is structurally ready for transfer but is not fully
 end-to-end approved until step 3 finishes normally on the Uni server. Only

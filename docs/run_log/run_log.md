@@ -285,3 +285,20 @@ Scenario outputs are excluded from Git.
 - Rebuilt both deterministic GTFS feeds: BAU `41D04B06D4134F71EF21468D5109264E9B61702B135E601B5875E5D6C490FF54`; Fast Track `3F82E66EB7B0999D210B639BC85571CC59D06E9969FA53146FA5CA43D9578A0F`. Repeat builds produced identical hashes.
 - Regenerated and reloaded both MATSim input sets. BAU has 249,194 nodes, 561,990 links, 80,764 stop facilities and 70,620 departures; Fast Track has 249,216 nodes, 562,029 links, 80,805 stop facilities and 71,300 departures.
 - Focused SwissRailRaptor tests reached both new stops and completed the Poccistraße regional-to-U3/U6 transfer with 192 seconds of transfer/access time. All retained Fast Track service tests passed. No full simulation was run.
+
+## 23 August 2026 — GTFS-2019 validation time-horizon correction
+
+- A Uni-server validation run continued beyond 33,000 simulated hours because
+  `qsim.endTime` was undefined. The `30:00:00` value in the Hermes module did
+  not constrain QSim.
+- A QSim-free audit found a latest departure of `29:40:00`, a maximum route
+  offset of `32:35:00`, and a latest vehicle arrival of `42:30:00`.
+- The longest values were traced unchanged to internally monotonic overnight
+  and multi-day coach stop times in both the synthetic subset and source ZIP;
+  no route was excluded and no stop time was rewritten.
+- The 2019 generator now derives `qsim.endTime=43:00:00`, the first complete
+  hour after the latest accepted vehicle arrival. A 48-hour fail-closed bound
+  prevents unreviewed multi-day services from creating an excessive horizon.
+- Compilation, six focused tests, full structural reference validation and
+  representative bus/tram/subway/rail routing passed. No full local QSim was
+  started. The incomplete server output remains invalid until step 03 is rerun.

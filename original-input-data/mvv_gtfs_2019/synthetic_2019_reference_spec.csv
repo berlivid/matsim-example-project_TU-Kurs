@@ -19,3 +19,9 @@ pt_pseudonetwork,true,conversion assumption
 transit_vehicles,true,conversion assumption
 agency_timezone_correction,unknown or blank to Europe/Berlin,technical GTFS validity correction identical to GTFS 2037
 missing_feed_documentation,limitation,no feed_info or independent confirmation of custom scenario-flag semantics
+after_midnight_rule,retain monotonic GTFS services beyond 24:00,source uses GTFS service-day times through 42:30
+maximum_accepted_service_horizon,48:00:00,fail-closed modelling bound for a day-based calibration input
+qsim_end_time_rule,first complete hour strictly after the latest accepted vehicle arrival,derived reproducibly from the converted schedule
+current_latest_vehicle_arrival,42:30:00,complete read-only schedule audit
+current_qsim_end_time,43:00:00,derived by qsim_end_time_rule
+long_duration_route_rule,review route patterns longer than 08:00 without automatic exclusion,technical audit threshold only

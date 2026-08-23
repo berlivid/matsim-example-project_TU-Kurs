@@ -39,6 +39,7 @@ public final class ValidateGtfs2019CalibrationInput {
         Config config = loadAndValidateConfig();
         Scenario scenario = ScenarioUtils.loadScenario(config);
         validateScenario(scenario);
+        validateTimeHorizon(config, scenario);
         runRoutingChecks(scenario);
 
         Controler controler = new Controler(scenario);
@@ -49,9 +50,10 @@ public final class ValidateGtfs2019CalibrationInput {
 
     /** Used by focused local tests; deliberately does not load the population or start QSim. */
     static void validateStructureOnly() {
-        loadAndValidateConfig();
+        Config config = loadAndValidateConfig();
         Scenario scenario = CreateGtfs2019CalibrationTransit.loadPublished();
         validateScenario(scenario);
+        validateTimeHorizon(config, scenario);
         runRoutingChecks(scenario);
         System.out.println("GTFS 2019 STRUCTURAL VALIDATION PASS: no QSim was started.");
     }
@@ -69,6 +71,10 @@ public final class ValidateGtfs2019CalibrationInput {
         require("munich-calibration-2019".equals(config.controller().getRunId()),
                 "Unexpected validation runId");
         require(config.qsim().getNumberOfThreads() == 2, "QSim must use two threads");
+        require(config.qsim().getEndTime().isDefined(),
+                "qsim.endTime is undefined; refusing to start an unbounded QSim");
+        require(Double.isFinite(config.qsim().getEndTime().seconds()),
+                "qsim.endTime is not finite");
         require(config.controller().getOverwriteFileSetting()
                         == org.matsim.core.controler.OutputDirectoryHierarchy
                         .OverwriteFileSetting.failIfDirectoryExists,
@@ -78,6 +84,23 @@ public final class ValidateGtfs2019CalibrationInput {
         require(config.plans().getInputFile().contains("munich-v1.0-5pct.plans.xml"),
                 "Unexpected validation population");
         return config;
+    }
+
+    private static void validateTimeHorizon(Config config, Scenario scenario) {
+        Gtfs2019ScheduleTimePolicy.Audit audit =
+                Gtfs2019ScheduleTimePolicy.audit(scenario.getTransitSchedule());
+        Gtfs2019ScheduleTimePolicy.validateConfiguredEndTime(
+                config.qsim().getEndTime().seconds(), audit);
+        System.out.println(audit.summary());
+        for (Gtfs2019ScheduleTimePolicy.RouteTiming route : audit.longDurationRoutes()) {
+            System.out.printf("GTFS 2019 LONG-DURATION REVIEW: line=%s route=%s mode=%s "
+                            + "duration=%s latestDeparture=%s latestArrival=%s vehicle=%s%n",
+                    route.lineId(), route.routeId(), route.mode(),
+                    Gtfs2019ScheduleTimePolicy.formatTime(route.duration()),
+                    Gtfs2019ScheduleTimePolicy.formatTime(route.latestDeparture()),
+                    Gtfs2019ScheduleTimePolicy.formatTime(route.latestArrival()),
+                    route.latestVehicleId());
+        }
     }
 
     private static void validateScenario(Scenario scenario) {

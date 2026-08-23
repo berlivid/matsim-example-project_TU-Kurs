@@ -81,6 +81,8 @@ public final class CreateGtfs2019CalibrationTransit {
         new CreateVehiclesForSchedule(scenario.getTransitSchedule(), scenario.getTransitVehicles())
                 .run(TransportMode.pt);
         validate(scenario, roadNodes, roadLinks, carLinks);
+        Gtfs2019ScheduleTimePolicy.Audit expectedTimeAudit =
+                Gtfs2019ScheduleTimePolicy.audit(scenario.getTransitSchedule());
         Counts expected = Counts.from(scenario);
 
         Files.createDirectories(OUTPUT_DIR);
@@ -94,17 +96,23 @@ public final class CreateGtfs2019CalibrationTransit {
 
             Scenario reread = load(candidate);
             validate(reread, roadNodes, roadLinks, carLinks);
+            Gtfs2019ScheduleTimePolicy.Audit actualTimeAudit =
+                    Gtfs2019ScheduleTimePolicy.audit(reread.getTransitSchedule());
             Counts actual = Counts.from(reread);
             require(expected.equals(actual), "Counts changed during write/reread: " + expected + " vs " + actual);
+            require(expectedTimeAudit.latestDeparture() == actualTimeAudit.latestDeparture()
+                            && expectedTimeAudit.latestVehicleArrival() == actualTimeAudit.latestVehicleArrival()
+                            && expectedTimeAudit.qsimEndTime() == actualTimeAudit.qsimEndTime(),
+                    "Schedule timing changed during write/reread");
 
             FilesBundle output = new FilesBundle(OUTPUT_DIR.resolve("network-with-pt.xml.gz"),
                     OUTPUT_DIR.resolve("transitSchedule.xml.gz"), OUTPUT_DIR.resolve("transitVehicles.xml.gz"));
             move(candidate.network(), output.network());
             move(candidate.schedule(), output.schedule());
             move(candidate.vehicles(), output.vehicles());
-            writeValidationConfig();
+            writeValidationConfig(actualTimeAudit);
             return new BuildResult(actual, modeCounts(reread), sha256(output.network()),
-                    sha256(output.schedule()), sha256(output.vehicles()));
+                    sha256(output.schedule()), sha256(output.vehicles()), actualTimeAudit.summary());
         } finally { deleteTree(work); }
     }
 
@@ -162,7 +170,7 @@ public final class CreateGtfs2019CalibrationTransit {
         return Map.copyOf(modes);
     }
 
-    private static void writeValidationConfig() throws Exception {
+    static void writeValidationConfig(Gtfs2019ScheduleTimePolicy.Audit timeAudit) throws Exception {
         Config config = ConfigUtils.loadConfig(BASE_CONFIG.toString());
         config.global().setCoordinateSystem(CRS);
         config.global().setRandomSeed(4711);
@@ -181,6 +189,9 @@ public final class CreateGtfs2019CalibrationTransit {
         config.qsim().setFlowCapFactor(0.05);
         config.qsim().setStorageCapFactor(0.05);
         config.qsim().setNumberOfThreads(2);
+        config.qsim().setEndTime(timeAudit.qsimEndTime());
+        Gtfs2019ScheduleTimePolicy.validateConfiguredEndTime(
+                config.qsim().getEndTime().seconds(), timeAudit);
         boolean modeChoice = config.replanning().getStrategySettings().stream()
                 .anyMatch(s -> s.getStrategyName() != null
                         && s.getStrategyName().toLowerCase(Locale.ROOT).contains("modechoice"));
@@ -232,9 +243,10 @@ public final class CreateGtfs2019CalibrationTransit {
         }
     }
     public record BuildResult(Counts counts, Map<String, Long> routeModes, String networkSha,
-                              String scheduleSha, String vehiclesSha) {
+                              String scheduleSha, String vehiclesSha, String timeAudit) {
         String asText() { return "counts=" + counts + "\nrouteModes=" + routeModes
                 + "\nnetworkSha256=" + networkSha + "\nscheduleSha256=" + scheduleSha
-                + "\nvehiclesSha256=" + vehiclesSha + "\nValidation=PASS\n"; }
+                + "\nvehiclesSha256=" + vehiclesSha + "\n" + timeAudit
+                + "\nValidation=PASS\n"; }
     }
 }

@@ -3,6 +3,10 @@
 This directory contains the raw public-transport timetable used to prepare the
 current Munich MATSim transit reference.
 
+The versioned source metadata are stored under
+`original-input-data/mvv_gtfs_2026/`; the directory name distinguishes this
+current 2026 reference from the synthetic 2019 and forecast 2037 inputs.
+
 ## Source and license
 
 - Provider: Münchner Verkehrs- und Tarifverbund GmbH (MVV)

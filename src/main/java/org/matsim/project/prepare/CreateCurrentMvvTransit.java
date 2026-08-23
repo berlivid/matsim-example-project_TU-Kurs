@@ -32,7 +32,7 @@ public final class CreateCurrentMvvTransit {
                 "scenarios/munich_base_2023/studyNetworkDense.xml";
 
         String gtfsZipFile =
-                "original-input-data/mvv_gtfs/gesamt_gtfs.zip";
+                "original-input-data/mvv_gtfs_2026/gesamt_gtfs.zip";
 
         String outputDirectory =
                 "scenarios/munich_base_2023/input_transit";

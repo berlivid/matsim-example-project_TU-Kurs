@@ -21,7 +21,7 @@ Generator:
 
 Raw input and source metadata:
 
-`original-input-data/mvv_gtfs/README.md`
+`original-input-data/mvv_gtfs_2026/README.md`
 
 Coordinate system: DHDN / 3-degree Gauss-Krueger zone 4 (`EPSG:31468`).
 

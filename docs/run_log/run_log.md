@@ -150,7 +150,7 @@ configs now reference these generated files.
 
 - Dataset: `Soll-Fahrplandaten MVV-Gesamtnetz (GTFS)`
 - Provider: Münchner Verkehrs- und Tarifverbund GmbH (MVV)
-- Raw file: `original-input-data/mvv_gtfs/gesamt_gtfs.zip`
+- Raw file: `original-input-data/mvv_gtfs_2026/gesamt_gtfs.zip`
 - Portal release label: `06/2026`
 - Internal `feed_info.txt` version: `20260705`
 - Feed validity: 2026-06-15 through 2026-09-30
@@ -158,7 +158,7 @@ configs now reference these generated files.
 - License: CC BY 4.0
 - Representative service day: Wednesday, 2026-09-16
 - Source details and checksum:
-  `original-input-data/mvv_gtfs/README.md`
+  `original-input-data/mvv_gtfs_2026/README.md`
 
 The selected date lies inside the feed validity period and no service explicitly
 named `Special` is added for this date in `calendar_dates.txt`.

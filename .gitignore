@@ -41,12 +41,16 @@ scenarios/munich_*/output/
 **/smoke-output/
 
 # Archived GTFS source data and generated transit artifacts
-/original-input-data/mvv_gtfs/*.zip
+/original-input-data/mvv_gtfs_2026/*.zip
+/original-input-data/mvv_gtfs_2019/*.zip
 /original-input-data/mvv_gtfs_2037/raw/*.txt
 /original-input-data/mvv_gtfs_2037/generated/*.zip
 /original-input-data/mvv_gtfs_2037/generated/fast_track_preflight/
 /original-input-data/mvv_gtfs_2037/generated/common_measures_preflight/
 /scenarios/munich_*/input_transit/*.xml.gz
+/scenarios/munich_calibration_2019/input_transit/*.xml.gz
+/scenarios/munich_calibration_2019/output*/
+/scenarios/munich_calibration_2019/**/output*/
 
 # Microsoft Office lock files
 ~$*.xlsx

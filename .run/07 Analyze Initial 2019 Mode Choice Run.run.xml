@@ -2,6 +2,7 @@
   <configuration default="false" name="07 Analyze Initial 2019 Mode Choice Run" type="Application" factoryName="Application">
     <option name="MAIN_CLASS_NAME" value="org.matsim.project.prepare.AnalyzeModeChoiceCalibrationOutput" />
     <module name="matsim-example-project" />
+    <shortenClasspath name="ARGS_FILE" />
     <option name="VM_PARAMETERS" value="-Xms4g -Xmx8g" />
     <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
     <method v="2">

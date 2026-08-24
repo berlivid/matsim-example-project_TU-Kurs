@@ -2,8 +2,8 @@
   <configuration default="false" name="06 Run Initial 2019 Mode Choice Calibration" type="Application" factoryName="Application">
     <option name="MAIN_CLASS_NAME" value="org.matsim.project.prepare.RunMatsim2019ModeChoiceCalibration" />
     <module name="matsim-example-project" />
+    <shortenClasspath name="ARGS_FILE" />
     <option name="VM_PARAMETERS" value="-Xms4g -Xmx16g" />
-    <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
     <method v="2">
       <option name="Make" enabled="true" />
     </method>

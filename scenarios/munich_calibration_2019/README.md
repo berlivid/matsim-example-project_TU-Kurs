@@ -115,14 +115,16 @@ Three additional shared run configurations prepare and analyze the next server s
    SwissRailRaptor and executes iterations 0 through 20.
 6. **07 Analyze Initial 2019 Mode Choice Run** runs
    `org.matsim.project.prepare.AnalyzeModeChoiceCalibrationOutput` with an 8 GB
-   maximum heap. It starts no QSim. It reads the completed run's experienced
-   plans and fixed inputs, and writes only below
+   maximum heap. It starts no QSim. It reads the completed run's full final
+   `output_plans` and fixed inputs, and writes only below
    `output/mode-choice-initial/analysis`. It never overwrites or invents the
    listener's iteration history; it refreshes final-state products only.
 
-Run step 05 before step 06. Step 06 records the actually experienced plans
-and writes iteration-level modal-share, passenger-kilometre, trip-length and
-distance-quality results after each mobsim, before replanning. After step 06
+Run step 05 before step 06. Step 06 records the complete selected and routed
+plans and writes iteration-level modal-share, passenger-kilometre, trip-length,
+distance-quality and separate stuck-event results after each mobsim, before the
+next iteration's replanning. These plan metrics are not claimed to be wholly
+experienced when persons become stuck. After step 06
 terminates successfully, run step 07 as an independent final-result
 reproduction check. Do not create or reuse
 `scenarios/munich_calibration_2019/output/mode-choice-initial` beforehand:
@@ -144,9 +146,8 @@ The copied first-run analysis contains only iteration 20. The earlier Run 07
 implementation overwrote the listener history with its single final result;
 no file in the copied folder can reconstruct iterations 0-19. Do not claim
 convergence from that run. The corrected pipeline preserves future histories.
-The alternative `betweenAllAndFewerConstraints` is now prepared only in the
-separate protected test described below. The production calibration behavior
-remains unchanged pending review of that test's server output.
+The alternative `betweenAllAndFewerConstraints` was tested but is not adopted.
+The production calibration retains `fromSpecifiedModesToSpecifiedModes`.
 
 ## Isolated open-tour test
 
@@ -173,9 +174,23 @@ open day, while an intervening resource jump remains a blocking inconsistency.
 The exact method and decision criteria are documented in
 [`docs/methodology/mode_choice_open_tour_test.md`](../../docs/methodology/mode_choice_open_tour_test.md).
 
-This test retains zero constants and is neither a new calibration round nor a
-scenario-effect comparison. No result should be inferred before the server
-output passes step 10 and the reported endpoint counts are reviewed.
+This test retained zero constants and was neither a new calibration round nor a
+scenario-effect comparison. Its former `ExperiencedPlansService` cohort
+diagnostic was incomplete (107,618 identifiers, zero current trips), while
+8,465 cumulative stuck events were observed. It cannot support a cohort mode
+or chain-location conclusion. Steps 08--10 are retained only as experimental
+provenance and are no longer part of the production workflow.
+
+## Existing stuck-event audit
+
+**11 Analyze Existing 2019 Calibration Stuck Events** starts no QSim. It scans
+only event files that already exist under the initial and open-tour-test output
+directories, avoids counting a root and iteration copy twice, reports missing
+iterations explicitly, and writes only to the fail-closed ignored directory
+`generated/mode_choice_stuck_event_audit/`. Remove or rename that generated
+directory deliberately before a rerun; the tool never overwrites it. Counts by
+iteration, mode, hour and unique person, plus frequent links, are descriptive
+and do not establish a cause.
 
 For provenance, selection counts, conversion assumptions and methodological
 limitations, see

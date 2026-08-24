@@ -29,18 +29,18 @@ public final class AnalyzeModeChoiceCalibrationOutput {
     static void analyze(Path output) throws Exception {
         ValidateModeChoiceCalibrationConfig.require(Files.isDirectory(output),
                 "Calibration output directory is missing: " + output);
-        Path experiencedPlans = findExperiencedPlans(output);
+        Path selectedPlans = findSelectedPlans(output);
 
         Config config = ConfigUtils.loadConfig(
                 ValidateModeChoiceCalibrationConfig.CONFIG.toString());
-        config.plans().setInputFile(experiencedPlans.toAbsolutePath().normalize().toString());
+        config.plans().setInputFile(selectedPlans.toAbsolutePath().normalize().toString());
         var scenario = ScenarioUtils.loadScenario(config);
         Map<Id<Person>, Plan> plans = new java.util.TreeMap<>();
         scenario.getPopulation().getPersons().forEach((id, person) -> {
             if (person.getSelectedPlan() != null) plans.put(id, person.getSelectedPlan());
         });
         ValidateModeChoiceCalibrationConfig.require(!plans.isEmpty(),
-                "Experienced-plans file contains no selected plans");
+                "Final output-plans file contains no selected plans");
 
         ModeChoiceCalibrationAnalysis analysis = new ModeChoiceCalibrationAnalysis(
                 scenario, MunichMunicipalBoundary.loadDefault());
@@ -50,14 +50,14 @@ public final class AnalyzeModeChoiceCalibrationOutput {
                 output, plans.size(), result.iteration());
     }
 
-    private static Path findExperiencedPlans(Path output) throws IOException {
+    private static Path findSelectedPlans(Path output) throws IOException {
         try (var files = Files.list(output)) {
             var matches = files.filter(Files::isRegularFile)
                     .filter(path -> path.getFileName().toString()
-                            .endsWith(".output_experienced_plans.xml.gz"))
+                            .endsWith(".output_plans.xml.gz"))
                     .sorted(Comparator.comparing(Path::toString)).toList();
             ValidateModeChoiceCalibrationConfig.require(matches.size() == 1,
-                    "Expected exactly one output_experienced_plans.xml.gz file in " + output
+                    "Expected exactly one output_plans.xml.gz file in " + output
                             + "; found " + matches.size());
             return matches.getFirst();
         }

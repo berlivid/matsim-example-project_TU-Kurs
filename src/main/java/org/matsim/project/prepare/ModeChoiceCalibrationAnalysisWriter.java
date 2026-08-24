@@ -249,7 +249,7 @@ public final class ModeChoiceCalibrationAnalysisWriter {
         MetricSnapshot primary = result.metrics(
                 SpatialScope.BOTH_INSIDE, PlanEligibility.ALL_PLANS);
         StringBuilder report = new StringBuilder("# Mode-choice calibration analysis\n\n")
-                .append("Iteration: ").append(result.iteration()).append(". The primary sample contains main trips with both main-activity endpoints inside or on the City of Munich boundary. Stage activities are skipped when constructing main trips.\n\n")
+                .append("Iteration: ").append(result.iteration()).append(". During a controller run, metrics use the complete selected and routed plan snapshot after mobsim and before the next iteration's replanning. These are planned/route-based metrics; a separate stuck-event record identifies plans that were not fully executed. The primary sample contains main trips with both main-activity endpoints inside or on the City of Munich boundary. Stage activities are skipped when constructing main trips.\n\n")
                 .append("## Primary main-mode metrics\n\n")
                 .append("| Mode | Trips | Modal share | Unscaled 5-% Pkm | Mean trip length |\n")
                 .append("|---|---:|---:|---:|---:|\n");

@@ -110,15 +110,17 @@ input references without starting QSim. `RunMatsim2019ModeChoiceCalibration`
 accepts no arguments, repeats that validation, refuses an existing output
 directory, loads only the fixed 2019 config, installs SwissRailRaptor and then
 starts the controller. It neither deletes output nor changes parameters. The
-config also enables MATSim's experienced-plan output for reproducible
-postprocessing; this changes output recording, not behavioural parameters.
+config also enables normal final plan output for reproducible postprocessing;
+this changes output recording, not behavioural parameters.
 
 The runner installs `ModeChoiceCalibrationIterationListener`. At the
-`AfterMobsim` event it reads `ExperiencedPlansService`, so each row describes
-the plans executed in the completed iteration before subsequent replanning.
+`AfterMobsim` event it reads the complete selected-plan snapshot after the
+current mobsim and before the next iteration's replanning. Rows therefore
+describe selected and routed plans; stuck-event records separately identify
+plans that may not have been fully executed.
 It writes small analysis files below the protected run output. The independent
 `AnalyzeModeChoiceCalibrationOutput` postprocessor can recreate the final
-summary from an existing experienced-plans output without starting QSim. The
+summary from the complete final `output_plans` file without starting QSim. The
 complete metric, distance and target rules are documented in
 `mode_choice_output_analysis.md`.
 
@@ -126,21 +128,22 @@ MATSim 2025.0 also provides `betweenAllAndFewerConstraints`. It adds an
 unclosed root subtour and relaxes mass conservation for that root. Car and bike
 remain chain-based and begin at the first activity, but the complete daily plan
 need not return them there. All 107,618 currently open plans are structurally
-eligible in the initial canonical, monomodal population. This is not yet an
-approved setting: an open end location creates an inter-day vehicle-position
-limitation, and later mixed nested subtours may trigger MATSim's consistency
-exception. The recommended next step is a short protected test, not an
-immediate production-config change.
+eligible in the initial canonical, monomodal population. The setting was
+explored but is not approved: an open end location creates an inter-day
+vehicle-position limitation for chain-based car and bike. The productive
+configuration retains `fromSpecifiedModesToSpecifiedModes`; the fixed
+23.297821% of primary trips is reported as a limitation.
 
-That recommendation is implemented as a fully separate five-iteration test
+The exploratory implementation remains as a fully separate five-iteration test
 configuration, not as a change to the production calibration. The test differs
 only in run ID, protected output directory, last iteration and behavior. Its
 aggregate listener applies MATSim's facility/link chain-resource sequence to
 the originally open cohort and distinguishes an invalid resource jump from the
 deliberately relaxed end-of-day location. The prepared test method and
-acceptance criteria are documented in `mode_choice_open_tour_test.md`. No test
-outcome is available until the separate server run and output validation have
-completed.
+decision are documented in `mode_choice_open_tour_test.md`. Its cohort
+diagnostic was invalid because it used incomplete experienced-plan
+reconstructions, so it is retained only as experimental provenance and not as
+evidence for a production change.
 
 The versioned Munich municipal-boundary filter is not part of simulation
 demand preparation. It will later select analysis trips whose origin and

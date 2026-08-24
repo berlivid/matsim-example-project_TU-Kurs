@@ -21,6 +21,9 @@ final class ModeChoiceCalibrationRunSupport {
             @Override
             public void install() {
                 addControlerListenerBinding().to(ModeChoiceCalibrationIterationListener.class);
+                bind(ModeChoiceStuckEventListener.class).asEagerSingleton();
+                addEventHandlerBinding().to(ModeChoiceStuckEventListener.class);
+                addControlerListenerBinding().to(ModeChoiceStuckEventListener.class);
                 if (includeOpenTourDiagnostics) {
                     bind(OpenTourModeChoiceTestDiagnostics.class).asEagerSingleton();
                     addEventHandlerBinding().to(OpenTourModeChoiceTestDiagnostics.class);

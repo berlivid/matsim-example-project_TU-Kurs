@@ -400,3 +400,24 @@ Scenario outputs are excluded from Git.
   distances, stuck events or unverifiable/jumping chain resources.
 - This entry records test preparation only. No server result, empirical
   calibration, convergence statement or production behavior change is claimed.
+
+## 24 August 2026 — open-tour decision and complete-plan analysis correction
+
+- The exploratory run completed iterations 0--5 and shut down regularly. It
+  recorded 2,417 stuck events in iteration 0, 833 new events in iteration 5 and
+  8,465 cumulatively.
+- Its open-cohort diagnostic found all 107,618 baseline person IDs but zero
+  current trips. MATSim 2025.0 `ExperiencedPlansService` reconstructs elements
+  from experienced events and is not a complete selected-plan snapshot; the
+  general history consequently represented about 216,000 rather than 324,043
+  persons. Cohort mode and chain-location results from this run are invalid.
+- Future `AfterMobsim` analysis uses every scenario person's selected plan,
+  before the next iteration's replanning. It treats metrics as selected/routed,
+  not necessarily fully executed, and fails closed against 324,043 persons,
+  540,468 main trips and 160,603 `BOTH_INSIDE` trips.
+- The production behavior remains `fromSpecifiedModesToSpecifiedModes`.
+  `betweenAllAndFewerConstraints` is not adopted because it relaxes day-end
+  consistency for chain-based car and bike. The 37,417 fixed primary trips
+  (23.297821%) remain a reported limitation.
+- Added separate future-run stuck metrics and a read-only existing-event
+  auditor. Event mode, time and link are descriptive; no cause is inferred.

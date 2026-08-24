@@ -7,9 +7,9 @@ synthetic 2019 reference scenario. It asks whether persons whose daily plan has
 no closed subtour can participate in MATSim's endogenous mode choice without
 creating inconsistent car or bicycle resource sequences. It does not calibrate
 mode constants, estimate a policy effect or replace the production calibration
-configuration. The test has been prepared and locally validated, but no result
-is reported before the server run has completed and its output has passed the
-read-only validator.
+configuration. The exploratory server run has been completed, but the
+alternative was not adopted. The production calibration retains
+`fromSpecifiedModesToSpecifiedModes`.
 
 The unchanged population preflight identified 107,618 persons without a closed
 subtour. Their plans contain 37,417 main trips with both main-activity endpoints
@@ -72,8 +72,8 @@ The versioned IntelliJ sequence is:
 3. **10 Validate 2019 Open Tour Mode Choice Test Output** reads the completed
    output and does not start MATSim or rewrite analysis files.
 
-During step 09, the standard calibration listener records the experienced plan
-after each mobsim and before subsequent replanning. A second aggregate listener
+During step 09, the former standard calibration listener attempted to
+reconstruct plans through `ExperiencedPlansService`. A second aggregate listener
 tracks only the originally open cohort and writes no person identifiers. It
 records baseline and current mode counts, choice-set availability, changed mode
 signatures, chain-resource jumps, unverifiable locations, end locations and
@@ -82,8 +82,31 @@ termination.
 
 ## Decision criteria
 
-The alternative can be considered for a later production decision only if all
-of the following are observed:
+## Result and decision
+
+The controller completed iterations 0--5 and shut down regularly. The event
+diagnostic recorded 2,417 stuck events in iteration 0, 833 new stuck events in
+iteration 5 and 8,465 cumulatively. These are event counts, not inferred
+causes. The run retained complete iteration labels 0--5 and a final summary for
+iteration 5.
+
+However, the open-cohort diagnostic found all 107,618 baseline identifiers but
+zero current trips. This result is invalid for evaluating the alternative.
+`ExperiencedPlansService` builds plans from experienced activity and leg
+events; it is not a complete selected-plan snapshot. The accompanying general
+analysis consequently covered only about 216,000 persons rather than all
+324,043. No conclusion for or against `betweenAllAndFewerConstraints` is drawn
+from the reported cohort mode changes or chain-location fields.
+
+The alternative is not adopted for substantive reasons independent of this
+invalid diagnostic: it relaxes end-of-day location consistency for chain-based
+car and bike, while the four aggregate target shares remain attainable without
+it. The 107,618 open persons and their 37,417 `BOTH_INSIDE` trips (23.297821% of
+the primary sample) remain a transparent fixed-share limitation. Run
+configurations 08--10 and the test config are retained only as experimental
+provenance and are no longer part of the production workflow.
+
+The original prospective acceptance criteria were:
 
 - iterations 0, 1, 2, 3, 4 and 5 each have one complete metric set;
 - the final summary contains iteration 5 only and does not replace history;
@@ -99,5 +122,5 @@ of the following are observed:
 Passing these checks would establish short-run technical suitability, not
 empirical calibration, convergence or causal effects. The mode constants remain
 0.0, and five iterations are insufficient for a calibrated scenario comparison.
-The production config must remain unchanged until the reported mode changes and
-open-chain endpoint counts have been reviewed.
+They were not satisfied or validly measurable in this run. The productive
+configuration was not changed.

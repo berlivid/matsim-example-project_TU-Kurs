@@ -35,7 +35,7 @@ import org.matsim.pt.transitSchedule.api.TransitRoute;
 import org.matsim.pt.transitSchedule.api.TransitSchedule;
 
 /**
- * Read-only calibration metrics for experienced or externally loaded MATSim plans.
+ * Read-only calibration metrics for selected/routed or externally loaded MATSim plans.
  * Main-mode metrics and physical-stage passenger-kilometres are deliberately separate.
  */
 public final class ModeChoiceCalibrationAnalysis {

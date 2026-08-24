@@ -75,13 +75,20 @@ has a valid distance.
 ## Iteration lifecycle and reproducibility
 
 `ModeChoiceCalibrationIterationListener` runs at MATSim's `AfterMobsim`
-lifecycle event. At this point `ExperiencedPlansService` contains the plans
-actually executed in the just-completed mobsim, before the next iteration's
-replanning changes selected alternatives. The listener writes deterministic,
-sorted, small files to the run's protected output directory. The calibration
-config enables MATSim's experienced-plan output so that
-`AnalyzeModeChoiceCalibrationOutput` can reproduce the final analysis later
-without another simulation. The postprocessor reads existing plans, network
+lifecycle event. MATSim 2025.0 performs the current iteration's replanning
+before mobsim and the next iteration's replanning only after this point. The
+listener therefore reads every person's `selectedPlan` from the scenario: this
+is the complete selected and routed plan snapshot used as input to the current
+mobsim. It is not labelled as wholly experienced, because a stuck agent may not
+execute its full plan. `ExperiencedPlansService` is unsuitable here because it
+reconstructs plans only from experienced activity and leg events; the open-tour
+test demonstrated that this can leave plans empty or incomplete.
+
+The listener fails closed unless the unchanged structural reference counts are
+324,043 selected persons, 540,468 main trips and 160,603 `BOTH_INSIDE` main
+trips. It writes deterministic, sorted, small files to the protected output
+directory. `AnalyzeModeChoiceCalibrationOutput` uses the complete final
+`output_plans` snapshot rather than `output_experienced_plans`. The postprocessor reads existing plans, network
 and transit schedule and writes only below that output's `analysis` folder.
 Listener output and standalone output now have separate write paths. The
 listener retains one sorted metric block for each unique analyzed iteration.
@@ -96,6 +103,8 @@ The generated files are:
 - `analysis/mode_choice_final_summary.csv`: final-iteration main-mode table;
 - `analysis/pt_passenger_km_by_submode.csv`: physical PT-stage kilometres;
 - `analysis/distance_quality.csv`: source and invalid-distance diagnostics;
+- `analysis/stuck_events_iteration_metrics.csv`: separate event/person counts
+  by iteration, mode and transparent QSim-end time window;
 - `analysis/calibration_target_comparison.csv`: optional compatible target
   comparisons; and
 - `analysis/analysis_report.md`: concise methodological run summary.
@@ -154,6 +163,20 @@ with a single result, which replaced the historical file. No standard events,
 plans, score statistics or mode-choice history accompanied the copied folder,
 so iterations 0-19 cannot be reconstructed. Iteration 20 is a valid final-state
 observation, but convergence of that run cannot be assessed.
+
+The open-tour test history contains iterations 0--5, but its plan metrics used
+the incomplete former `ExperiencedPlansService` source. The finding of 107,618
+cohort identifiers with zero current trips makes that cohort diagnosis
+non-interpretable. Its 8,465 cumulative stuck events remain valid event facts
+and must be audited separately; their causes are not encoded by
+`PersonStuckEvent`.
+
+Future runs count stuck events separately per iteration and cumulatively,
+including unique persons, leg mode, minimum/maximum event time and whether the
+event occurs in the final hour before the configured 43-hour QSim end or after
+that end. The one-hour band is descriptive, not causal. The read-only auditor
+deduplicates root and iteration event files, reports missing event iterations
+and lists frequent links without inferring why a person became stuck.
 
 The analyzer cannot remedy uncertain baseline provenance, missing ownership
 and licence attributes, open plans, or an uncalibrated mode-choice model. It

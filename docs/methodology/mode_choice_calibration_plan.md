@@ -62,6 +62,14 @@ The first calibration round changes only the alternative-specific mode constants
 
 The approved provisional setting is `considerCarAvailability=false` because the base population has no `carAvail`, licence or vehicle-availability attributes. This avoids inventing attributes but offers car without an individual availability constraint and must be reported as a strong limitation. Later sensitivity work should use defensible ownership and licence evidence rather than infer attributes from simulated mode choices.
 
+Calibration round 1 keeps car as the reference with constant 0.00 and changes
+only the alternative-specific constants to PT 0.89, walk 0.78 and bike -0.21.
+These researcher-approved values are a first ratio-guided response to the
+uncalibrated final shares (approximately 41.30% car, 13.84% PT, 26.71% bike
+and 18.16% walk) relative to the 34/24/18/24 targets. They are a heuristic
+first step, not final estimates and not a claim that a single round will meet
+the targets.
+
 ## 7. Parameters initially held fixed
 
 Initially retain the existing scoring and routing values: marginal utility of travel time of -6 utils/hour for each configured mode, zero marginal distance utility, zero monetary distance rate, performing utility 6 utils/hour, PT waiting utility -6 utils/hour and line-switch utility -1. Keep the current teleported speeds and beeline factors (`bike` 4.167 m/s, `walk` 0.833 m/s, factor 1.3), `networkModes=car`, SwissRailRaptor defaults and the existing activity parameters.
@@ -87,6 +95,15 @@ Use a transparent coordinate-descent procedure:
 
 Every run must record the complete parameter vector, input hashes, seed, iteration window and resulting metrics. A more complex optimiser or an eqasim pipeline is not justified for the first calibration stage.
 
+For round 1, compare the mean, minimum and maximum modal shares over iterations
+16--20 with the target vector. A second round is warranted if a late-iteration
+mean remains materially outside the 1--2 percentage-point tolerance, if the
+late values still show a systematic trend, or if improved share agreement is
+accompanied by implausible Pkm shares, distances or a material stuck-event
+pattern. A small positive stuck count alone is recorded rather than treated as
+automatic failure; modes, persons and timing near the 43-hour QSim horizon must
+be inspected without inferring a cause from `PersonStuckEvent`.
+
 The target schema is versioned at `original-input-data/calibration/mode_choice_targets_2019.csv`. Primary trip shares, secondary annual Pkm references and external-cost Fkm references are explicitly distinguished. The analyzer does not alter constants. Full output definitions are documented in `mode_choice_output_analysis.md`.
 
 ## 10. Stopping rule
@@ -107,4 +124,4 @@ Among the open plans, 75,149 end with the same activity type at a different loca
 
 The first completed run preserves only iteration 20 because standalone postprocessing replaced its history. Its final trip shares are car 41.295763%, PT 13.843940%, bike 26.705034% and walk 18.155262%. These are valid final-state diagnostics, not evidence of convergence.
 
-The synthetic 2019 PT reference passed the full 324,043-person iteration-zero server validation on 24 August 2026, but the broader baseline-year provenance remains the main substantive uncertainty: a folder labelled 2023 contains an older public road/population model whose provenance is unresolved. The mode constants are all zero and have not been behaviourally calibrated. Consequently, calibration can be prepared now, but activation should wait for defensible baseline provenance and observed targets matching the approved spatial and trip definitions.
+The synthetic 2019 PT reference passed the full 324,043-person iteration-zero server validation on 24 August 2026, but the broader baseline-year provenance remains the main substantive uncertainty: a folder labelled 2023 contains an older public road/population model whose provenance is unresolved. Round 1 is now prepared against the approved trip targets, but it has not yet run and its constants are not calibrated results.

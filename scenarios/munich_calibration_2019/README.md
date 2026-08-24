@@ -192,6 +192,37 @@ directory deliberately before a rerun; the tool never overwrites it. Counts by
 iteration, mode, hour and unique person, plus frequent links, are descriptive
 and do not establish a cause.
 
+## Mode-choice calibration round 1
+
+Round 1 is isolated from the unchanged productive and open-tour configs. Its
+constants are car 0.00, PT 0.89, walk 0.78 and bike -0.21; its primary target
+is the `BOTH_INSIDE`, `ALL_PLANS` trip-share vector 34/24/18/24. The adjustment
+is an initial ratio-guided calibration step, not a final parameter estimate.
+The production behavior remains `fromSpecifiedModesToSpecifiedModes`, so the
+37,417 primary trips in open plans (23.297821%) remain a documented fixed
+component.
+
+Run these shared IntelliJ configurations in order on the server:
+
+12. **12 Validate 2019 Mode Choice Calibration Round 1** proves the exact
+    config diff, target vector and unused protected output path without QSim.
+13. **13 Run 2019 Mode Choice Calibration Round 1** is the only step that
+    starts MATSim. It uses up to 16 GB heap, SwissRailRaptor, iterations 0--20,
+    the complete selected-plan analyzer and per-iteration stuck-event counts.
+14. **14 Validate and Summarize 2019 Mode Choice Calibration Round 1** starts
+    no QSim. It validates the complete history and writes two new files below
+    `output/mode-choice-round-1/analysis`: `mode_choice_round_1_summary.csv`
+    and `mode_choice_round_1_report.md`. Existing files are never replaced.
+
+Do not create `output/mode-choice-round-1` before step 13. The round retains
+the validated 43-hour service horizon. Step 14 reports any small positive
+stuck counts descriptively, including the last five iterations, rather than
+rejecting a run solely for a non-zero count. It reports modal-share means,
+minima and maxima for iterations 16--20 and target gaps; final Pkm shares are
+secondary plausibility evidence only and are not annualized. These results,
+late-iteration trends and stuck timing determine whether round 2 changes the
+constants or first requires a technical diagnosis.
+
 For provenance, selection counts, conversion assumptions and methodological
 limitations, see
 [`docs/methodology/gtfs_2019_calibration_input.md`](../../docs/methodology/gtfs_2019_calibration_input.md).

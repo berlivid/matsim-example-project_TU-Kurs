@@ -421,3 +421,22 @@ Scenario outputs are excluded from Git.
   (23.297821%) remain a reported limitation.
 - Added separate future-run stuck metrics and a read-only existing-event
   auditor. Event mode, time and link are descriptive; no cause is inferred.
+
+## 24 August 2026 — mode-choice calibration round 1 prepared
+
+- Added a separate round-1 config with car fixed at 0.00 and PT 0.89, walk
+  0.78 and bike -0.21. A reverse textual comparison permits only the run ID,
+  output directory and these three non-reference constants to differ from the
+  unchanged productive calibration config.
+- The approved primary targets remain car 34%, PT 24%, bike 18% and walk 24%
+  for `BOTH_INSIDE` and `ALL_PLANS`. The constants are a first ratio-guided
+  step from the uncalibrated final state, not final calibrated parameters.
+- Added server steps 12--14 for read-only config validation, the protected
+  iterations 0--20 run, and read-only structural validation plus summary.
+  Only step 13 starts MATSim; no local QSim was run.
+- The prepared summary reports all iteration shares, mean/minimum/maximum for
+  iterations 16--20, target gaps, secondary final Pkm shares and stuck events
+  in the last five iterations. It applies no annualisation and does not reject
+  a run solely for a small positive stuck count.
+- The productive and open-tour configs, all scenario inputs, BAU and Fast
+  Track remain unchanged. No round-1 result is claimed before the server run.

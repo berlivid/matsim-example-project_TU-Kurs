@@ -164,3 +164,30 @@ scoring parameters, choice-set definition and availability assumption must be
 transferred to BAU and Fast Track. The two future scenarios must not be
 separately recalibrated to different modal splits. Only differences produced
 under one frozen behavioural model can be interpreted as scenario effects.
+
+## Calibration round 1
+
+`config_mode_choice_calibration_round_1.xml` is a mechanically controlled copy
+of the unchanged productive calibration config. The only content differences
+are run ID, protected output directory and the constants PT 0.89, walk 0.78
+and bike -0.21. Car remains the zero reference. A textual reverse-diff
+validator proves that behavior, modes, chain constraints, seed, iterations,
+strategy weights, inputs, capacities, threads, routing, scoring parameters and
+the 43-hour QSim horizon remain identical. In particular,
+`fromSpecifiedModesToSpecifiedModes` remains active.
+
+The 34% car, 24% PT, 18% bike and 24% walk targets apply to `BOTH_INSIDE` main
+trips and `ALL_PLANS`. The constants are a first ratio-guided adjustment from
+the uncalibrated final state; they are neither final estimates nor a new set of
+observations. Approximately 23.3% of primary trips remain in plans without a
+closed subtour and cannot be changed by this strategy.
+
+The server output validator requires a complete selected-plan history for
+iterations 0--20, the fixed structural counts, zero unknown modes and zero
+invalid distances. It summarizes every iteration and the mean/minimum/maximum
+over iterations 16--20, reports target gaps in percentage points, and uses
+final Pkm shares only as secondary validation. It never annualizes the
+simulated day. Positive stuck events are reported for the last five iterations
+and near the 43-hour boundary but do not alone invalidate the calibration.
+Round 2 should be decided from late-iteration target gaps, trend stability,
+secondary plausibility metrics and the descriptive stuck-event pattern.

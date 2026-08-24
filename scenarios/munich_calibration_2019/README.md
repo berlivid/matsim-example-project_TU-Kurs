@@ -88,11 +88,45 @@ was limited by a 3,936 MB Maven heap, while the later server attempt exposed
 the independent undefined-end-time defect. Neither incomplete output may be
 used for analysis.
 
-Consequently, the input is structurally ready for transfer but is not fully
-end-to-end approved until step 3 finishes normally on the Uni server. Only
-after that result should the common spatial analysis filter and mode-choice
-calibration be started. BAU 2040, Fast Track 2040 and GTFS 2037 are independent
-of this workflow and must not be rebuilt by these configurations.
+At the original transfer stage, the input was only structurally ready and
+required a successful server-side step 3. The corrected input subsequently
+completed iteration 0 on the Uni server on 24 August 2026 with all 324,043
+persons, process exit code 0 and
+`GTFS 2019 END-TO-END VALIDATION PASS`. It is therefore technically available
+for the separate mode-choice diagnostic described below; its synthetic-source
+provenance limitations remain unchanged. BAU 2040, Fast Track 2040 and GTFS
+2037 are independent of this workflow and must not be rebuilt by these
+configurations.
+
+## Initial mode-choice diagnostic
+
+Two additional shared run configurations prepare the next server stage:
+
+4. **05 Validate 2019 Mode Choice Configuration** runs
+   `org.matsim.project.prepare.ValidateModeChoiceCalibrationConfig` with at
+   most 4 GB heap. It reads and validates
+   `config_mode_choice_calibration.xml`, all input references, four offered
+   modes, three strategy weights, zero starting constants and output
+   protection. It does not load a scenario or start QSim.
+5. **06 Run Initial 2019 Mode Choice Calibration** runs
+   `org.matsim.project.prepare.RunMatsim2019ModeChoiceCalibration` with 16 GB
+   maximum heap. It repeats the validation, refuses an existing output
+   directory, loads only the synthetic-2019 calibration config, installs
+   SwissRailRaptor and executes iterations 0 through 20.
+
+Run step 05 before step 06. Do not create or reuse
+`scenarios/munich_calibration_2019/output/mode-choice-initial` beforehand:
+`failIfDirectoryExists` is an intentional safeguard. Step 06 is a technical
+diagnostic, not an empirically calibrated run. It offers only `car`, `pt`,
+`walk` and `bike`; the initial constants are all zero. `ride` remains excluded
+from endogenous choice because no matched-driver model or compatible passenger
+target exists. `considerCarAvailability=false` is provisional because the
+population has no licence, ownership or availability attributes.
+
+The regional population is not spatially filtered. The municipal-boundary
+logic is applied only to later calibration and result analysis. Detailed
+method and limitations are documented in
+[`docs/methodology/mode_choice_calibration_configuration.md`](../../docs/methodology/mode_choice_calibration_configuration.md).
 
 For provenance, selection counts, conversion assumptions and methodological
 limitations, see

@@ -31,7 +31,7 @@ Targets from different years or definitions must not be silently combined. Count
 
 ## 3. Modal-split definition
 
-The calibration metric is the share of **main-mode trips between consecutive main activities** in selected plans. Stage activities such as `pt interaction` are excluded. A routed PT journey with access and egress legs counts once as `pt`; it is not counted as several walk and PT legs. The proposed hierarchy for the rare case of a multi-leg trip is `car`, `ride`, `pt`, `bike`, then `walk`, and the same algorithm must be used for observations and simulation exports.
+The calibration metric is the share of **main-mode trips between consecutive main activities** in selected plans. Stage activities such as `pt interaction` are excluded. A routed PT journey with access and egress legs counts once as `pt`; it is not counted as several walk and PT legs. The proposed hierarchy for the rare case of a multi-leg trip is `car`, `pt`, `bike`, then `walk`. `ride` is not a separate calibration category under the approved aggregate-car approximation. The same algorithm must be used for observations and simulation exports.
 
 The approved primary geographic sample is main trips for which **both the origin and destination main activities are inside or exactly on the City of Munich administrative boundary**. Inbound, outbound and wholly external trips are excluded from the primary calibration metric, irrespective of the person's home location. They remain in the simulation and therefore continue to affect traffic and public-transport conditions. Missing-coordinate trips are reported separately and fail closed. This is an origin-and-destination analysis filter, not a resident filter; the complete method and preflight are documented in `munich_spatial_analysis_scope.md`. The five-percent expansion factor does not change shares when every person has the same weight, but weighted survey targets must still be applied correctly.
 
@@ -39,20 +39,20 @@ The current population statistic in this document is a simpler **input-plan leg 
 
 ## 4. Initial modes
 
-The first calibration should allow `car`, `pt`, `walk` and `bike`. These four modes are canonical and present in the input population. `ride` is currently absent and should remain excluded until a compatible empirical target and a clear passenger-mode interpretation exist. `other` is also absent and should not be offered as a choice alternative.
+The first calibration allows `car`, `pt`, `walk` and `bike`. These four modes are canonical and present in the input population. `ride` and `other` are not offered as choice alternatives. Standard MATSim `ride` would represent an unlinked passenger trip without a matched driver or vehicle; the project has neither a joint-trip or ride-matching model nor a compatible trip-based passenger target. `car` therefore approximates aggregate motorised individual passenger travel. For the later external-cost calculation, simulated car passenger-kilometres will be converted to vehicle-kilometres with an observed 2019 occupancy factor (`Pkm/Fkm`). That factor must be held constant in BAU and Fast Track; an alternative 2040 occupancy may only be a sensitivity.
 
 Car and bike are chain-based in the MATSim 2025.0 default `SubtourModeChoice` configuration. This preserves vehicle continuity over a closed subtour. Bike remains teleported in the current project; its constant can be calibrated, but network-specific cycling measures still cannot be evaluated credibly without a separate calibrated bicycle network and router.
 
 ## 5. Minimal technical configuration changes
 
-A new non-production calibration configuration should be created only after the reference-year inputs are confirmed. It should:
+A separate non-production configuration now exists at `scenarios/munich_calibration_2019/config_mode_choice_calibration.xml`. It:
 
 1. activate explicit, year-consistent PT and SwissRailRaptor routing;
 2. consolidate the two legacy `strategy` modules into one canonical `replanning` module;
 3. use `ChangeExpBeta` with weight 0.8, `ReRoute` with weight 0.1 and `SubtourModeChoice` with weight 0.1;
 4. explicitly set `SubtourModeChoice` modes to `car,pt,walk,bike`, chain-based modes to `car,bike`, behaviour to `fromSpecifiedModesToSpecifiedModes` and single-trip probability to zero;
 5. keep random seed 4711 and the five-percent QSim capacity factors;
-6. run enough iterations for mode shares and scores to stabilise; 100 iterations is a reasonable first diagnostic, not a fixed scientific requirement.
+6. uses iterations 0 through 20 only as an initial technical diagnostic. A later calibration must run long enough for shares and scores to stabilise; the required iteration count is an empirical convergence finding, not a fixed assumption.
 
 The current iteration-zero production configs are technical input checks, not calibration configs. No `SubtourModeChoice` strategy is active today.
 
@@ -60,7 +60,7 @@ The current iteration-zero production configs are technical input checks, not ca
 
 The first calibration round changes only the alternative-specific mode constants for `car`, `pt`, `walk` and `bike`. One constant must be fixed as the reference (recommended: `car = 0`) so that the remaining constants are identifiable. The `pt`, `walk` and `bike` constants are then adjusted to reduce the difference between simulated and observed shares.
 
-Car availability is a separate decision. The base population has no `carAvail`, licence or vehicle-availability attributes. The preferred solution is to add defensible availability attributes in a separate, documented population-preparation step and then set `considerCarAvailability=true`. A minimal aggregate sensitivity could retain `false`, but it would offer car to persons without an observed availability constraint and must be reported as a strong limitation.
+The approved provisional setting is `considerCarAvailability=false` because the base population has no `carAvail`, licence or vehicle-availability attributes. This avoids inventing attributes but offers car without an individual availability constraint and must be reported as a strong limitation. Later sensitivity work should use defensible ownership and licence evidence rather than infer attributes from simulated mode choices.
 
 ## 7. Parameters initially held fixed
 
@@ -99,6 +99,6 @@ Future modal-split differences are interpretable as scenario outputs only after 
 
 ## 12. Methodological limitations and readiness finding
 
-The population is technically clean but only partly ready. All 324,043 persons have exactly one selected plan; all 540,468 leg modes are canonical; activity/leg alternation and coordinates are complete; and no unknown modes or pre-existing routes occur. However, only 216,425 persons (66.789%) have a closed repeated-location plan, while 107,618 (33.211%) have no repeated location. Every selected plan is monomodal, and no availability attributes exist. These facts support a focused `SubtourModeChoice` experiment but require eligibility reporting and an explicit car-availability decision.
+The population is technically clean but only partly ready. All 324,043 persons have exactly one selected plan; all 540,468 main-trip modes are canonical; activity/leg alternation and coordinates are complete; and no unknown modes occur. A reproducible MATSim subtour audit identifies 216,425 persons (66.789%) with a closed subtour and 107,618 (33.211%) without one. The former are technically eligible for the configured subtour change; the latter cannot change mode under this subtour-only strategy. Every selected plan is initially monomodal, and no availability attributes exist. The separate configuration and safeguards are documented in `mode_choice_calibration_configuration.md`.
 
 The synthetic 2019 PT reference passed the full 324,043-person iteration-zero server validation on 24 August 2026, but the broader baseline-year provenance remains the main substantive uncertainty: a folder labelled 2023 contains an older public road/population model whose provenance is unresolved. The mode constants are all zero and have not been behaviourally calibrated. Consequently, calibration can be prepared now, but activation should wait for defensible baseline provenance and observed targets matching the approved spatial and trip definitions.

@@ -324,3 +324,23 @@ Scenario outputs are excluded from Git.
 - The complete regional population and every scenario input remain unchanged.
   No modal split, passenger-kilometre or vehicle-kilometre result was produced,
   and no mode choice or simulation was started.
+
+## 24 August 2026 — synthetic-2019 mode-choice configuration prepared
+
+- Added a separate protected diagnostic configuration for the validated
+  synthetic 2019 reference. It offers `car`, `pt`, `walk` and `bike` through
+  `SubtourModeChoice`; `car` and `bike` are chain based. `ride` and `other` are
+  not choice alternatives.
+- Replanning weights are `ChangeExpBeta=0.8`, `ReRoute=0.1` and
+  `SubtourModeChoice=0.1`. The car, PT, walk and bike constants all remain zero
+  as an explicitly uncalibrated starting vector.
+- The protected diagnostic is configured for iterations 0–20, seed 4711,
+  four global threads, two QSim threads and 5-% flow/storage factors. No local
+  QSim or 20-iteration run was started.
+- A streaming audit confirmed 324,043 persons, 540,468 main trips, 216,425
+  plans with a closed subtour and 107,618 without one. No unknown input mode or
+  car-availability, licence or vehicle attribute was found.
+- The complete regional population remains unchanged. The municipal boundary
+  is an analysis-only filter. Empirical target shares and the observed 2019 car
+  occupancy factor remain external inputs for later calibration and cost
+  analysis.

@@ -144,10 +144,38 @@ The copied first-run analysis contains only iteration 20. The earlier Run 07
 implementation overwrote the listener history with its single final result;
 no file in the copied folder can reconstruct iterations 0-19. Do not claim
 convergence from that run. The corrected pipeline preserves future histories.
-Before the next run, decide whether to retain
-`fromSpecifiedModesToSpecifiedModes` or test
-`betweenAllAndFewerConstraints` in a separate short protected run. The
-productive calibration config has not yet been changed.
+The alternative `betweenAllAndFewerConstraints` is now prepared only in the
+separate protected test described below. The production calibration behavior
+remains unchanged pending review of that test's server output.
+
+## Isolated open-tour test
+
+The alternative behavior is prepared in a separate config and output path. It
+does not change `config_mode_choice_calibration.xml`. Run these shared IntelliJ
+configurations in order on the server:
+
+8. **08 Validate 2019 Open Tour Mode Choice Test** checks that the test config
+   has exactly the approved four differences and that its output path does not
+   exist. It starts no QSim.
+9. **09 Run 2019 Open Tour Mode Choice Test** is the only step that starts the
+   five-iteration test. It uses 16 GB maximum heap, refuses an existing output
+   directory and never deletes output.
+10. **10 Validate 2019 Open Tour Mode Choice Test Output** checks regular
+    completion, histories 0 through 5, the iteration-5 final summary, the
+    originally open cohort, mode changes, invalid distances, stuck events and
+    car/bike resource locations. It is read-only and starts no QSim.
+
+Do not run step 09 if step 08 fails. Do not create
+`output/mode-choice-open-tour-test` manually. After step 09, run step 10 rather
+than the general step 07 postprocessor. The output validator treats car or bike
+ending away from the first activity as a separately reported implication of an
+open day, while an intervening resource jump remains a blocking inconsistency.
+The exact method and decision criteria are documented in
+[`docs/methodology/mode_choice_open_tour_test.md`](../../docs/methodology/mode_choice_open_tour_test.md).
+
+This test retains zero constants and is neither a new calibration round nor a
+scenario-effect comparison. No result should be inferred before the server
+output passes step 10 and the reported endpoint counts are reviewed.
 
 For provenance, selection counts, conversion assumptions and methodological
 limitations, see

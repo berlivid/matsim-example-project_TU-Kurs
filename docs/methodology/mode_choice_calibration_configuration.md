@@ -132,6 +132,16 @@ limitation, and later mixed nested subtours may trigger MATSim's consistency
 exception. The recommended next step is a short protected test, not an
 immediate production-config change.
 
+That recommendation is implemented as a fully separate five-iteration test
+configuration, not as a change to the production calibration. The test differs
+only in run ID, protected output directory, last iteration and behavior. Its
+aggregate listener applies MATSim's facility/link chain-resource sequence to
+the originally open cohort and distinguishes an invalid resource jump from the
+deliberately relaxed end-of-day location. The prepared test method and
+acceptance criteria are documented in `mode_choice_open_tour_test.md`. No test
+outcome is available until the separate server run and output validation have
+completed.
+
 The versioned Munich municipal-boundary filter is not part of simulation
 demand preparation. It will later select analysis trips whose origin and
 destination main activities are both inside or on the administrative boundary.

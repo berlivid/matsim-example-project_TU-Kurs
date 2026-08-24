@@ -381,3 +381,22 @@ Scenario outputs are excluded from Git.
 - MATSim 2025.0 would expose all open plans through
   `betweenAllAndFewerConstraints`, but the chain-mode end-location risk remains.
   The productive config was not changed; a short protected test is recommended.
+
+## 24 August 2026 — isolated open-tour test prepared
+
+- Added a separate five-iteration config for
+  `betweenAllAndFewerConstraints`. An exact textual comparison permits only the
+  run ID, output directory, last iteration and SubtourModeChoice behavior to
+  differ from the unchanged production calibration config.
+- Added server steps 08–10 for read-only config validation, the protected test
+  run and read-only output validation. Only step 09 can start QSim; no local
+  QSim was started while preparing the test.
+- The test listener will follow the 107,618-person originally open cohort and
+  its 37,417 primary `BOTH_INSIDE` trips without writing person identifiers.
+  It will distinguish car/bike resource jumps from a resource ending at the
+  final location of an open day.
+- Output acceptance requires complete histories 0–5, final summary 5, regular
+  termination, actual mode-signature changes and no unknown modes, invalid
+  distances, stuck events or unverifiable/jumping chain resources.
+- This entry records test preparation only. No server result, empirical
+  calibration, convergence statement or production behavior change is claimed.

@@ -116,6 +116,8 @@
     <module name="scoring">
         <param name="brainExpBeta" value="1.0" />
         <param name="learningRate" value="1.0" />
+        <!-- Required for the independent final-result postprocessor. -->
+        <param name="writeExperiencedPlans" value="true" />
         <parameterset type="scoringParameters">
             <param name="earlyDeparture" value="-0.0" />
             <param name="lateArrival" value="-18.0" />

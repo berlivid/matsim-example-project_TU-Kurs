@@ -344,3 +344,21 @@ Scenario outputs are excluded from Git.
   is an analysis-only filter. Empirical target shares and the observed 2019 car
   occupancy factor remain external inputs for later calibration and cost
   analysis.
+
+## 24 August 2026 — mode-choice calibration analyzer prepared
+
+- Added a read-only analyzer for each completed mobsim iteration and for an
+  existing final output. It uses experienced plans at `AfterMobsim`, before
+  replanning, and reuses the unchanged Munich origin-and-destination filter.
+- Main trips count once in modal split and main-mode passenger-kilometres.
+  Physical stages are reported separately, including PT submodes from the
+  actually used transit route and explicit distance-source diagnostics.
+- Results distinguish the primary `BOTH_INSIDE` sample, all regional trips,
+  boundary-crossing trips, external controls and mode-choice-capable versus
+  non-capable plans. Pkm sums are shown for the 5-% sample and with factor 20;
+  shares and mean lengths are not scaled and no annualisation is applied.
+- Added a blank, validated 2019 target schema. No target value, mode constant
+  or occupancy factor was invented. Raw MATSim car route kilometres remain
+  separate from later occupancy-adjusted external-cost vehicle-kilometres.
+- Focused synthetic tests passed without QSim or a full-population analysis.
+  No BAU, Fast Track, population, boundary or transit input was changed.

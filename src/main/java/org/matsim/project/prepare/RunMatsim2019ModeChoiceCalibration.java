@@ -4,6 +4,7 @@ import ch.sbb.matsim.routing.pt.raptor.SwissRailRaptorModule;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import org.matsim.core.config.Config;
+import org.matsim.core.controler.AbstractModule;
 import org.matsim.core.controler.Controler;
 import org.matsim.core.scenario.ScenarioUtils;
 
@@ -22,6 +23,13 @@ public final class RunMatsim2019ModeChoiceCalibration {
         var scenario = ScenarioUtils.loadScenario(config);
         Controler controler = new Controler(scenario);
         controler.addOverridingModule(new SwissRailRaptorModule());
+        controler.addOverridingModule(new AbstractModule() {
+            @Override
+            public void install() {
+                addControlerListenerBinding()
+                        .to(ModeChoiceCalibrationIterationListener.class);
+            }
+        });
         controler.run();
     }
 }

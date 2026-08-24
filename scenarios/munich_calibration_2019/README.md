@@ -100,7 +100,7 @@ configurations.
 
 ## Initial mode-choice diagnostic
 
-Two additional shared run configurations prepare the next server stage:
+Three additional shared run configurations prepare and analyze the next server stage:
 
 4. **05 Validate 2019 Mode Choice Configuration** runs
    `org.matsim.project.prepare.ValidateModeChoiceCalibrationConfig` with at
@@ -113,8 +113,17 @@ Two additional shared run configurations prepare the next server stage:
    maximum heap. It repeats the validation, refuses an existing output
    directory, loads only the synthetic-2019 calibration config, installs
    SwissRailRaptor and executes iterations 0 through 20.
+6. **07 Analyze Initial 2019 Mode Choice Run** runs
+   `org.matsim.project.prepare.AnalyzeModeChoiceCalibrationOutput` with an 8 GB
+   maximum heap. It starts no QSim. It reads the completed run's experienced
+   plans and fixed inputs, and writes only below
+   `output/mode-choice-initial/analysis`.
 
-Run step 05 before step 06. Do not create or reuse
+Run step 05 before step 06. Step 06 records the actually experienced plans
+and writes iteration-level modal-share, passenger-kilometre, trip-length and
+distance-quality results after each mobsim, before replanning. After step 06
+terminates successfully, run step 07 as an independent final-result
+reproduction check. Do not create or reuse
 `scenarios/munich_calibration_2019/output/mode-choice-initial` beforehand:
 `failIfDirectoryExists` is an intentional safeguard. Step 06 is a technical
 diagnostic, not an empirically calibrated run. It offers only `car`, `pt`,
@@ -127,6 +136,8 @@ The regional population is not spatially filtered. The municipal-boundary
 logic is applied only to later calibration and result analysis. Detailed
 method and limitations are documented in
 [`docs/methodology/mode_choice_calibration_configuration.md`](../../docs/methodology/mode_choice_calibration_configuration.md).
+Output definitions and the blank empirical-target schema are documented in
+[`docs/methodology/mode_choice_output_analysis.md`](../../docs/methodology/mode_choice_output_analysis.md).
 
 For provenance, selection counts, conversion assumptions and methodological
 limitations, see

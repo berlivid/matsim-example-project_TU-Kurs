@@ -102,7 +102,18 @@ replanning behaviour; they are not a convergence claim or a final calibration.
 input references without starting QSim. `RunMatsim2019ModeChoiceCalibration`
 accepts no arguments, repeats that validation, refuses an existing output
 directory, loads only the fixed 2019 config, installs SwissRailRaptor and then
-starts the controller. It neither deletes output nor changes parameters.
+starts the controller. It neither deletes output nor changes parameters. The
+config also enables MATSim's experienced-plan output for reproducible
+postprocessing; this changes output recording, not behavioural parameters.
+
+The runner installs `ModeChoiceCalibrationIterationListener`. At the
+`AfterMobsim` event it reads `ExperiencedPlansService`, so each row describes
+the plans executed in the completed iteration before subsequent replanning.
+It writes small analysis files below the protected run output. The independent
+`AnalyzeModeChoiceCalibrationOutput` postprocessor can recreate the final
+summary from an existing experienced-plans output without starting QSim. The
+complete metric, distance and target rules are documented in
+`mode_choice_output_analysis.md`.
 
 The versioned Munich municipal-boundary filter is not part of simulation
 demand preparation. It will later select analysis trips whose origin and

@@ -2,7 +2,7 @@
 
 ## Purpose and evidence boundary
 
-This document prepares a deliberately small mode-choice calibration for the Munich MATSim project. It does not activate mode choice and does not change a production configuration. It separates three types of information:
+This document prepares a deliberately small mode-choice calibration for the Munich MATSim project. Mode choice is configured only in a separate protected diagnostic configuration; it has not yet been calibrated or transferred to a production configuration. It separates three types of information:
 
 - **Observed project facts:** the current configuration and population contents reported below.
 - **External observations still required:** survey or count targets that are not stored in this repository.
@@ -31,7 +31,7 @@ Targets from different years or definitions must not be silently combined. Count
 
 ## 3. Modal-split definition
 
-The calibration metric is the share of **main-mode trips between consecutive main activities** in selected plans. Stage activities such as `pt interaction` are excluded. A routed PT journey with access and egress legs counts once as `pt`; it is not counted as several walk and PT legs. The proposed hierarchy for the rare case of a multi-leg trip is `car`, `pt`, `bike`, then `walk`. `ride` is not a separate calibration category under the approved aggregate-car approximation. The same algorithm must be used for observations and simulation exports.
+The calibration metric is the share of **main-mode trips between consecutive main activities** in selected plans. Stage activities such as `pt interaction` are excluded. A routed PT journey with access and egress legs counts once as `pt`; it is not counted as several walk and PT legs. MATSim's standard analysis main-mode identification is applied to all physical legs of a trip. `ride` is not a separate calibration category under the approved aggregate-car approximation. Unknown results are reported explicitly. The same algorithm must be used for observations and simulation exports.
 
 The approved primary geographic sample is main trips for which **both the origin and destination main activities are inside or exactly on the City of Munich administrative boundary**. Inbound, outbound and wholly external trips are excluded from the primary calibration metric, irrespective of the person's home location. They remain in the simulation and therefore continue to affect traffic and public-transport conditions. Missing-coordinate trips are reported separately and fail closed. This is an origin-and-destination analysis filter, not a resident filter; the complete method and preflight are documented in `munich_spatial_analysis_scope.md`. The five-percent expansion factor does not change shares when every person has the same weight, but weighted survey targets must still be applied correctly.
 
@@ -54,7 +54,7 @@ A separate non-production configuration now exists at `scenarios/munich_calibrat
 5. keep random seed 4711 and the five-percent QSim capacity factors;
 6. uses iterations 0 through 20 only as an initial technical diagnostic. A later calibration must run long enough for shares and scores to stabilise; the required iteration count is an empirical convergence finding, not a fixed assumption.
 
-The current iteration-zero production configs are technical input checks, not calibration configs. No `SubtourModeChoice` strategy is active today.
+The iteration-zero input config is a technical input check, not a calibration config. `SubtourModeChoice` is active only in the separate calibration configuration; BAU and Fast Track remain unchanged.
 
 ## 6. Parameters to calibrate
 
@@ -70,7 +70,7 @@ Time, distance, money, parking, fares, transfer penalties and value-of-time para
 
 ## 8. Simulation–observation comparison
 
-For each parameter vector, use the same two-endpoints-inside-Munich trip filter for observed and simulated data. Report modal share, mean trip distance and mean door-to-door travel time by mode, plus the number of eligible persons and trips. Use the mean of several stable late iterations rather than a single noisy iteration. Report the unresolved 107,618 open plans separately because they contain no repeated location and may not form a mutable subtour.
+For each parameter vector, use the same two-endpoints-inside-Munich trip filter for observed and simulated data. The implemented analyzer reports modal share, mean trip distance, main-mode passenger-kilometres, physical-stage passenger-kilometres, eligible persons and trips after every mobsim. Use the mean of several stable late iterations rather than a single noisy iteration. Report the unresolved 107,618 open plans separately because they contain no repeated location and may not form a mutable subtour. Door-to-door travel time remains a later extension and is not inferred by the present distance analyzer.
 
 The current uncalibrated input-plan leg shares across all 324,043 persons are: car 45.319%, PT 10.828%, walk 29.788% and bike 14.064% (540,468 legs). They describe the synthetic input, not observed Munich behaviour and not a model prediction.
 
@@ -86,6 +86,8 @@ Use a transparent coordinate-descent procedure:
 6. repeat the final vector with at least two additional random seeds to check robustness.
 
 Every run must record the complete parameter vector, input hashes, seed, iteration window and resulting metrics. A more complex optimiser or an eqasim pipeline is not justified for the first calibration stage.
+
+The blank target schema is versioned at `original-input-data/calibration/mode_choice_targets_2019.csv`. Values may be entered only with compatible 2019 source, unit, trip and spatial definitions. The analyzer continues without targets and does not alter constants. Full output definitions are documented in `mode_choice_output_analysis.md`.
 
 ## 10. Stopping rule
 

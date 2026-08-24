@@ -1,0 +1,16 @@
+metric,mode,target_value,unit,spatial_definition,trip_definition,reference_year,source,notes
+trip_modal_share,car,,percent,both_main_activity_endpoints_inside_or_on_munich,main_trip_between_consecutive_main_activities,2019,,TODO: enter a method-compatible observed person-trip share
+trip_modal_share,pt,,percent,both_main_activity_endpoints_inside_or_on_munich,main_trip_between_consecutive_main_activities,2019,,TODO: enter a method-compatible observed person-trip share
+trip_modal_share,walk,,percent,both_main_activity_endpoints_inside_or_on_munich,main_trip_between_consecutive_main_activities,2019,,TODO: enter a method-compatible observed person-trip share
+trip_modal_share,bike,,percent,both_main_activity_endpoints_inside_or_on_munich,main_trip_between_consecutive_main_activities,2019,,TODO: enter a method-compatible observed person-trip share
+mean_trip_distance,car,,km,both_main_activity_endpoints_inside_or_on_munich,main_trip_between_consecutive_main_activities,2019,,TODO: enter a method-compatible observed mean main-trip distance
+mean_trip_distance,pt,,km,both_main_activity_endpoints_inside_or_on_munich,main_trip_between_consecutive_main_activities,2019,,TODO: enter a method-compatible observed mean main-trip distance
+mean_trip_distance,walk,,km,both_main_activity_endpoints_inside_or_on_munich,main_trip_between_consecutive_main_activities,2019,,TODO: enter a method-compatible observed mean main-trip distance
+mean_trip_distance,bike,,km,both_main_activity_endpoints_inside_or_on_munich,main_trip_between_consecutive_main_activities,2019,,TODO: enter a method-compatible observed mean main-trip distance
+total_or_daily_pkm,car,,person_km_per_service_day,both_main_activity_endpoints_inside_or_on_munich,main_trip_between_consecutive_main_activities,2019,,TODO: enter only if a compatible daily full-population Pkm target is available
+total_or_daily_pkm,pt,,person_km_per_service_day,both_main_activity_endpoints_inside_or_on_munich,main_trip_between_consecutive_main_activities,2019,,TODO: enter only if a compatible daily full-population Pkm target is available
+total_or_daily_pkm,walk,,person_km_per_service_day,both_main_activity_endpoints_inside_or_on_munich,main_trip_between_consecutive_main_activities,2019,,TODO: enter only if a compatible daily full-population Pkm target is available
+total_or_daily_pkm,bike,,person_km_per_service_day,both_main_activity_endpoints_inside_or_on_munich,main_trip_between_consecutive_main_activities,2019,,TODO: enter only if a compatible daily full-population Pkm target is available
+observed_car_pkm,car,,person_km_per_service_day,both_main_activity_endpoints_inside_or_on_munich,main_trip_between_consecutive_main_activities,2019,,TODO: enter observed car passenger-kilometres with provenance
+observed_car_fkm,car,,vehicle_km_per_service_day,both_main_activity_endpoints_inside_or_on_munich,main_trip_between_consecutive_main_activities,2019,,TODO: enter observed car vehicle-kilometres with provenance
+car_occupancy_factor,car,,persons_per_car,both_main_activity_endpoints_inside_or_on_munich,main_trip_between_consecutive_main_activities,2019,,TODO: calculate only from compatible observed_car_pkm divided by observed_car_fkm

@@ -63,6 +63,7 @@ public final class ValidateModeChoiceCalibrationConfig {
         validateSubtourModeChoice(config);
         validateScoring(config);
         validateRunSettings(config);
+        validateTargetSchema();
         return config;
     }
 
@@ -154,6 +155,8 @@ public final class ValidateModeChoiceCalibrationConfig {
                         && close(config.scoring().getMarginalUtlOfWaitingPt_utils_hr(), -6.0)
                         && close(config.scoring().getUtilityOfLineSwitch(), -1.0),
                 "Common scoring values changed");
+        require(config.scoring().isWriteExperiencedPlans(),
+                "Experienced plans must be written for reproducible final analysis");
         require(close(config.routing().getTeleportedModeParams().get("walk")
                         .getTeleportedModeSpeed(), 0.8333333333333333)
                         && close(config.routing().getTeleportedModeParams().get("bike")
@@ -184,6 +187,15 @@ public final class ValidateModeChoiceCalibrationConfig {
         require(config.controller().getOverwriteFileSetting()
                         == OutputDirectoryHierarchy.OverwriteFileSetting.failIfDirectoryExists,
                 "Calibration output must fail if its directory exists");
+    }
+
+    private static void validateTargetSchema() throws IOException {
+        var targets = ModeChoiceCalibrationTargets.read(
+                ModeChoiceCalibrationTargets.DEFAULT_FILE);
+        require(targets.size() == 15, "Expected 15 versioned target placeholders");
+        require(targets.stream().map(target -> target.metric() + "|" + target.mode())
+                        .distinct().count() == targets.size(),
+                "Target metric/mode rows must be unique");
     }
 
     static Map<String, Double> strategyMap(Config config) {

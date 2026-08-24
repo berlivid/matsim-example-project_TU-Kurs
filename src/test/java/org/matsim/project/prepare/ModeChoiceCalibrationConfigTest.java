@@ -76,6 +76,15 @@ class ModeChoiceCalibrationConfigTest {
         assertTrue(config.scoring().getModes().keySet().containsAll(Set.of("ride", "other")));
         assertFalse(Arrays.asList(config.subtourModeChoice().getModes()).contains("ride"));
         assertFalse(Arrays.asList(config.subtourModeChoice().getModes()).contains("other"));
+        assertTrue(config.scoring().isWriteExperiencedPlans());
+    }
+
+    @Test
+    void emptyTargetSchemaIsValidAndContainsNoInventedValue() throws Exception {
+        var targets = ModeChoiceCalibrationTargets.read(
+                ModeChoiceCalibrationTargets.DEFAULT_FILE);
+        assertEquals(15, targets.size());
+        assertTrue(targets.stream().allMatch(target -> target.numericValue() == null));
     }
 
     @Test

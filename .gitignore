@@ -51,6 +51,7 @@ scenarios/munich_*/output/
 /scenarios/munich_calibration_2019/input_transit/*.xml.gz
 /scenarios/munich_calibration_2019/output*/
 /scenarios/munich_calibration_2019/**/output*/
+/generated/munich_trip_boundary_preflight/
 
 # Microsoft Office lock files
 ~$*.xlsx

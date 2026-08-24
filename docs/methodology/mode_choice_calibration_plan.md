@@ -14,16 +14,16 @@ The objective is a common behavioural baseline. Only after this common calibrati
 
 The provisional recommendation is **2019**, subject to one provenance check before any calibration run. The road-network artifact has a 2019 modification date and the input is the public `munich-v1.0` model, while project documentation explicitly states that the source year of the public population is unresolved. No complete, independently documented 2023 scenario exists: the folder name `munich_base_2023` is not evidence of a 2023 behavioural base, and its optional PT files represent a 2026 service day. Therefore, 2023 must not be used merely because it appears in the directory name.
 
-The repository also does not yet contain a complete, year-consistent 2019 bundle because a confirmed 2019 PT schedule and definitive population provenance are missing. Before calibration, the public scenario provenance must be confirmed and a year-consistent PT input must be selected. If the core inputs cannot be confirmed as 2019, the calibration year remains unresolved rather than being relabelled.
+The repository now contains the structurally and end-to-end validated synthetic 2019 public-transport reference extracted from the approved combined forecast dataset. This resolves the technical PT-input gap but does not turn that supply into an independently sourced historical snapshot. Definitive population and road-network provenance remains required. If the core inputs cannot be defended as a 2019 behavioural baseline, the calibration year remains unresolved rather than being relabelled.
 
 ## 2. Observed targets required
 
 The minimum external target package is an average-working-day 2019 dataset with a documented population, geography and trip definition. It must provide:
 
-- trip-based modal shares for `car`, `pt`, `walk` and `bike` for Munich residents;
+- trip-based modal shares for `car`, `pt`, `walk` and `bike` using the same two-endpoints-inside-Munich trip geography as the simulation analysis;
 - `ride` share only if survey coding is compatible with the MATSim passenger mode;
 - mean trip distance and mean door-to-door travel time by mode;
-- sample weights, treatment of trips outside Munich and treatment of respondents without a complete home-based day;
+- sample weights, exact boundary treatment, handling of inbound/outbound trips and treatment of respondents without a complete day;
 - car ownership, driving-licence and household vehicle availability distributions, preferably linked to person or household types;
 - uncertainty intervals or at least survey sample sizes.
 
@@ -33,7 +33,7 @@ Targets from different years or definitions must not be silently combined. Count
 
 The calibration metric is the share of **main-mode trips between consecutive main activities** in selected plans. Stage activities such as `pt interaction` are excluded. A routed PT journey with access and egress legs counts once as `pt`; it is not counted as several walk and PT legs. The proposed hierarchy for the rare case of a multi-leg trip is `car`, `ride`, `pt`, `bike`, then `walk`, and the same algorithm must be used for observations and simulation exports.
 
-The primary geographic sample should be persons whose home coordinate lies inside the City of Munich boundary, because a Munich-resident survey target cannot calibrate the entire regional population. Trips crossing the boundary remain included for those residents. Persons without an identifiable home are reported separately and excluded from the primary calibration metric. The five-percent expansion factor does not change shares when every person has the same weight, but weighted survey targets must still be applied correctly.
+The approved primary geographic sample is main trips for which **both the origin and destination main activities are inside or exactly on the City of Munich administrative boundary**. Inbound, outbound and wholly external trips are excluded from the primary calibration metric, irrespective of the person's home location. They remain in the simulation and therefore continue to affect traffic and public-transport conditions. Missing-coordinate trips are reported separately and fail closed. This is an origin-and-destination analysis filter, not a resident filter; the complete method and preflight are documented in `munich_spatial_analysis_scope.md`. The five-percent expansion factor does not change shares when every person has the same weight, but weighted survey targets must still be applied correctly.
 
 The current population statistic in this document is a simpler **input-plan leg share**, not a calibrated or observed modal split. The base population has one direct leg per trip and no routed stages, so it is a useful readiness diagnostic but must not be confused with a post-routing output statistic.
 
@@ -70,7 +70,7 @@ Time, distance, money, parking, fares, transfer penalties and value-of-time para
 
 ## 8. Simulation–observation comparison
 
-For each parameter vector, use the same person and trip filters for observed and simulated data. Report modal share, mean trip distance and mean door-to-door travel time by mode, plus the number of eligible persons and trips. Use the mean of several stable late iterations rather than a single noisy iteration. Report the unresolved 107,618 open plans separately because they contain no repeated location and may not form a mutable subtour.
+For each parameter vector, use the same two-endpoints-inside-Munich trip filter for observed and simulated data. Report modal share, mean trip distance and mean door-to-door travel time by mode, plus the number of eligible persons and trips. Use the mean of several stable late iterations rather than a single noisy iteration. Report the unresolved 107,618 open plans separately because they contain no repeated location and may not form a mutable subtour.
 
 The current uncalibrated input-plan leg shares across all 324,043 persons are: car 45.319%, PT 10.828%, walk 29.788% and bike 14.064% (540,468 legs). They describe the synthetic input, not observed Munich behaviour and not a model prediction.
 
@@ -101,4 +101,4 @@ Future modal-split differences are interpretable as scenario outputs only after 
 
 The population is technically clean but only partly ready. All 324,043 persons have exactly one selected plan; all 540,468 leg modes are canonical; activity/leg alternation and coordinates are complete; and no unknown modes or pre-existing routes occur. However, only 216,425 persons (66.789%) have a closed repeated-location plan, while 107,618 (33.211%) have no repeated location. Every selected plan is monomodal, and no availability attributes exist. These facts support a focused `SubtourModeChoice` experiment but require eligibility reporting and an explicit car-availability decision.
 
-The baseline-year inconsistency is the main substantive blocker: a folder labelled 2023 contains an older public road/population model of unresolved provenance and an optional 2026 PT reference. The mode constants are all zero and have not been behaviourally calibrated. Consequently, calibration can be prepared now, but activation should wait for confirmed reference-year provenance, compatible observed targets and a year-consistent PT schedule.
+The synthetic 2019 PT reference passed the full 324,043-person iteration-zero server validation on 24 August 2026, but the broader baseline-year provenance remains the main substantive uncertainty: a folder labelled 2023 contains an older public road/population model whose provenance is unresolved. The mode constants are all zero and have not been behaviourally calibrated. Consequently, calibration can be prepared now, but activation should wait for defensible baseline provenance and observed targets matching the approved spatial and trip definitions.

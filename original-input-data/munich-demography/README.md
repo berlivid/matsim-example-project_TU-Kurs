@@ -48,7 +48,12 @@ Preparation:
 4. Save the result as `munich_boundary.json`.
 
 The reprojection is required because the MATSim Munich population uses
-`EPSG:31468`.
+`EPSG:31468`. The prepared file has SHA-256
+`EFBC37F0627F94D95DAB67D1C5A2B9D05507DC9E8C9492A98A35BFF4A4AE2A26`.
+GeoJSON does not embed a CRS declaration in this file; the CRS is established
+by this documented preparation and its compatible projected coordinate range.
+The file root is a `GeometryCollection`; its effective municipal geometry is a
+valid, non-empty `MultiPolygon` with three polygon components.
 
 ## Usage
 
@@ -56,7 +61,13 @@ The original and prepared inputs in this directory are read by:
 
 - `AnalyzeMunichPopulation`
 - `CreateMunichPopulation2040`
+- `AnalyzeMunichTripBoundary` through the read-only
+  `MunichMunicipalBoundary` and `MunichTripBoundaryFilter` components
 
 The full scaling method is documented in:
 
 `docs/methodology/population_2040.md`
+
+The trip-analysis scope is documented separately in:
+
+`docs/methodology/munich_spatial_analysis_scope.md`

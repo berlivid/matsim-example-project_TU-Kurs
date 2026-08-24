@@ -183,8 +183,12 @@ public class AnalyzeMunichPopulation {
 	}
 
 	static Geometry readGeoJsonGeometry(Path geoJsonFile) throws IOException {
+		return readGeoJson(geoJsonFile).geometry();
+	}
+
+	static ParsedGeoJson readGeoJson(Path geoJsonFile) throws IOException {
 		JsonNode root = new ObjectMapper().readTree(geoJsonFile.toFile());
-		return parseGeometry(root);
+		return new ParsedGeoJson(requiredText(root, "type"), parseGeometry(root));
 	}
 
 	private static Geometry parseGeometry(JsonNode geometryNode) {
@@ -353,4 +357,6 @@ public class AnalyzeMunichPopulation {
 		private boolean otherInside;
 		private boolean otherOutside;
 	}
+
+	record ParsedGeoJson(String sourceType, Geometry geometry) { }
 }

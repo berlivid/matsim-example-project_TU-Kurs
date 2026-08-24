@@ -302,3 +302,25 @@ Scenario outputs are excluded from Git.
 - Compilation, six focused tests, full structural reference validation and
   representative bus/tram/subway/rail routing passed. No full local QSim was
   started. The incomplete server output remains invalid until step 03 is rerun.
+
+## 24 August 2026 — synthetic-2019 server validation completed
+
+- The corrected synthetic 2019 reference input was validated on the Uni server
+  with sufficient Java heap and the complete 324,043-person population.
+- MATSim completed iteration 0 and terminated normally with process exit code
+  0. The validator reported `GTFS 2019 END-TO-END VALIDATION PASS`.
+- This establishes technical end-to-end readiness of the synthetic 2019 transit
+  input. It does not independently establish historical feed provenance.
+- No mode choice was active and no behavioural calibration was performed.
+
+## 24 August 2026 — Munich trip-boundary preflight
+
+- Added a read-only origin-and-destination analysis filter based on the
+  versioned City of Munich administrative boundary in EPSG:31468. Points on the
+  boundary are included through JTS `covers`.
+- Streamed all 324,043 selected plans once and identified 540,468 main trips
+  with MATSim stage-activity handling. The primary `BOTH_INSIDE` sample contains
+  160,603 trips (29.715543%). No invalid-coordinate trip was found.
+- The complete regional population and every scenario input remain unchanged.
+  No modal split, passenger-kilometre or vehicle-kilometre result was produced,
+  and no mode choice or simulation was started.

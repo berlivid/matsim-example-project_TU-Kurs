@@ -192,10 +192,25 @@ public final class ValidateModeChoiceCalibrationConfig {
     private static void validateTargetSchema() throws IOException {
         var targets = ModeChoiceCalibrationTargets.read(
                 ModeChoiceCalibrationTargets.DEFAULT_FILE);
-        require(targets.size() == 15, "Expected 15 versioned target placeholders");
+        require(targets.size() == 20, "Expected 20 versioned target/reference rows");
         require(targets.stream().map(target -> target.metric() + "|" + target.mode())
                         .distinct().count() == targets.size(),
                 "Target metric/mode rows must be unique");
+        double tripShare = targets.stream()
+                .filter(target -> "trip_modal_share".equals(target.metric()))
+                .map(ModeChoiceCalibrationTargets.Target::numericValue)
+                .mapToDouble(Double::doubleValue).sum();
+        require(close(tripShare, 100.0), "Four-mode trip-share targets must sum to 100%");
+        double pkmShare = targets.stream()
+                .filter(target -> "annual_pkm_share".equals(target.metric()))
+                .map(ModeChoiceCalibrationTargets.Target::numericValue)
+                .mapToDouble(Double::doubleValue).sum();
+        require(close(pkmShare, 100.0), "Derived annual Pkm shares must sum to 100%");
+        var occupancy = targets.stream()
+                .filter(target -> "car_occupancy_factor".equals(target.metric()))
+                .findFirst().orElseThrow();
+        require(close(occupancy.numericValue(), 1.5),
+                "Car occupancy reference must equal supplied Pkm/Fkm ratio 1.5");
     }
 
     static Map<String, Double> strategyMap(Config config) {

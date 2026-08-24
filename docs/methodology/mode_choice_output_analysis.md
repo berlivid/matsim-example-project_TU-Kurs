@@ -83,6 +83,11 @@ config enables MATSim's experienced-plan output so that
 `AnalyzeModeChoiceCalibrationOutput` can reproduce the final analysis later
 without another simulation. The postprocessor reads existing plans, network
 and transit schedule and writes only below that output's `analysis` folder.
+Listener output and standalone output now have separate write paths. The
+listener retains one sorted metric block for each unique analyzed iteration.
+Standalone postprocessing may refresh final-state products but treats an
+existing iteration-history file as immutable; if no history exists, it reports
+that absence instead of manufacturing earlier iterations.
 
 The generated files are:
 
@@ -116,13 +121,39 @@ The same occupancy factor must be retained in BAU and Fast Track; a different
 
 ## Empirical targets and limitations
 
-`original-input-data/calibration/mode_choice_targets_2019.csv` is a versioned
-schema with deliberately blank target values. It lists the four modal shares,
-four mean trip distances, optional passenger-kilometre totals, observed car
-passenger- and vehicle-kilometres, and occupancy. A comparison is calculated
-only for a finite number whose year, unit, spatial definition and trip
-definition are compatible. Missing targets produce an explicit note and do
-not stop analysis.
+`original-input-data/calibration/mode_choice_targets_2019.csv` is the
+versioned target and reference schema. The primary, user-supplied 2019 target
+is the renormalised four-mode person-trip distribution: car 34%, PT 24%, bike
+18% and walk 24%. Modes outside this universe were removed before the four
+shares were renormalised to 100%. The source is identified as the thesis
+external-cost dataset; its detailed citation remains to be completed by the
+researcher.
+
+Annual passenger-kilometres are stored separately as secondary references:
+10,637.49 million car, 4,510.08 million PT, 1,131.50 million bike and 620.50
+million walk Pkm per year. Their reproducibly derived shares are 62.945329%,
+26.687543%, 6.695437% and 3.671691%. The annual source geography and detailed
+definition remain unconfirmed. Absolute annual Pkm are therefore not compared
+with a simulated service day without an approved annualisation factor; the
+shares are shown only as a secondary plausibility reference.
+
+The car reference of 10,637.49 million Pkm and 7,091.66 million vehicle-km
+implies exactly 1.5 persons per vehicle. PT vehicle-km are 65.87 million per
+year. These vehicle-km values are external-cost references, not mode-choice
+targets, and must not be mixed with Pkm. Mean trip-distance targets remain
+blank. A numerical calibration comparison is made only where year, unit,
+spatial scope, plan eligibility, target universe and trip definition are
+compatible.
+
+## First-run history limitation
+
+The locally copied first-run analysis contains iteration 20 only. Its
+`mode_choice_iteration_metrics.csv` and `mode_choice_final_summary.csv` are
+byte-identical. The former standalone postprocessor called the listener writer
+with a single result, which replaced the historical file. No standard events,
+plans, score statistics or mode-choice history accompanied the copied folder,
+so iterations 0-19 cannot be reconstructed. Iteration 20 is a valid final-state
+observation, but convergence of that run cannot be assessed.
 
 The analyzer cannot remedy uncertain baseline provenance, missing ownership
 and licence attributes, open plans, or an uncalibrated mode-choice model. It

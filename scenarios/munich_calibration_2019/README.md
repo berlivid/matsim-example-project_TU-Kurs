@@ -117,7 +117,8 @@ Three additional shared run configurations prepare and analyze the next server s
    `org.matsim.project.prepare.AnalyzeModeChoiceCalibrationOutput` with an 8 GB
    maximum heap. It starts no QSim. It reads the completed run's experienced
    plans and fixed inputs, and writes only below
-   `output/mode-choice-initial/analysis`.
+   `output/mode-choice-initial/analysis`. It never overwrites or invents the
+   listener's iteration history; it refreshes final-state products only.
 
 Run step 05 before step 06. Step 06 records the actually experienced plans
 and writes iteration-level modal-share, passenger-kilometre, trip-length and
@@ -136,8 +137,17 @@ The regional population is not spatially filtered. The municipal-boundary
 logic is applied only to later calibration and result analysis. Detailed
 method and limitations are documented in
 [`docs/methodology/mode_choice_calibration_configuration.md`](../../docs/methodology/mode_choice_calibration_configuration.md).
-Output definitions and the blank empirical-target schema are documented in
+Output definitions and the versioned target/reference schema are documented in
 [`docs/methodology/mode_choice_output_analysis.md`](../../docs/methodology/mode_choice_output_analysis.md).
+
+The copied first-run analysis contains only iteration 20. The earlier Run 07
+implementation overwrote the listener history with its single final result;
+no file in the copied folder can reconstruct iterations 0-19. Do not claim
+convergence from that run. The corrected pipeline preserves future histories.
+Before the next run, decide whether to retain
+`fromSpecifiedModesToSpecifiedModes` or test
+`betweenAllAndFewerConstraints` in a separate short protected run. The
+productive calibration config has not yet been changed.
 
 For provenance, selection counts, conversion assumptions and methodological
 limitations, see

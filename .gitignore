@@ -52,6 +52,7 @@ scenarios/munich_*/output/
 /scenarios/munich_calibration_2019/output*/
 /scenarios/munich_calibration_2019/**/output*/
 /generated/munich_trip_boundary_preflight/
+/generated/mode_choice_open_tour_diagnostic/
 
 # Microsoft Office lock files
 ~$*.xlsx

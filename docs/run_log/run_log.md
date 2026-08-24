@@ -362,3 +362,22 @@ Scenario outputs are excluded from Git.
   separate from later occupancy-adjusted external-cost vehicle-kilometres.
 - Focused synthetic tests passed without QSim or a full-population analysis.
   No BAU, Fast Track, population, boundary or transit input was changed.
+
+## 24 August 2026 — first-run calibration preflight
+
+- The copied first-run analysis contains only iteration 20. The iteration and
+  final-summary CSVs are byte-identical because the former standalone
+  postprocessor replaced the history with a one-result list. No accompanying
+  standard file can reconstruct iterations 0-19; convergence is unassessable.
+- Corrected the writer so listener histories remain sorted and unique and the
+  standalone postprocessor never replaces or invents a history.
+- Versioned the user-supplied four-mode trip targets: car 34%, PT 24%, bike
+  18% and walk 24%. Annual Pkm shares are secondary references; annual Pkm/Fkm
+  remain incomparable with one service day without annualisation.
+- A read-only population stream confirmed 216,425 closed-subtour and 107,618
+  open plans. Open plans contain 37,417 `BOTH_INSIDE` trips (23.297821% of the
+  primary sample): 75,149 plans have the same endpoint activity type at a
+  different location and 32,469 have different endpoint activity types.
+- MATSim 2025.0 would expose all open plans through
+  `betweenAllAndFewerConstraints`, but the chain-mode end-location risk remains.
+  The productive config was not changed; a short protected test is recommended.

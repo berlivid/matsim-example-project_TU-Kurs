@@ -18,16 +18,16 @@ The repository now contains the structurally and end-to-end validated synthetic 
 
 ## 2. Observed targets required
 
-The minimum external target package is an average-working-day 2019 dataset with a documented population, geography and trip definition. It must provide:
+The primary four-mode target has now been supplied: car 34%, PT 24%, bike 18% and walk 24%. It is a person-trip distribution for `BOTH_INSIDE`, `ALL_PLANS`; excluded modes were removed and the four retained modes were renormalised to 100%. The values originate from the thesis external-cost dataset, but the researcher must still add its detailed source reference. The remaining external target package must provide:
 
-- trip-based modal shares for `car`, `pt`, `walk` and `bike` using the same two-endpoints-inside-Munich trip geography as the simulation analysis;
-- `ride` share only if survey coding is compatible with the MATSim passenger mode;
 - mean trip distance and mean door-to-door travel time by mode;
 - sample weights, exact boundary treatment, handling of inbound/outbound trips and treatment of respondents without a complete day;
 - car ownership, driving-licence and household vehicle availability distributions, preferably linked to person or household types;
 - uncertainty intervals or at least survey sample sizes.
 
 Targets from different years or definitions must not be silently combined. Counts may be used as an additional traffic-volume check, but they are not a substitute for person-trip modal shares.
+
+Annual Pkm and Fkm supplied from the same working dataset are kept as secondary or external-cost references. Absolute annual values are not comparable to one simulated reference day until an annualisation rule is approved. Vehicle-km are never mode-choice targets.
 
 ## 3. Modal-split definition
 
@@ -70,7 +70,7 @@ Time, distance, money, parking, fares, transfer penalties and value-of-time para
 
 ## 8. Simulation–observation comparison
 
-For each parameter vector, use the same two-endpoints-inside-Munich trip filter for observed and simulated data. The implemented analyzer reports modal share, mean trip distance, main-mode passenger-kilometres, physical-stage passenger-kilometres, eligible persons and trips after every mobsim. Use the mean of several stable late iterations rather than a single noisy iteration. Report the unresolved 107,618 open plans separately because they contain no repeated location and may not form a mutable subtour. Door-to-door travel time remains a later extension and is not inferred by the present distance analyzer.
+For each parameter vector, use the same two-endpoints-inside-Munich trip filter for observed and simulated data. The implemented analyzer reports modal share, mean trip distance, main-mode passenger-kilometres, physical-stage passenger-kilometres, eligible persons and trips after every mobsim. Use the mean of several stable late iterations rather than a single noisy iteration. Report the 107,618 open plans separately. They contain 37,417 `BOTH_INSIDE` trips, or 23.297821% of the primary sample, which the current behaviour cannot alter. Door-to-door travel time remains a later extension and is not inferred by the present distance analyzer.
 
 The current uncalibrated input-plan leg shares across all 324,043 persons are: car 45.319%, PT 10.828%, walk 29.788% and bike 14.064% (540,468 legs). They describe the synthetic input, not observed Munich behaviour and not a model prediction.
 
@@ -87,7 +87,7 @@ Use a transparent coordinate-descent procedure:
 
 Every run must record the complete parameter vector, input hashes, seed, iteration window and resulting metrics. A more complex optimiser or an eqasim pipeline is not justified for the first calibration stage.
 
-The blank target schema is versioned at `original-input-data/calibration/mode_choice_targets_2019.csv`. Values may be entered only with compatible 2019 source, unit, trip and spatial definitions. The analyzer continues without targets and does not alter constants. Full output definitions are documented in `mode_choice_output_analysis.md`.
+The target schema is versioned at `original-input-data/calibration/mode_choice_targets_2019.csv`. Primary trip shares, secondary annual Pkm references and external-cost Fkm references are explicitly distinguished. The analyzer does not alter constants. Full output definitions are documented in `mode_choice_output_analysis.md`.
 
 ## 10. Stopping rule
 
@@ -102,5 +102,9 @@ Future modal-split differences are interpretable as scenario outputs only after 
 ## 12. Methodological limitations and readiness finding
 
 The population is technically clean but only partly ready. All 324,043 persons have exactly one selected plan; all 540,468 main-trip modes are canonical; activity/leg alternation and coordinates are complete; and no unknown modes occur. A reproducible MATSim subtour audit identifies 216,425 persons (66.789%) with a closed subtour and 107,618 (33.211%) without one. The former are technically eligible for the configured subtour change; the latter cannot change mode under this subtour-only strategy. Every selected plan is initially monomodal, and no availability attributes exist. The separate configuration and safeguards are documented in `mode_choice_calibration_configuration.md`.
+
+Among the open plans, 75,149 end with the same activity type at a different location and 32,469 end with a different activity type; no missing/problematic endpoint was found. These patterns are consistent with possible day-edge or incomplete diary chains, but that substantive interpretation is not observed directly. MATSim 2025.0 offers `betweenAllAndFewerConstraints`, which would make all 107,618 open-plan persons and their 37,417 primary trips structurally selectable through the unclosed root subtour. Because this relaxes end-of-day mass conservation for chain-based car and bike, it should first be tested in a short protected run. The production calibration config remains unchanged pending that decision.
+
+The first completed run preserves only iteration 20 because standalone postprocessing replaced its history. Its final trip shares are car 41.295763%, PT 13.843940%, bike 26.705034% and walk 18.155262%. These are valid final-state diagnostics, not evidence of convergence.
 
 The synthetic 2019 PT reference passed the full 324,043-person iteration-zero server validation on 24 August 2026, but the broader baseline-year provenance remains the main substantive uncertainty: a folder labelled 2023 contains an older public road/population model whose provenance is unresolved. The mode constants are all zero and have not been behaviourally calibrated. Consequently, calibration can be prepared now, but activation should wait for defensible baseline provenance and observed targets matching the approved spatial and trip definitions.

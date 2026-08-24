@@ -80,11 +80,16 @@ class ModeChoiceCalibrationConfigTest {
     }
 
     @Test
-    void emptyTargetSchemaIsValidAndContainsNoInventedValue() throws Exception {
+    void targetSchemaContainsSuppliedValuesAndKeepsUnknownDistancesBlank() throws Exception {
         var targets = ModeChoiceCalibrationTargets.read(
                 ModeChoiceCalibrationTargets.DEFAULT_FILE);
-        assertEquals(15, targets.size());
-        assertTrue(targets.stream().allMatch(target -> target.numericValue() == null));
+        assertEquals(20, targets.size());
+        assertEquals(4, targets.stream()
+                .filter(target -> "trip_modal_share".equals(target.metric()))
+                .filter(target -> target.numericValue() != null).count());
+        assertEquals(4, targets.stream()
+                .filter(target -> "mean_trip_distance".equals(target.metric()))
+                .filter(target -> target.numericValue() == null).count());
     }
 
     @Test

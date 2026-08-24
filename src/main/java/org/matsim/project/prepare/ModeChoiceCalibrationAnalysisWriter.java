@@ -6,9 +6,11 @@ import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.HashSet;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import org.matsim.project.prepare.ModeChoiceCalibrationAnalysis.AnalysisResult;
 import org.matsim.project.prepare.ModeChoiceCalibrationAnalysis.DistanceSource;
 import org.matsim.project.prepare.ModeChoiceCalibrationAnalysis.GroupKey;
@@ -40,25 +42,54 @@ public final class ModeChoiceCalibrationAnalysisWriter {
     public void write(List<AnalysisResult> results, boolean finalResult) throws IOException {
         if (results.isEmpty()) return;
         Files.createDirectories(analysisDirectory);
-        List<AnalysisResult> ordered = results.stream()
-                .sorted(Comparator.comparingInt(AnalysisResult::iteration)).toList();
+        List<AnalysisResult> ordered = validatedOrder(results);
         writeAtomically(analysisDirectory.resolve("mode_choice_iteration_metrics.csv"),
                 iterationMetrics(ordered));
         if (!finalResult) return;
-        AnalysisResult last = ordered.getLast();
+        writeFinalOutputs(ordered.getLast(), ordered, "complete listener history retained");
+    }
+
+    /**
+     * Writes only the final-state products of a standalone postprocessing run.
+     * An existing listener history is treated as immutable evidence and is never replaced.
+     */
+    public void writeStandaloneFinal(AnalysisResult result) throws IOException {
+        Files.createDirectories(analysisDirectory);
+        Path history = analysisDirectory.resolve("mode_choice_iteration_metrics.csv");
+        String historyStatus = Files.isRegularFile(history)
+                ? "existing listener history preserved without modification"
+                : "iteration history unavailable; standalone analysis did not invent one";
+        writeFinalOutputs(result, List.of(result), historyStatus);
+    }
+
+    private void writeFinalOutputs(AnalysisResult last, List<AnalysisResult> detailResults,
+                                   String historyStatus) throws IOException {
         writeAtomically(analysisDirectory.resolve("mode_choice_final_summary.csv"),
                 iterationMetrics(List.of(last)));
         writeAtomically(analysisDirectory.resolve("pt_passenger_km_by_submode.csv"),
-                ptPassengerKilometres(ordered));
+                ptPassengerKilometres(detailResults));
         writeAtomically(analysisDirectory.resolve("distance_quality.csv"),
-                distanceQuality(ordered));
+                distanceQuality(detailResults));
         List<ModeChoiceCalibrationTargets.Target> targets =
                 ModeChoiceCalibrationTargets.read(targetFile);
         TargetOutput comparison = targetComparison(last, targets);
         writeAtomically(analysisDirectory.resolve("calibration_target_comparison.csv"),
                 comparison.csv());
         writeAtomically(analysisDirectory.resolve("analysis_report.md"),
-                report(last, comparison.numericTargets()));
+                report(last, comparison.numericTargets(), historyStatus));
+    }
+
+    private static List<AnalysisResult> validatedOrder(List<AnalysisResult> results) {
+        List<AnalysisResult> ordered = results.stream()
+                .sorted(Comparator.comparingInt(AnalysisResult::iteration)).toList();
+        Set<Integer> iterations = new HashSet<>();
+        for (AnalysisResult result : ordered) {
+            if (!iterations.add(result.iteration())) {
+                throw new IllegalArgumentException(
+                        "Duplicate analysis iteration: " + result.iteration());
+            }
+        }
+        return ordered;
     }
 
     static String iterationMetrics(List<AnalysisResult> results) {
@@ -174,7 +205,9 @@ public final class ModeChoiceCalibrationAnalysisWriter {
             if (signedDifference != null) numeric++;
             String note;
             if (target.numericValue() == null) note = "target_value is empty; no comparison made";
-            else if (!compatible) note = "method or metric is not compatible; no comparison made";
+            else if ("secondary".equals(target.calibrationPriority())) {
+                note = "secondary plausibility reference; not used to calibrate mode constants";
+            } else if (!compatible) note = "method or metric is not compatible; no comparison made";
             else note = "compatible numeric target compared";
             csv.append(result.iteration()).append(',').append(SpatialScope.BOTH_INSIDE)
                     .append(',').append(value(target.metric())).append(',')
@@ -202,14 +235,17 @@ public final class ModeChoiceCalibrationAnalysisWriter {
         return switch (target.metric()) {
             case "trip_modal_share" -> primary.modalSharePercent(mode);
             case "mean_trip_distance" -> primary.meanTripLengthKm(mode);
-            case "total_or_daily_pkm", "observed_car_pkm" ->
-                    primary.mainModePkm(mode)
-                            * ModeChoiceCalibrationAnalysis.POPULATION_SCALE_FACTOR;
+            case "annual_pkm_share" -> {
+                double total = List.of("car", "pt", "bike", "walk").stream()
+                        .mapToDouble(primary::mainModePkm).sum();
+                yield total == 0.0 ? Double.NaN : 100.0 * primary.mainModePkm(mode) / total;
+            }
             default -> null;
         };
     }
 
-    private static String report(AnalysisResult result, int numericTargets) {
+    private static String report(AnalysisResult result, int numericTargets,
+                                 String historyStatus) {
         MetricSnapshot primary = result.metrics(
                 SpatialScope.BOTH_INSIDE, PlanEligibility.ALL_PLANS);
         StringBuilder report = new StringBuilder("# Mode-choice calibration analysis\n\n")
@@ -230,6 +266,7 @@ public final class ModeChoiceCalibrationAnalysisWriter {
                 .append(primary.invalidMainTripDistances()).append(".\n\n")
                 .append("Physical-stage PT passenger-kilometres are assigned from the used TransitRoute transport mode, not line-name heuristics. Main-mode PT Pkm assign the complete door-to-door main trip to PT; these two perspectives must not be added together.\n\n")
                 .append("`raw_matsim_car_km` is a model route-distance diagnostic. It is not occupancy-adjusted external-cost vehicle-kilometres. No occupancy factor or annualisation is applied.\n\n")
+                .append("Iteration history status: ").append(historyStatus).append(".\n\n")
                 .append("Compatible numeric targets compared: ").append(numericTargets)
                 .append(". The analyzer measures outcomes and never changes calibration parameters.\n");
         return report.toString();

@@ -45,7 +45,7 @@ public final class AnalyzeModeChoiceCalibrationOutput {
         ModeChoiceCalibrationAnalysis analysis = new ModeChoiceCalibrationAnalysis(
                 scenario, MunichMunicipalBoundary.loadDefault());
         var result = analysis.analyze(config.controller().getLastIteration(), plans);
-        new ModeChoiceCalibrationAnalysisWriter(output).write(java.util.List.of(result), true);
+        new ModeChoiceCalibrationAnalysisWriter(output).writeStandaloneFinal(result);
         System.out.printf("MODE-CHOICE OUTPUT ANALYSIS PASS%noutput=%s%nplans=%d iteration=%d%n",
                 output, plans.size(), result.iteration());
     }

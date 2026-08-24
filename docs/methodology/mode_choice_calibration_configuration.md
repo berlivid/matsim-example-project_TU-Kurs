@@ -44,7 +44,9 @@ compatibility, but `ride` and `other` are not offered by `SubtourModeChoice`.
 For the later external-cost calculation, car vehicle-kilometres are to be
 derived from simulated car passenger-kilometres with an observed 2019
 occupancy factor (`Pkm/Fkm`). That empirical factor is not contained in the
-repository and is not set by this configuration. Once selected, it must remain
+original model inputs. The user-supplied annual references imply exactly 1.5
+persons per vehicle; their detailed citation and spatial scope remain pending.
+The factor is not set by this configuration. Once approved, it must remain
 identical in BAU and Fast Track; an alternative 2040 occupancy may only be
 reported as a sensitivity.
 
@@ -83,6 +85,11 @@ persons are technically eligible for a subtour mode change. The remaining
 107,618 plans contain no closed subtour and therefore cannot be changed by the
 configured subtour-only strategy.
 
+The open-tour diagnostic assigns 75,149 of these plans to the same first/last
+activity type at a different location and 32,469 to different first/last
+activity types. Their 37,417 `BOTH_INSIDE` trips represent 23.297821% of the
+primary sample. No missing or problematic endpoint location was found.
+
 The raw population stores activity coordinates but no link IDs. For this
 read-only audit, exact repeated locations are detected with a numerical
 tolerance of `0.000001 m`. The runtime setting remains `coordDistance=0.0`:
@@ -115,6 +122,16 @@ summary from an existing experienced-plans output without starting QSim. The
 complete metric, distance and target rules are documented in
 `mode_choice_output_analysis.md`.
 
+MATSim 2025.0 also provides `betweenAllAndFewerConstraints`. It adds an
+unclosed root subtour and relaxes mass conservation for that root. Car and bike
+remain chain-based and begin at the first activity, but the complete daily plan
+need not return them there. All 107,618 currently open plans are structurally
+eligible in the initial canonical, monomodal population. This is not yet an
+approved setting: an open end location creates an inter-day vehicle-position
+limitation, and later mixed nested subtours may trigger MATSim's consistency
+exception. The recommended next step is a short protected test, not an
+immediate production-config change.
+
 The versioned Munich municipal-boundary filter is not part of simulation
 demand preparation. It will later select analysis trips whose origin and
 destination main activities are both inside or on the administrative boundary.
@@ -122,10 +139,12 @@ The regional population remains simulated in full.
 
 ## Interpretation and next calibration stage
 
-The run must not be interpreted as a final modal split, passenger-kilometre or
-vehicle-kilometre result. Empirical targets with the same year, main-trip
-definition and two-endpoints-inside-Munich geography are still required. The
-observed 2019 car occupancy factor and its provenance are also outstanding.
+The first run must not be interpreted as calibrated. Its copied local analysis
+contains only iteration 20 because the former standalone postprocessor
+overwrote the history; convergence cannot be assessed. Primary four-mode trip
+targets are now versioned, while mean-distance targets and detailed source
+provenance remain outstanding. Annual Pkm and Fkm are reference quantities,
+not direct service-day calibration targets.
 
 After empirical calibration and validation, exactly the same constants,
 scoring parameters, choice-set definition and availability assumption must be

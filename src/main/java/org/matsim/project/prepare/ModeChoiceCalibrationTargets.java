@@ -13,8 +13,10 @@ public final class ModeChoiceCalibrationTargets {
     public static final Path DEFAULT_FILE = Path.of(
             "original-input-data/calibration/mode_choice_targets_2019.csv");
     private static final List<String> REQUIRED_COLUMNS = List.of(
-            "metric", "mode", "target_value", "unit", "spatial_definition",
-            "trip_definition", "reference_year", "source", "notes");
+            "metric", "mode", "target_value", "unit", "spatial_scope",
+            "plan_eligibility", "spatial_definition", "trip_definition",
+            "target_universe", "reference_year", "calibration_priority",
+            "source", "notes");
 
     private ModeChoiceCalibrationTargets() { }
 
@@ -37,8 +39,10 @@ public final class ModeChoiceCalibrationTargets {
                     .boxed().collect(java.util.stream.Collectors.toMap(header::get, values::get));
             targets.add(new Target(value.get("metric"), value.get("mode"),
                     numeric(value.get("target_value")), value.get("target_value"),
-                    value.get("unit"), value.get("spatial_definition"),
-                    value.get("trip_definition"), value.get("reference_year"),
+                    value.get("unit"), value.get("spatial_scope"),
+                    value.get("plan_eligibility"), value.get("spatial_definition"),
+                    value.get("trip_definition"), value.get("target_universe"),
+                    value.get("reference_year"), value.get("calibration_priority"),
                     value.get("source"), value.get("notes")));
         }
         return List.copyOf(targets);
@@ -81,10 +85,15 @@ public final class ModeChoiceCalibrationTargets {
     }
 
     public record Target(String metric, String mode, Double numericValue, String rawValue,
-                         String unit, String spatialDefinition, String tripDefinition,
-                         String referenceYear, String source, String notes) {
+                         String unit, String spatialScope, String planEligibility,
+                         String spatialDefinition, String tripDefinition,
+                         String targetUniverse, String referenceYear,
+                         String calibrationPriority, String source, String notes) {
         boolean methodCompatible() {
-            return ModeChoiceCalibrationAnalysis.PRIMARY_SPATIAL_DEFINITION
+            return "BOTH_INSIDE".equals(spatialScope)
+                    && "ALL_PLANS".equals(planEligibility)
+                    && "car|pt|bike|walk".equals(targetUniverse)
+                    && ModeChoiceCalibrationAnalysis.PRIMARY_SPATIAL_DEFINITION
                     .equals(spatialDefinition)
                     && ModeChoiceCalibrationAnalysis.MAIN_TRIP_DEFINITION.equals(tripDefinition)
                     && "2019".equals(referenceYear)
@@ -94,11 +103,12 @@ public final class ModeChoiceCalibrationTargets {
         private static String expectedUnit(String metric) {
             return switch (metric.toLowerCase(Locale.ROOT)) {
                 case "trip_modal_share" -> "percent";
+                case "annual_pkm_share" -> "percent";
                 case "mean_trip_distance" -> "km";
-                case "total_or_daily_pkm", "observed_car_pkm" ->
-                        "person_km_per_service_day";
-                case "observed_car_fkm" -> "vehicle_km_per_service_day";
-                case "car_occupancy_factor" -> "persons_per_car";
+                case "annual_pkm", "observed_car_pkm" -> "million_person_km_per_year";
+                case "observed_car_fkm", "observed_pt_fkm" ->
+                        "million_vehicle_km_per_year";
+                case "car_occupancy_factor" -> "persons_per_vehicle";
                 default -> "";
             };
         }

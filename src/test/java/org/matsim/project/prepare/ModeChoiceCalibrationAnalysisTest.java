@@ -2,6 +2,7 @@ package org.matsim.project.prepare;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Files;
@@ -226,17 +227,66 @@ class ModeChoiceCalibrationAnalysisTest {
 
         Path numericTargets = temp.resolve("numeric.csv");
         Files.writeString(numericTargets,
-                "metric,mode,target_value,unit,spatial_definition,trip_definition,reference_year,source,notes\n"
-                        + "trip_modal_share,car,90,percent,"
+                "metric,mode,target_value,unit,spatial_scope,plan_eligibility,spatial_definition,trip_definition,target_universe,reference_year,calibration_priority,source,notes\n"
+                        + "trip_modal_share,car,90,percent,BOTH_INSIDE,ALL_PLANS,"
                         + ModeChoiceCalibrationAnalysis.PRIMARY_SPATIAL_DEFINITION + ","
                         + ModeChoiceCalibrationAnalysis.MAIN_TRIP_DEFINITION
-                        + ",2019,test,synthetic test target\n");
+                        + ",car|pt|bike|walk,2019,primary,test,synthetic test target\n");
         Path numericOutput = temp.resolve("numeric-output");
         new ModeChoiceCalibrationAnalysisWriter(numericOutput, numericTargets)
                 .write(List.of(result), true);
         String numericComparison = Files.readString(numericOutput.resolve(
                 "analysis/calibration_target_comparison.csv"));
         assertTrue(numericComparison.contains(",10.000000000,10.000000000,true,"));
+    }
+
+    @Test
+    void listenerHistoryIsSortedUniqueAndFinalSummaryContainsOnlyLastIteration(
+            @TempDir Path temp) throws Exception {
+        Plan plan = oneLegPlan("car", inside, inside, reportedRoute(1_000));
+        var zero = analysis.analyze(0, Map.of(personId("car"), plan));
+        var one = analysis.analyze(1, Map.of(personId("car"), plan));
+        var two = analysis.analyze(2, Map.of(personId("car"), plan));
+        Path targets = temp.resolve("targets.csv");
+        Files.copy(ModeChoiceCalibrationTargets.DEFAULT_FILE, targets);
+        var writer = new ModeChoiceCalibrationAnalysisWriter(temp, targets);
+        writer.write(List.of(two, zero, one), true);
+
+        String history = Files.readString(temp.resolve(
+                "analysis/mode_choice_iteration_metrics.csv"));
+        assertTrue(history.indexOf("\n0,") < history.indexOf("\n1,"));
+        assertTrue(history.indexOf("\n1,") < history.indexOf("\n2,"));
+        String summary = Files.readString(temp.resolve(
+                "analysis/mode_choice_final_summary.csv"));
+        assertTrue(summary.contains("\n2,"));
+        assertFalse(summary.contains("\n0,"));
+        assertFalse(summary.contains("\n1,"));
+        assertThrows(IllegalArgumentException.class,
+                () -> writer.write(List.of(zero, zero), false));
+    }
+
+    @Test
+    void standaloneFinalNeverOverwritesOrInventsIterationHistory(@TempDir Path temp)
+            throws Exception {
+        var result = analysis.analyze(2, Map.of(personId("car"),
+                oneLegPlan("car", inside, inside, reportedRoute(1_000))));
+        Path targets = temp.resolve("targets.csv");
+        Files.copy(ModeChoiceCalibrationTargets.DEFAULT_FILE, targets);
+        Path withHistory = temp.resolve("with-history");
+        var writer = new ModeChoiceCalibrationAnalysisWriter(withHistory, targets);
+        writer.write(List.of(result), true);
+        Path history = withHistory.resolve("analysis/mode_choice_iteration_metrics.csv");
+        String before = Files.readString(history);
+        writer.writeStandaloneFinal(result);
+        assertEquals(before, Files.readString(history));
+
+        Path missingHistory = temp.resolve("missing-history");
+        new ModeChoiceCalibrationAnalysisWriter(missingHistory, targets)
+                .writeStandaloneFinal(result);
+        assertFalse(Files.exists(missingHistory.resolve(
+                "analysis/mode_choice_iteration_metrics.csv")));
+        assertTrue(Files.readString(missingHistory.resolve("analysis/analysis_report.md"))
+                .contains("iteration history unavailable; standalone analysis did not invent one"));
     }
 
     private ModeChoiceCalibrationAnalysis.AnalysisResult analyze(Map<Id<Person>, Plan> plans) {

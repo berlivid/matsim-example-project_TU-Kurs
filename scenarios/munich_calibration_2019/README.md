@@ -223,6 +223,39 @@ secondary plausibility evidence only and are not annualized. These results,
 late-iteration trends and stuck timing determine whether round 2 changes the
 constants or first requires a technical diagnosis.
 
+The completed Round-1 output passed the structural checks for iterations
+0--20, 324,043 persons, 540,468 main trips and 160,603 `BOTH_INSIDE` trips,
+with no unknown modes or invalid distances. It is directionally successful
+but not converged. Car increased from about 35.51% in iteration 16 to 39.41%
+in iteration 20 while walk fell from about 22.78% to 18.41%. The versioned
+register and evidence note are under `docs/calibration/`; large outputs remain
+ignored.
+
+## Mode-choice calibration round 2
+
+Round 2 uses constants car 0.00, PT 1.27, walk 1.27 and bike -0.34. It reloads
+the original synthetic-2019 input population, runs iterations 0--40 and
+disables innovation after 60%, leaving approximately 16 iterations for
+selection and stabilisation. All other settings and inputs are identical to
+Round 1. Run these shared IntelliJ configurations in order:
+
+15. **15 Validate 2019 Mode Choice Calibration Round 2** checks the exact
+    semantic config differences, target vector and unused output path without
+    starting MATSim.
+16. **16 Run 2019 Mode Choice Calibration Round 2** is the only step that
+    starts MATSim. It uses up to 16 GB heap and refuses an existing
+    `output/mode-choice-round-2` directory.
+17. **17 Validate and Summarize 2019 Mode Choice Calibration Round 2** starts
+    no QSim. It validates iterations 0--40 and writes the fail-closed Round-2
+    summary and report under the run's `analysis` directory.
+
+Do not create the Round-2 output directory before step 16. Step 17 uses
+iterations 31--40 and reports modal-share mean, minimum, maximum, range and
+linear trend. A range <= 1 pp and absolute trend <= 0.1 pp per iteration are
+working convergence criteria; misses are reported, not treated as technical
+failures. Final Pkm shares and mean trip lengths remain secondary diagnostics,
+with no annualisation.
+
 For provenance, selection counts, conversion assumptions and methodological
 limitations, see
 [`docs/methodology/gtfs_2019_calibration_input.md`](../../docs/methodology/gtfs_2019_calibration_input.md).

@@ -439,4 +439,23 @@ Scenario outputs are excluded from Git.
   in the last five iterations. It applies no annualisation and does not reject
   a run solely for a small positive stuck count.
 - The productive and open-tour configs, all scenario inputs, BAU and Fast
-  Track remain unchanged. No round-1 result is claimed before the server run.
+  Track remained unchanged during preparation.
+
+## 25 August 2026 — round 1 validated and round 2 prepared
+
+- Recomputed the Round-1 evidence from the copied analysis CSVs. All iterations
+  0--20 are present; iteration 20 is the sole final summary. Counts are 324,043
+  persons, 540,468 main trips and 160,603 `BOTH_INSIDE` trips, with zero
+  unknown modes and zero invalid distances.
+- Round 1 is structurally valid and directionally successful, but not
+  converged. Car rose from 35.506809% in iteration 16 to 39.413336% in
+  iteration 20, while walk fell from 22.779774% to 18.408747%.
+- Added a versioned small calibration register; no large output was copied.
+- Prepared Round 2 with car 0.00, PT 1.27, walk 1.27 and bike -0.34,
+  iterations 0--40 and innovation disabled after 60%. It reloads the original
+  input population and retains the production behavior and every scenario
+  input.
+- Added server steps 15--17. Only step 16 starts MATSim. Step 17 evaluates
+  iterations 31--40 using mean, minimum, maximum, range and linear trend, plus
+  secondary Pkm/distance and descriptive stuck-event diagnostics.
+- No local QSim was started and no existing output was changed.

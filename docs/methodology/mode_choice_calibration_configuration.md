@@ -191,3 +191,32 @@ simulated day. Positive stuck events are reported for the last five iterations
 and near the 43-hour boundary but do not alone invalidate the calibration.
 Round 2 should be decided from late-iteration target gaps, trend stability,
 secondary plausibility metrics and the descriptive stuck-event pattern.
+
+## Calibration round 2 and convergence design
+
+The verified Round-1 evidence is preserved in
+`docs/calibration/mode_choice_calibration_history.csv` and
+`docs/calibration/mode_choice_calibration_round_1.md`. Round 1 was structurally
+valid and directionally successful, but it was not converged: car rose and
+walk fell markedly between iterations 16 and 20. Its late-window mean cannot
+therefore be interpreted as a stable calibrated endpoint.
+
+`config_mode_choice_calibration_round_2.xml` is derived from the Round-1 config
+and changes only the run ID, protected output directory, last iteration,
+innovation-disable fraction and three non-reference constants. Car remains
+0.00; PT is 1.27, walk 1.27 and bike -0.34. The original 2019 input population
+is loaded again; the Round-1 output population is not chained into the run.
+`fromSpecifiedModesToSpecifiedModes`, the four-mode choice set, car/bike chain
+constraints, seed 4711, five-percent factors, 43-hour horizon, threads,
+SwissRailRaptor and every input path remain unchanged.
+
+Round 2 runs iterations 0--40 and disables innovation after 60%, leaving about
+16 iterations for selection and stabilisation of existing plans. Constant
+changes address the modal-share discrepancy; the longer post-innovation phase
+addresses convergence. The output validator uses iterations 31--40 and reports
+mean, minimum, maximum, range, least-squares trend, target gap, final Pkm share,
+mean trip distance and stuck events. Working thresholds are range <= 1 pp and
+absolute trend <= 0.1 pp per iteration. They are reported rather than used to
+misclassify a structurally correct run as technically failed. No annualisation
+is applied. This iteration and convergence design is to remain fixed in later
+rounds and, after calibration, in comparable BAU and Fast Track executions.

@@ -70,6 +70,17 @@ and 18.16% walk) relative to the 34/24/18/24 targets. They are a heuristic
 first step, not final estimates and not a claim that a single round will meet
 the targets.
 
+Round 1 was structurally valid and moved the shares in the intended direction,
+but it was not converged. Its late-window values and evidence hashes are
+preserved in `docs/calibration/mode_choice_calibration_history.csv` and
+`docs/calibration/mode_choice_calibration_round_1.md`. Between iterations 16
+and 20, car increased from 35.506809% to 39.413336%, while walk decreased from
+22.779774% to 18.408747%. The five-iteration mean is not a stable endpoint.
+
+Round 2 keeps car at 0.00 and uses PT 1.27, walk 1.27 and bike -0.34. This is a
+second ratio-guided step based on the remaining discrepancy in the mutable
+population. It is not a Pkm-based adjustment or a final parameter estimate.
+
 ## 7. Parameters initially held fixed
 
 Initially retain the existing scoring and routing values: marginal utility of travel time of -6 utils/hour for each configured mode, zero marginal distance utility, zero monetary distance rate, performing utility 6 utils/hour, PT waiting utility -6 utils/hour and line-switch utility -1. Keep the current teleported speeds and beeline factors (`bike` 4.167 m/s, `walk` 0.833 m/s, factor 1.3), `networkModes=car`, SwissRailRaptor defaults and the existing activity parameters.
@@ -104,6 +115,18 @@ pattern. A small positive stuck count alone is recorded rather than treated as
 automatic failure; modes, persons and timing near the 43-hour QSim horizon must
 be inspected without inferring a cause from `PersonStuckEvent`.
 
+Round 2 uses iterations 0--40 and disables innovation after 60% of the run.
+This leaves approximately 16 iterations for selection and stabilisation among
+existing plans. Its primary analysis window is iterations 31--40. For each
+mode, report the mean, minimum, maximum, range and least-squares linear trend
+in percentage points per iteration. A range of at most 1 percentage point and
+an absolute trend of at most 0.1 percentage points per iteration are working
+convergence criteria, not universal MATSim thresholds. Exceeding them is a
+calibration result rather than a technical run failure. Target accuracy of
+1--2 percentage points is reported separately. Constants alter modal utility,
+whereas the post-innovation period tests stability; these functions must not
+be conflated.
+
 The target schema is versioned at `original-input-data/calibration/mode_choice_targets_2019.csv`. Primary trip shares, secondary annual Pkm references and external-cost Fkm references are explicitly distinguished. The analyzer does not alter constants. Full output definitions are documented in `mode_choice_output_analysis.md`.
 
 ## 10. Stopping rule
@@ -124,4 +147,4 @@ Among the open plans, 75,149 end with the same activity type at a different loca
 
 The first completed run preserves only iteration 20 because standalone postprocessing replaced its history. Its final trip shares are car 41.295763%, PT 13.843940%, bike 26.705034% and walk 18.155262%. These are valid final-state diagnostics, not evidence of convergence.
 
-The synthetic 2019 PT reference passed the full 324,043-person iteration-zero server validation on 24 August 2026, but the broader baseline-year provenance remains the main substantive uncertainty: a folder labelled 2023 contains an older public road/population model whose provenance is unresolved. Round 1 is now prepared against the approved trip targets, but it has not yet run and its constants are not calibrated results.
+The synthetic 2019 PT reference passed the full 324,043-person iteration-zero server validation on 24 August 2026, but the broader baseline-year provenance remains the main substantive uncertainty: a folder labelled 2023 contains an older public road/population model whose provenance is unresolved. Round 1 has run and is documented as structurally valid, directionally successful and not converged. Round 2 is prepared as the next diagnostic calibration step; neither vector is a final calibrated result.

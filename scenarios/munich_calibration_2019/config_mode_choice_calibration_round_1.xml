@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE config SYSTEM "http://www.matsim.org/files/dtd/config_v2.dtd">
 <config>
-    <!-- Separate, uncalibrated diagnostic configuration for the synthetic 2019 reference. -->
+    <!-- Separate, first mode-choice calibration round for the synthetic 2019 reference. -->
     <module name="controller">
         <param name="firstIteration" value="0" />
         <param name="lastIteration" value="20" />
@@ -189,7 +189,7 @@
                 <param name="scoringThisActivityAtAll" value="false" />
             </parameterset>
 
-            <!-- Zero constants form the explicit, uncalibrated starting vector. -->
+            <!-- Round-1 mode-specific constants; car remains the reference alternative -->
             <parameterset type="modeParams">
                 <param name="mode" value="car" />
                 <param name="constant" value="0.0" />

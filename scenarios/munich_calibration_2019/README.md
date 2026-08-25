@@ -1,5 +1,14 @@
 # Munich synthetic-2019 calibration input
 
+> **Current workflow status:** steps 01--03 remain the protected GTFS 2019
+> preparation and validation chain. The initial, Open-Tour and `BOTH_INSIDE`
+> calibration runs are technical preliminary experiments. Future calibration
+> will retain the full regional population and analyze all trips made by Munich
+> residents, with residence later determined from the home activity. That
+> classification and its productive config are not yet implemented. See the
+> [legacy BOTH_INSIDE note](../../docs/methodology/legacy/both_inside_calibration_preliminary.md)
+> and [legacy Open-Tour note](../../docs/methodology/legacy/open_tour_mode_choice_experiment.md).
+
 ## Analytical role and current status
 
 This isolated scenario supplies the public-transport input for a later common
@@ -147,39 +156,22 @@ implementation overwrote the listener history with its single final result;
 no file in the copied folder can reconstruct iterations 0-19. Do not claim
 convergence from that run. The corrected pipeline preserves future histories.
 The alternative `betweenAllAndFewerConstraints` was tested but is not adopted.
-The production calibration retains `fromSpecifiedModesToSpecifiedModes`.
+The preliminary rounds retained `fromSpecifiedModesToSpecifiedModes`; the
+resident-based productive calibration is not yet implemented.
 
 ## Isolated open-tour test
 
-The alternative behavior is prepared in a separate config and output path. It
-does not change `config_mode_choice_calibration.xml`. Run these shared IntelliJ
-configurations in order on the server:
+The separate five-iteration experiment tested
+`betweenAllAndFewerConstraints`. Its cohort diagnostic was incomplete
+(107,618 identifiers but zero reconstructed current trips), and 8,465
+cumulative stuck events were observed. It cannot support a cohort mode or
+chain-location conclusion, and the alternative is rejected because it relaxes
+end-of-day location consistency for chain-based car and bike.
 
-8. **08 Validate 2019 Open Tour Mode Choice Test** checks that the test config
-   has exactly the approved four differences and that its output path does not
-   exist. It starts no QSim.
-9. **09 Run 2019 Open Tour Mode Choice Test** is the only step that starts the
-   five-iteration test. It uses 16 GB maximum heap, refuses an existing output
-   directory and never deletes output.
-10. **10 Validate 2019 Open Tour Mode Choice Test Output** checks regular
-    completion, histories 0 through 5, the iteration-5 final summary, the
-    originally open cohort, mode changes, invalid distances, stuck events and
-    car/bike resource locations. It is read-only and starts no QSim.
-
-Do not run step 09 if step 08 fails. Do not create
-`output/mode-choice-open-tour-test` manually. After step 09, run step 10 rather
-than the general step 07 postprocessor. The output validator treats car or bike
-ending away from the first activity as a separately reported implication of an
-open day, while an intervening resource jump remains a blocking inconsistency.
-The exact method and decision criteria are documented in
-[`docs/methodology/mode_choice_open_tour_test.md`](../../docs/methodology/mode_choice_open_tour_test.md).
-
-This test retained zero constants and was neither a new calibration round nor a
-scenario-effect comparison. Its former `ExperiencedPlansService` cohort
-diagnostic was incomplete (107,618 identifiers, zero current trips), while
-8,465 cumulative stuck events were observed. It cannot support a cohort mode
-or chain-location conclusion. Steps 08--10 are retained only as experimental
-provenance and are no longer part of the production workflow.
+The Open-Tour config, ignored output and detailed historical documentation are
+preserved. Its Java entry points, focused tests and IntelliJ configurations
+08--10 have been removed from the active workflow. See the
+[legacy decision record](../../docs/methodology/legacy/open_tour_mode_choice_experiment.md).
 
 ## Existing stuck-event audit
 
@@ -194,68 +186,19 @@ and do not establish a cause.
 
 ## Mode-choice calibration round 1
 
-Round 1 is isolated from the unchanged productive and open-tour configs. Its
-constants are car 0.00, PT 0.89, walk 0.78 and bike -0.21; its primary target
-is the `BOTH_INSIDE`, `ALL_PLANS` trip-share vector 34/24/18/24. The adjustment
-is an initial ratio-guided calibration step, not a final parameter estimate.
-The production behavior remains `fromSpecifiedModesToSpecifiedModes`, so the
-37,417 primary trips in open plans (23.297821%) remain a documented fixed
-component.
-
-Run these shared IntelliJ configurations in order on the server:
-
-12. **12 Validate 2019 Mode Choice Calibration Round 1** proves the exact
-    config diff, target vector and unused protected output path without QSim.
-13. **13 Run 2019 Mode Choice Calibration Round 1** is the only step that
-    starts MATSim. It uses up to 16 GB heap, SwissRailRaptor, iterations 0--20,
-    the complete selected-plan analyzer and per-iteration stuck-event counts.
-14. **14 Validate and Summarize 2019 Mode Choice Calibration Round 1** starts
-    no QSim. It validates the complete history and writes two new files below
-    `output/mode-choice-round-1/analysis`: `mode_choice_round_1_summary.csv`
-    and `mode_choice_round_1_report.md`. Existing files are never replaced.
-
-Do not create `output/mode-choice-round-1` before step 13. The round retains
-the validated 43-hour service horizon. Step 14 reports any small positive
-stuck counts descriptively, including the last five iterations, rather than
-rejecting a run solely for a non-zero count. It reports modal-share means,
-minima and maxima for iterations 16--20 and target gaps; final Pkm shares are
-secondary plausibility evidence only and are not annualized. These results,
-late-iteration trends and stuck timing determine whether round 2 changes the
-constants or first requires a technical diagnosis.
-
-The completed Round-1 output passed the structural checks for iterations
-0--20, 324,043 persons, 540,468 main trips and 160,603 `BOTH_INSIDE` trips,
-with no unknown modes or invalid distances. It is directionally successful
-but not converged. Car increased from about 35.51% in iteration 16 to 39.41%
-in iteration 20 while walk fell from about 22.78% to 18.41%. The versioned
-register and evidence note are under `docs/calibration/`; large outputs remain
-ignored.
+Round 1 used a `BOTH_INSIDE`, `ALL_PLANS` target scope and is not the final
+thesis calibration. Its completed output passed the structural checks for
+iterations 0--20, 324,043 persons, 540,468 main trips and 160,603
+`BOTH_INSIDE` trips, with no unknown modes or invalid distances. It was
+directionally useful but not converged. The ignored output, config, Java
+implementation and versioned evidence remain unchanged; obsolete IntelliJ
+configurations 12--14 have been removed.
 
 ## Mode-choice calibration round 2
 
-Round 2 uses constants car 0.00, PT 1.27, walk 1.27 and bike -0.34. It reloads
-the original synthetic-2019 input population, runs iterations 0--40 and
-disables innovation after 60%, leaving approximately 16 iterations for
-selection and stabilisation. All other settings and inputs are identical to
-Round 1. Run these shared IntelliJ configurations in order:
-
-15. **15 Validate 2019 Mode Choice Calibration Round 2** checks the exact
-    semantic config differences, target vector and unused output path without
-    starting MATSim.
-16. **16 Run 2019 Mode Choice Calibration Round 2** is the only step that
-    starts MATSim. It uses up to 16 GB heap and refuses an existing
-    `output/mode-choice-round-2` directory.
-17. **17 Validate and Summarize 2019 Mode Choice Calibration Round 2** starts
-    no QSim. It validates iterations 0--40 and writes the fail-closed Round-2
-    summary and report under the run's `analysis` directory.
-
-Do not create the Round-2 output directory before step 16. Step 17 uses
-iterations 31--40 and reports modal-share mean, minimum, maximum, range and
-linear trend. A range <= 1 pp and absolute trend <= 0.1 pp per iteration are
-working convergence criteria; misses are reported, not treated as technical
-failures. Final Pkm shares and mean trip lengths remain secondary diagnostics,
-with no annualisation.
-
-For provenance, selection counts, conversion assumptions and methodological
-limitations, see
-[`docs/methodology/gtfs_2019_calibration_input.md`](../../docs/methodology/gtfs_2019_calibration_input.md).
+Round 2 was prepared as a longer second `BOTH_INSIDE` experiment but does not
+define the forthcoming resident-based method. Its config, Java classes,
+validators and tests are retained until that replacement exists. Obsolete
+IntelliJ configurations 15--17 have been removed, and no existing output is
+deleted. Round details and authoritative trip/pkm targets are preserved in the
+[legacy preliminary-round note](../../docs/methodology/legacy/both_inside_calibration_preliminary.md).

@@ -1,24 +1,29 @@
-# Munich spatial scope for calibration and scenario analysis
+# Munich territorial indicator and future resident scope
 
 ## Purpose and normative decision
 
-This method defines the spatial observation sample for the later mode-choice
-calibration and for comparisons between the 2019 reference, BAU 2040 and Fast
-Track 2040. It does not alter simulation demand or supply.
+This document records the implemented origin-and-destination classifier and
+clarifies its revised analytical role. It does not alter simulation demand or
+supply.
 
-The approved rule is an **origin-and-destination filter**: a main trip belongs
-to the primary Munich analysis sample only if both its origin main activity and
-its destination main activity lie inside, or exactly on, the administrative
+The final thesis calibration and primary analysis will follow a **resident
+principle**: retain the full regional population and include all trips made by
+Munich residents. Residence will later be determined from the home activity.
+That classification is not implemented in this cleanup.
+
+The existing `BOTH_INSIDE` rule includes a main trip when its origin and
+destination main activities lie inside, or exactly on, the administrative
 boundary of the City of Munich. `ORIGIN_ONLY`, `DESTINATION_ONLY`,
-`BOTH_OUTSIDE` and invalid-coordinate trips are excluded from the primary
-sample and reported separately. This is a normative analytical decision, not a
-property inferred from MATSim.
+`BOTH_OUTSIDE` and invalid-coordinate trips are reported separately. This
+origin-and-destination classification was the primary scope of technical
+preliminary rounds and may be retained as a secondary territorial indicator;
+it is not the final resident cohort.
 
 The entire regional population remains in every simulation. Regional people,
 boundary-crossing trips, the complete road network and complete public-
 transport services continue to influence traffic, routing, congestion,
-transfers and vehicle occupancy. Only the later calibration and result
-aggregation selects trips. No filtered population is produced.
+transfers and vehicle occupancy. Only later calibration and result aggregation
+will select the resident cohort. No filtered population is produced.
 
 ## Administrative boundary and coordinate reference
 
@@ -70,16 +75,16 @@ plans, selected-plan state or person attributes.
 
 ## Relation to resident and territorial principles
 
-This rule is not a resident principle. A resident principle first selects
-people by home location and normally retains their trips even when one or both
-trip endpoints are outside Munich. The former calibration-plan proposal used
-that approach and has been superseded.
+`BOTH_INSIDE` is not a resident principle. The decided future resident
+principle will select people by home location and retain their trips even when
+one or both trip endpoints are outside Munich. The home-activity rule remains
+future implementation work.
 
 It is also narrower than a full territorial principle. A territorial analysis
 may include travel that crosses or traverses the city and may allocate only the
-distance travelled inside the boundary. The approved rule instead selects
+distance travelled inside the boundary. The implemented `BOTH_INSIDE` rule selects
 complete trips with two municipal endpoints. It excludes inbound, outbound and
-through trips from the primary metric even though those trips remain simulated.
+through trips from that territorial metric even though those trips remain simulated.
 
 This closed-endpoint definition provides a stable common unit for comparison
 with dissertation results only where the dissertation applies the same
@@ -110,18 +115,18 @@ one-metre diagnostic is not a classification tolerance: `covers` remains the
 operative rule.
 
 The large exclusion share is expected for a regional model and has direct
-interpretive consequences. Absolute Munich results refer only to trips with
-two municipal endpoints; they are not total traffic within Munich, total travel
-by Munich residents or total impacts experienced on Munich links. Regional
-traffic still affects the simulation state but is outside the primary result
-denominator.
+interpretive consequences. `BOTH_INSIDE` results refer only to trips with two
+municipal endpoints; they are not total traffic within Munich, total travel by
+Munich residents or total impacts experienced on Munich links. They must be
+labelled as a secondary territorial indicator once resident-based primary
+analysis exists.
 
 ## Reuse and current limits
 
-Exactly the same versioned boundary, trip construction, category logic and
-main-mode logic must later be applied to the synthetic 2019 reference, BAU
-2040 and Fast Track 2040. BAU and Fast Track must never receive different
-spatial filters.
+If the secondary territorial indicator is reported, exactly the same versioned
+boundary, trip construction, category logic and main-mode logic must be applied
+to the synthetic 2019 reference, BAU 2040 and Fast Track 2040. BAU and Fast
+Track must never receive different definitions.
 
 The preflight validates classification only. It does not calculate a final
 modal split, passenger-kilometres or vehicle-kilometres and does not activate

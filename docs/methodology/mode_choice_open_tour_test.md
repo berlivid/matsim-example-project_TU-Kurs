@@ -1,20 +1,26 @@
 # Isolated open-tour mode-choice test
 
+> **Legacy detailed record:** this experiment is rejected and is not part of
+> the productive thesis method. Its active Java entry points, focused tests and
+> IntelliJ run configurations were removed during structural cleanup. The
+> concise decision record is
+> [`legacy/open_tour_mode_choice_experiment.md`](legacy/open_tour_mode_choice_experiment.md).
+
 ## Purpose and status
 
 This test is a narrowly bounded technical and methodological experiment for the
 synthetic 2019 reference scenario. It asks whether persons whose daily plan has
 no closed subtour can participate in MATSim's endogenous mode choice without
 creating inconsistent car or bicycle resource sequences. It does not calibrate
-mode constants, estimate a policy effect or replace the production calibration
-configuration. The exploratory server run has been completed, but the
-alternative was not adopted. The production calibration retains
+mode constants, estimate a policy effect or define the future productive
+calibration. The exploratory server run has been completed, but the
+alternative was not adopted. The preliminary calibration retained
 `fromSpecifiedModesToSpecifiedModes`.
 
 The unchanged population preflight identified 107,618 persons without a closed
 subtour. Their plans contain 37,417 main trips with both main-activity endpoints
 inside or on the Munich municipal boundary. These trips account for 23.297821%
-of the primary analysis sample and cannot be changed under the current
+of the preliminary `BOTH_INSIDE` sample and cannot be changed under the current
 `fromSpecifiedModesToSpecifiedModes` behavior.
 
 ## Separate configuration
@@ -22,15 +28,15 @@ of the primary analysis sample and cannot be changed under the current
 `config_mode_choice_open_tour_test.xml` is an exact copy of
 `config_mode_choice_calibration.xml` except for four approved values:
 
-| Parameter | Production calibration | Open-tour test |
+| Parameter | Initial diagnostic | Open-tour test |
 |---|---|---|
 | `controller.runId` | `munich-calibration-2019-initial` | `munich-calibration-2019-open-tour-test` |
 | `controller.outputDirectory` | `output/mode-choice-initial` | `output/mode-choice-open-tour-test` |
 | `controller.lastIteration` | 20 | 5 |
 | `subtourModeChoice.behavior` | `fromSpecifiedModesToSpecifiedModes` | `betweenAllAndFewerConstraints` |
 
-The config validator reverses these four textual substitutions and requires the
-result to be byte-identical to the production calibration config. This makes an
+The former config validator reversed these four textual substitutions and
+required the result to be byte-identical to the initial diagnostic config. This made an
 unintended fifth difference a blocking error. In particular, the offered modes,
 chain-based modes, zero mode constants, random seed, capacity factors, input
 files, scoring, routing, transit, QSim and thread settings remain identical.
@@ -102,9 +108,10 @@ The alternative is not adopted for substantive reasons independent of this
 invalid diagnostic: it relaxes end-of-day location consistency for chain-based
 car and bike, while the four aggregate target shares remain attainable without
 it. The 107,618 open persons and their 37,417 `BOTH_INSIDE` trips (23.297821% of
-the primary sample) remain a transparent fixed-share limitation. Run
-configurations 08--10 and the test config are retained only as experimental
-provenance and are no longer part of the production workflow.
+the preliminary territorial sample) remain a transparent limitation of that
+experiment. The test config and ignored output are retained as experimental
+provenance; run configurations 08--10 have been removed from the active
+workflow.
 
 The original prospective acceptance criteria were:
 

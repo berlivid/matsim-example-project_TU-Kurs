@@ -1,5 +1,12 @@
 # Mode-choice calibration output analysis
 
+> **Scope status:** this document describes the analyzer used by the technical
+> `BOTH_INSIDE` calibration experiments. The final thesis calibration and
+> primary analysis will retain the full regional population and cover all trips
+> made by Munich residents. Residence will later be identified from the home
+> activity; that classification is not implemented yet. `BOTH_INSIDE` remains
+> available as a possible secondary territorial indicator.
+
 ## Purpose and analytical boundary
 
 The calibration analyzer measures MATSim results; it does not adjust mode
@@ -8,14 +15,15 @@ used for every iteration of the synthetic-2019 diagnostic and can also be run
 as a read-only postprocessor. The same definitions are intended for the later
 BAU and Fast Track comparison after one common behavioural calibration.
 
-The primary sample is `BOTH_INSIDE`: a main trip is included when both its
-origin and destination main activities are inside or on the administrative
-City of Munich boundary. The implementation reuses the unchanged
-`MunichMunicipalBoundary` and `MunichTripBoundaryFilter`; JTS `covers` includes
-boundary points. The regional population remains in the simulation. Inbound
-and outbound trips form the diagnostic `BOUNDARY_CROSSING` group, all trips
-form `ALL_TRIPS`, and wholly external or invalid-coordinate trips remain
-visible as controls.
+The implemented preliminary sample is `BOTH_INSIDE`: a main trip is included
+when both its origin and destination main activities are inside or on the
+administrative City of Munich boundary. The implementation reuses the
+unchanged `MunichMunicipalBoundary` and `MunichTripBoundaryFilter`; JTS
+`covers` includes boundary points. The regional population remains in the
+simulation. Inbound and outbound trips form the diagnostic
+`BOUNDARY_CROSSING` group, all trips form `ALL_TRIPS`, and wholly external or
+invalid-coordinate trips remain visible as controls. None of these categories
+currently identifies Munich residents.
 
 ## Trip and mode definitions
 
@@ -84,7 +92,7 @@ execute its full plan. `ExperiencedPlansService` is unsuitable here because it
 reconstructs plans only from experienced activity and leg events; the open-tour
 test demonstrated that this can leave plans empty or incomplete.
 
-The listener fails closed unless the unchanged structural reference counts are
+The preliminary listener fails closed unless the unchanged structural reference counts are
 324,043 selected persons, 540,468 main trips and 160,603 `BOTH_INSIDE` main
 trips. It writes deterministic, sorted, small files to the protected output
 directory. `AnalyzeModeChoiceCalibrationOutput` uses the complete final
@@ -131,20 +139,19 @@ The same occupancy factor must be retained in BAU and Fast Track; a different
 ## Empirical targets and limitations
 
 `original-input-data/calibration/mode_choice_targets_2019.csv` is the
-versioned target and reference schema. The primary, user-supplied 2019 target
-is the renormalised four-mode person-trip distribution: car 34%, PT 24%, bike
-18% and walk 24%. Modes outside this universe were removed before the four
-shares were renormalised to 100%. The source is identified as the thesis
-external-cost dataset; its detailed citation remains to be completed by the
-researcher.
+versioned target and reference schema. The authoritative 2019 trip-share
+target is car 34%, PT 24%, bike 18% and walk 24%. It will be applied to the
+future resident cohort once that scope is implemented. The current CSV still
+contains preliminary `BOTH_INSIDE` scope metadata and must not be mistaken for
+an implemented resident classifier. The source is identified as the thesis
+external-cost dataset; its detailed citation remains to be completed.
 
-Annual passenger-kilometres are stored separately as secondary references:
+The authoritative annual passenger-kilometre values are:
 10,637.49 million car, 4,510.08 million PT, 1,131.50 million bike and 620.50
-million walk Pkm per year. Their reproducibly derived shares are 62.945329%,
-26.687543%, 6.695437% and 3.671691%. The annual source geography and detailed
-definition remain unconfirmed. Absolute annual Pkm are therefore not compared
-with a simulated service day without an approved annualisation factor; the
-shares are shown only as a secondary plausibility reference.
+million walk Pkm per year. Their normalized target shares are 62.9453%,
+26.6875%, 6.6954% and 3.6717%. The rounded 63/27/7/4 figures sum to 101% and
+must not be used as exact targets. Absolute annual Pkm are not directly
+compared with a simulated service day without an approved annualisation rule.
 
 The car reference of 10,637.49 million Pkm and 7,091.66 million vehicle-km
 implies exactly 1.5 persons per vehicle. PT vehicle-km are 65.87 million per

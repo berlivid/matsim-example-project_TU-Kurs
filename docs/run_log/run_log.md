@@ -459,3 +459,22 @@ Scenario outputs are excluded from Git.
   iterations 31--40 using mean, minimum, maximum, range and linear trend, plus
   secondary Pkm/distance and descriptive stuck-event diagnostics.
 - No local QSim was started and no existing output was changed.
+
+## 25 August 2026 — legacy calibration scaffolding cleanup
+
+- Superseded the earlier methodological designation of `BOTH_INSIDE` as the
+  final primary scope. It remains the territorial scope of the technical
+  preliminary rounds and may be reported as a secondary indicator.
+- Recorded the future primary method without implementing it: keep the full
+  regional population and include all trips made by Munich residents, with
+  residence later determined from the home activity.
+- Confirmed the authoritative targets: trip shares 34/24/18/24 for
+  car/PT/bike/walk; annual Pkm 10,637.49/4,510.08/1,131.50/620.50 million; and
+  normalized Pkm shares 62.9453/26.6875/6.6954/3.6717%. The rounded
+  63/27/7/4 values are not exact targets because they sum to 101%.
+- Removed only Open-Tour-specific Java entry points, focused tests and run
+  configurations, plus obsolete Round-1/Round-2 run configurations. Shared
+  analysis, stuck-event tools, round Java/config files and all ignored outputs
+  remain in place.
+- Added concise legacy records under `docs/methodology/legacy/`. No MATSim,
+  QSim, population, scenario or GTFS artifact was changed by the cleanup.

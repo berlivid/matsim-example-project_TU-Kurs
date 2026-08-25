@@ -1,5 +1,11 @@
 # Synthetic-2019 mode-choice calibration configuration
 
+> **Legacy implementation status:** this document records the initial and
+> round-specific `BOTH_INSIDE` technical experiments. They are not the final
+> thesis calibration. Future primary calibration will retain the full regional
+> population and cover all trips made by Munich residents, with residence later
+> determined from the home activity. That logic is not implemented yet.
+
 ## Purpose and status
 
 `scenarios/munich_calibration_2019/config_mode_choice_calibration.xml` is a
@@ -88,7 +94,7 @@ configured subtour-only strategy.
 The open-tour diagnostic assigns 75,149 of these plans to the same first/last
 activity type at a different location and 32,469 to different first/last
 activity types. Their 37,417 `BOTH_INSIDE` trips represent 23.297821% of the
-primary sample. No missing or problematic endpoint location was found.
+preliminary territorial sample. No missing or problematic endpoint location was found.
 
 The raw population stores activity coordinates but no link IDs. For this
 read-only audit, exact repeated locations are detected with a numerical
@@ -130,32 +136,34 @@ remain chain-based and begin at the first activity, but the complete daily plan
 need not return them there. All 107,618 currently open plans are structurally
 eligible in the initial canonical, monomodal population. The setting was
 explored but is not approved: an open end location creates an inter-day
-vehicle-position limitation for chain-based car and bike. The productive
+vehicle-position limitation for chain-based car and bike. The preliminary
 configuration retains `fromSpecifiedModesToSpecifiedModes`; the fixed
-23.297821% of primary trips is reported as a limitation.
+23.297821% of `BOTH_INSIDE` trips is reported as a limitation.
 
-The exploratory implementation remains as a fully separate five-iteration test
-configuration, not as a change to the production calibration. The test differs
+The exploratory configuration remains as provenance for a separate
+five-iteration test, not as a change to the future resident calibration. The
+test differed
 only in run ID, protected output directory, last iteration and behavior. Its
-aggregate listener applies MATSim's facility/link chain-resource sequence to
-the originally open cohort and distinguishes an invalid resource jump from the
+aggregate listener applied MATSim's facility/link chain-resource sequence to
+the originally open cohort and distinguished an invalid resource jump from the
 deliberately relaxed end-of-day location. The prepared test method and
 decision are documented in `mode_choice_open_tour_test.md`. Its cohort
 diagnostic was invalid because it used incomplete experienced-plan
-reconstructions, so it is retained only as experimental provenance and not as
-evidence for a production change.
+reconstructions. Its active entry points, focused tests and run configurations
+have been removed; the config and ignored output remain as provenance.
 
 The versioned Munich municipal-boundary filter is not part of simulation
-demand preparation. It will later select analysis trips whose origin and
-destination main activities are both inside or on the administrative boundary.
-The regional population remains simulated in full.
+demand preparation. `BOTH_INSIDE` may remain a secondary territorial
+indicator. Future primary analysis will instead classify Munich residence from
+the home activity and retain all trips of those residents. The regional
+population remains simulated in full; the resident classifier is future work.
 
 ## Interpretation and next calibration stage
 
 The first run must not be interpreted as calibrated. Its copied local analysis
 contains only iteration 20 because the former standalone postprocessor
-overwrote the history; convergence cannot be assessed. Primary four-mode trip
-targets are now versioned, while mean-distance targets and detailed source
+overwrote the history; convergence cannot be assessed. Authoritative four-mode
+trip and pkm targets are now versioned, while mean-distance targets and detailed source
 provenance remain outstanding. Annual Pkm and Fkm are reference quantities,
 not direct service-day calibration targets.
 
@@ -168,7 +176,7 @@ under one frozen behavioural model can be interpreted as scenario effects.
 ## Calibration round 1
 
 `config_mode_choice_calibration_round_1.xml` is a mechanically controlled copy
-of the unchanged productive calibration config. The only content differences
+of the initial diagnostic config. The only content differences
 are run ID, protected output directory and the constants PT 0.89, walk 0.78
 and bike -0.21. Car remains the zero reference. A textual reverse-diff
 validator proves that behavior, modes, chain constraints, seed, iterations,
@@ -176,10 +184,10 @@ strategy weights, inputs, capacities, threads, routing, scoring parameters and
 the 43-hour QSim horizon remain identical. In particular,
 `fromSpecifiedModesToSpecifiedModes` remains active.
 
-The 34% car, 24% PT, 18% bike and 24% walk targets apply to `BOTH_INSIDE` main
-trips and `ALL_PLANS`. The constants are a first ratio-guided adjustment from
+The 34% car, 24% PT, 18% bike and 24% walk targets were applied to
+`BOTH_INSIDE` main trips and `ALL_PLANS` in this preliminary round. The constants are a first ratio-guided adjustment from
 the uncalibrated final state; they are neither final estimates nor a new set of
-observations. Approximately 23.3% of primary trips remain in plans without a
+observations. Approximately 23.3% of its territorial trips remain in plans without a
 closed subtour and cannot be changed by this strategy.
 
 The server output validator requires a complete selected-plan history for

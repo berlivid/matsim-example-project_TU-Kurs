@@ -1,8 +1,19 @@
 # Mode-choice calibration rounds 0 and 1
 
+> **Legacy evidence:** these are technical `BOTH_INSIDE` preliminary rounds,
+> not the final resident-based thesis calibration. The full regional population
+> remains the future simulation population, and all trips of Munich residents
+> will later define the primary calibration cohort.
+
 ## Purpose and evidence status
 
-This note preserves the calibration vectors, output locations and verified summary statistics without copying large MATSim outputs into Git. Trip shares refer to `BOTH_INSIDE` main trips in `ALL_PLANS`: both main-activity endpoints are inside or on the Munich municipal boundary, and each main trip is assigned once to `car`, `pt`, `bike` or `walk`. Trip shares are the primary calibration target. Passenger-kilometre shares are secondary validation indicators and are not annualised.
+This note preserves the calibration vectors, output locations and verified
+summary statistics without copying large MATSim outputs into Git. Trip shares
+refer to `BOTH_INSIDE` main trips in `ALL_PLANS`: both main-activity endpoints
+are inside or on the Munich municipal boundary, and each main trip is assigned
+once to `car`, `pt`, `bike` or `walk`. This was the preliminary territorial
+target scope. Passenger-kilometre shares were reported as validation evidence
+and were not annualised.
 
 The source outputs remain ignored simulation artifacts. The numbers below were recomputed from their CSV files rather than transcribed without checking. The versioned machine-readable record is `mode_choice_calibration_history.csv`.
 
@@ -44,4 +55,8 @@ For auditability, the SHA-256 values of the two principal Round-1 evidence files
 
 Car remains the reference alternative. Round 2 starts from `car = 0.00`, `pt = 1.27`, `walk = 1.27` and `bike = -0.34`; Round 1 used 0.00, 0.89, 0.78 and -0.21 respectively. The second adjustment follows the remaining discrepancy in the mutable population and the ratio between target and simulated trip shares. Because Round 1 still exhibited late dynamics, these constants remain an iterative calibration step rather than final behavioural estimates. Pkm shares do not determine the adjustment.
 
-Round 2 uses 40 iterations and disables innovation after 60% of the run. This leaves approximately 16 iterations for selection and stabilisation among existing plans. Constants address the location of the modal-share result; the longer post-innovation selection period addresses convergence. These are separate methodological functions. The same iteration logic is to be retained for subsequent calibration rounds and, once the common calibration is final, for comparable BAU and Fast Track runs.
+Round 2 was prepared with 40 iterations and innovation disabled after 60% of
+the run. This leaves approximately 16 iterations for selection and
+stabilisation among existing plans. It remains a preliminary `BOTH_INSIDE`
+design. Its settings are preserved as provenance but do not determine the
+forthcoming resident-based calibration or the later BAU/Fast Track runs.

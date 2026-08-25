@@ -19,6 +19,31 @@ Authoritative methods:
 - [MATSim transit inputs](docs/gtfs2040/matsim_2040_transit_inputs.md)
 - [Run log](docs/run_log/run_log.md)
 
+## Workflow navigation
+
+- **Active production components:** the versioned GTFS builders, population
+  preparation, scenario specifications, validators and shared analysis support
+  remain active.
+- **Protected GTFS preparation:** the synthetic GTFS 2019 validation chain and
+  the GTFS 2037 clean/common/Fast-Track chain remain reproducible and must not
+  be mixed with calibration experiments.
+- **BAU and Fast Track:** `config_bau.xml` and `config_fast_track.xml` remain
+  the protected 2040 scenario configurations; neither is modified by the
+  calibration cleanup.
+- **Legacy calibration experiments:** the former `BOTH_INSIDE` rounds and the
+  rejected Open-Tour test are technical provenance, summarized in the
+  [BOTH_INSIDE legacy note](docs/methodology/legacy/both_inside_calibration_preliminary.md)
+  and [Open-Tour legacy note](docs/methodology/legacy/open_tour_mode_choice_experiment.md).
+- **Forthcoming resident-based calibration:** the full regional population
+  will remain simulated, while future calibration and primary analysis will
+  include all trips made by Munich residents. Residence will later be derived
+  from the home activity; that classifier and its config do not yet exist.
+
+Future shared IntelliJ run configurations should use stable number groups:
+`01–09` for input preparation and validation, `10–19` for calibration,
+`20–29` for BAU/Fast Track runs and `30–39` for result analysis. Existing
+productive configurations are not broadly renamed by this cleanup.
+
 ## Current status
 
 The BAU and Fast Track GTFS feeds and their activated MATSim transit inputs have been rebuilt and revalidated with the common Poccistraße and Berduxstraße measures. Fast Track additionally contains the Olympic Village and Media Village population relocation and a 13-link pedestrian-zone car restriction: 12 spatially selected links plus one technical boundary connector required for car-network consistency. The connector is not an extension of the planned pedestrian area. The Sendlinger Spange is documented as an indirect normal-day representation without added GTFS rows. Focused readback and routing tests pass; no calibrated or full BAU/Fast Track simulation has been run.

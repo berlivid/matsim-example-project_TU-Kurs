@@ -54,6 +54,7 @@ scenarios/munich_*/output/
 /generated/munich_trip_boundary_preflight/
 /generated/mode_choice_open_tour_diagnostic/
 /generated/mode_choice_stuck_event_audit/
+/generated/project_cleanup_inventory/
 
 # Microsoft Office lock files
 ~$*.xlsx

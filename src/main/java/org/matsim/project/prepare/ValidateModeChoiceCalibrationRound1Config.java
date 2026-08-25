@@ -6,12 +6,15 @@ import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.regex.Pattern;
 import org.matsim.core.config.Config;
 import org.matsim.core.config.ConfigUtils;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
 
 /** Fail-closed validation of the first separate 2019 mode-choice calibration round. */
 public final class ValidateModeChoiceCalibrationRound1Config {
+    private static final Pattern XML_COMMENT = Pattern.compile(
+            "<!--.*?-->", Pattern.DOTALL);
     public static final Path CONFIG = Path.of(
             "scenarios/munich_calibration_2019/config_mode_choice_calibration_round_1.xml");
     public static final String RUN_ID = "munich-calibration-2019-round-1";
@@ -71,7 +74,7 @@ public final class ValidateModeChoiceCalibrationRound1Config {
     }
 
     static void requireOnlyApprovedDifferences(String baselineXml, String roundXml) {
-        String normalized = normalizeNewlines(roundXml);
+        String normalized = semanticXml(roundXml);
         normalized = replaceExactlyOnce(normalized,
                 "<param name=\"outputDirectory\" value=\"" + OUTPUT_DIRECTORY + "\" />",
                 "<param name=\"outputDirectory\" value=\"scenarios/munich_calibration_2019/output/mode-choice-initial\" />");
@@ -82,16 +85,16 @@ public final class ValidateModeChoiceCalibrationRound1Config {
         normalized = replaceModeConstant(normalized, "walk", "0.78", "0.0");
         normalized = replaceModeConstant(normalized, "bike", "-0.21", "0.0");
         ValidateModeChoiceCalibrationConfig.require(
-                normalizeNewlines(baselineXml).equals(normalized),
+                semanticXml(baselineXml).equals(normalized),
                 "Round-1 config differs from production beyond the five approved values");
     }
 
     private static String replaceModeConstant(String xml, String mode,
                                               String fromValue, String toValue) {
-        String from = "<param name=\"mode\" value=\"" + mode + "\" />\n"
-                + "                <param name=\"constant\" value=\"" + fromValue + "\" />";
-        String to = "<param name=\"mode\" value=\"" + mode + "\" />\n"
-                + "                <param name=\"constant\" value=\"" + toValue + "\" />";
+        String from = "<param name=\"mode\" value=\"" + mode + "\" />"
+                + "<param name=\"constant\" value=\"" + fromValue + "\" />";
+        String to = "<param name=\"mode\" value=\"" + mode + "\" />"
+                + "<param name=\"constant\" value=\"" + toValue + "\" />";
         return replaceExactlyOnce(xml, from, to);
     }
 
@@ -123,6 +126,15 @@ public final class ValidateModeChoiceCalibrationRound1Config {
 
     private static String normalizeNewlines(String text) {
         return text.replace("\r\n", "\n");
+    }
+
+    /**
+     * Removes XML comments and formatting-only whitespace while retaining every element,
+     * attribute and value for the fail-closed comparison.
+     */
+    private static String semanticXml(String text) {
+        String withoutComments = XML_COMMENT.matcher(normalizeNewlines(text)).replaceAll("");
+        return withoutComments.replaceAll(">\\s+<", "><").trim();
     }
 
     private static boolean close(double first, double second) {

@@ -40,6 +40,21 @@ class ModeChoiceCalibrationRound1Test {
     }
 
     @Test
+    void documentaryXmlCommentDifferencesAreIgnored() throws Exception {
+        String baseline = Files.readString(ValidateModeChoiceCalibrationConfig.CONFIG);
+        String round = Files.readString(ValidateModeChoiceCalibrationRound1Config.CONFIG)
+                .replace("<!-- Separate, first mode-choice calibration round for the synthetic 2019 reference. -->",
+                        "<!-- Different documentary wording that has no MATSim semantics. -->")
+                .replace("<!-- Round-1 mode-specific constants; car remains the reference alternative -->",
+                        "<!-- Another harmless multiline\n                     documentation comment. -->")
+                .replace("    <module name=\"global\">",
+                        "    <!-- An additional test-only comment. -->\n"
+                                + "    <module name=\"global\">");
+        ValidateModeChoiceCalibrationRound1Config.requireOnlyApprovedDifferences(
+                baseline, round);
+    }
+
+    @Test
     void outputProtectionNeverDeletesExistingDirectory(@TempDir Path temp) throws Exception {
         Path output = temp.resolve("output");
         Files.createDirectory(output);

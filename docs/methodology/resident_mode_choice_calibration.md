@@ -3,10 +3,10 @@
 ## Status and purpose
 
 This document defines the productive calibration architecture prepared in Step
-3. The architecture is locally compiled and validated, but no controller,
-MATSim mobility simulation or QSim has been started. The next task must first
-perform a protected iteration-zero validation before the initial iterations
-0--20 calibration is authorized.
+3 and its protected iteration-zero validation prepared in Step 4. Both are
+locally compiled and structurally validated. Step 4 did not start a controller,
+MATSim mobility simulation or QSim; the iteration-zero execution is reserved
+for a deliberate manual server run before iterations 0--20 are authorized.
 
 The calibration estimates a common behavioral baseline for later BAU and Fast
 Track comparisons. It does not filter the regional demand and does not modify
@@ -76,6 +76,59 @@ and the complete cohort before loading the scenario, assigns and revalidates
 runtime labels after loading, installs SwissRailRaptor and the resident
 analysis listeners, and starts the controller only when its main class is
 explicitly invoked.
+
+## Protected iteration-zero validation
+
+Run 11 is a thin server-side use of the productive pipeline, not a second
+calibration method. It first performs the complete Run-10 validation against
+`config_resident_mode_choice_calibration.xml`. It then derives an in-memory
+configuration with exactly three differences:
+
+| Controller value | Iteration-zero value |
+|---|---|
+| `runId` | `munich-calibration-2019-resident-iteration-0-validation` |
+| `outputDirectory` | `scenarios/munich_calibration_2019/output/resident-mode-choice-iteration-0-validation` |
+| `lastIteration` | `0` |
+
+A canonical comparison of every config module, parameter and parameter set
+fails unless these are the only differences. No second permanent MATSim config
+is written. Both validation and productive output paths must be absent. The
+productive scenario loader, runtime cohort assignment, structural resident-trip
+checks, SwissRailRaptor module, iteration analyzer and stuck-event listener are
+then reused without an independent copy.
+
+After a normal controller return, the output validator reads iteration 0
+events, final plans and output config. It checks the expected MATSim network,
+transit and iteration artifacts, exact population/cohort/trip counts, analysis
+rows and background exclusion. Car departures and vehicle-traffic events must
+exist; PT departures, transit-driver starts and passenger boardings must exist.
+The controller log must record completed normal shutdown and contain no fatal
+or error marker. Protected input hashes are compared before and after the run,
+and the productive output path must still be absent.
+
+Input and output selected plans are compared by person and runtime cohort with
+MATSim's stage-activity handling. PT interaction and access/egress legs therefore
+cannot be mistaken for a main-mode change. Iteration 0 is expected to preserve
+all input main modes; any unexplained change fails validation.
+
+Stuck events are descriptive rather than assigned an arbitrary threshold. They
+are counted by runtime cohort, current routing main mode and hour, including
+unique-person and population shares. Zero events yields `PASS`; a consistent
+nonzero count yields `PASS WITH REVIEW REQUIRED`. Missing or unreadable events,
+inconsistent counts or abnormal controller termination fail.
+
+The automatic validator writes under the validation output's `analysis/`:
+
+- `iteration_0_validation_summary.csv`
+- `iteration_0_validation_report.md`
+- `iteration_0_stuck_summary.csv`
+- `iteration_0_mode_comparison.csv`
+- `protected_input_hashes.csv`
+
+Iteration 0 validates technical execution, routing, transit, cohort assignment
+and analysis. It does not demonstrate calibrated mode choice or convergence.
+Strategy scoping is proven structurally by config validation and focused tests;
+actual resident mode changes are assessed only in the later 0--20 run.
 
 ## Primary and secondary analysis
 
@@ -154,12 +207,20 @@ The shared IntelliJ configurations are:
 
 1. `10 Validate 2019 Resident Mode Choice Configuration` -- read-only config,
    hash, cohort, strategy and target validation; starts no QSim.
-2. `11` -- intentionally reserved for the protected iteration-zero validation
-   runner to be implemented in Step 4.
+2. `11 Run 2019 Resident Mode Choice Iteration-0 Validation` -- server-only
+   technical run and automatic output validation. Confirm that both protected
+   output directories are absent before starting it.
 3. `12 Run Initial 2019 Resident Mode Choice Calibration` -- the only entry
    point that will start the iterations 0--20 controller; do not run before
    Step 4 approval.
 4. `13 Analyze Initial 2019 Resident Mode Choice Output` -- read-only
    standalone selected-plan analysis after a completed protected run.
 
-Step 3 created no calibration output directory and ran no simulation.
+On the university server, update the repository, run 10, then run 11 manually
+through IntelliJ with `-Xms4g -Xmx16g`. Read the final console status and all
+five `analysis/iteration_0_*` or hash outputs. A review-required result must be
+examined and documented before Run 12; a failure blocks Run 12. Do not delete
+or overwrite an existing validation output to repeat the run.
+
+Local Step-4 preparation created neither protected output directory and ran no
+simulation.

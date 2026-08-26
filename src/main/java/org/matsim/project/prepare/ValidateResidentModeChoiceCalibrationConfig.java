@@ -163,6 +163,25 @@ public final class ValidateResidentModeChoiceCalibrationConfig {
         return HexFormat.of().withUpperCase().formatHex(digest.digest());
     }
 
+    static Map<Path, String> protectedInputExpectations() {
+        LinkedHashMap<Path, String> result = new LinkedHashMap<>();
+        PROTECTED_INPUT_SHA256.forEach((relative, hash) -> result.put(
+                CONFIG.getParent().resolve(relative).normalize(), hash));
+        result.put(MunichMunicipalBoundary.DEFAULT_FILE.normalize(),
+                "EFBC37F0627F94D95DAB67D1C5A2B9D05507DC9E8C9492A98A35BFF4A4AE2A26");
+        return Map.copyOf(result);
+    }
+
+    static Map<Path, String> captureProtectedInputHashes() throws Exception {
+        LinkedHashMap<Path, String> result = new LinkedHashMap<>();
+        for (Path path : protectedInputExpectations().keySet()) {
+            require(Files.isRegularFile(path), "Protected input is missing: " + path);
+            result.put(path, sha256(path));
+        }
+        result.put(CONFIG.normalize(), sha256(CONFIG));
+        return Map.copyOf(result);
+    }
+
     private static void validateInputs(Config config) throws Exception {
         require("EPSG:31468".equals(config.global().getCoordinateSystem()),
                 "Unexpected calibration coordinate system");

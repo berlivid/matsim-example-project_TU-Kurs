@@ -179,20 +179,44 @@ Use the new run configurations in this order:
 
 1. **10 Validate 2019 Resident Mode Choice Configuration** performs read-only
    input-hash, config, cohort, strategy and target checks. It starts no QSim.
-2. **11** is deliberately reserved for the iteration-zero validation runner
-   that will be added in Step 4.
+2. **11 Run 2019 Resident Mode Choice Iteration-0 Validation** is the protected
+   server-only iteration-zero run. It reuses the productive pipeline and changes
+   only run ID, output directory and `lastIteration=0` in memory. It then runs
+   the dedicated output validator automatically.
 3. **12 Run Initial 2019 Resident Mode Choice Calibration** is the only new
    entry point that starts the controller. Do not invoke it before Step 4.
 4. **13 Analyze Initial 2019 Resident Mode Choice Output** starts no QSim and
    is used only after a completed protected run.
 
-The protected output is
-`output/resident-mode-choice-initial`; it must not exist before runs 10 or 12.
+The productive protected output is `output/resident-mode-choice-initial`; the
+iteration-zero protected output is
+`output/resident-mode-choice-iteration-0-validation`. Neither may exist before
+Run 11, and no tool deletes or overwrites either directory.
 The config uses `failIfDirectoryExists`. Initial mode constants are all zero,
 trip-share targets are 34/24/18/24, and exact secondary Pkm-share targets are
 62.945329/26.687543/6.695437/3.671691 percent for car/PT/bike/walk. Step 3
 compiled and unit-tested this architecture but created no output directory and
 ran no controller, MATSim mobility simulation or QSim.
+
+### Server sequence for iteration zero
+
+1. Pull the reviewed Step-4 commit and confirm that the two protected output
+   directories above do not exist.
+2. Run **10** and require its read-only PASS result.
+3. Run **11** manually in IntelliJ with `-Xms4g -Xmx16g` and project-root
+   working directory. Do not change program arguments or the productive XML.
+4. Require the final console status `ITERATION-0 VALIDATION PASS` or
+   `ITERATION-0 VALIDATION PASS WITH REVIEW REQUIRED`. `FAIL` blocks Run 12.
+5. Review the five validation files in the new output's `analysis/` directory.
+   A nonzero stuck count is explicitly `REVIEW_REQUIRED`, with no invented
+   acceptance threshold.
+6. Keep the complete output as evidence. Do not run **12** until the technical
+   result has been reviewed and accepted.
+
+Iteration zero tests execution, routing, transit, runtime cohorts and analysis;
+it is not evidence of calibration or convergence. Main modes must match the
+input after stage-aware comparison. Actual resident mode changes are evaluated
+only in the later iterations 0--20 run.
 
 ## Isolated open-tour test
 

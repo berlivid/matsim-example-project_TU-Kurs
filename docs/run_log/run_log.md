@@ -507,3 +507,24 @@ Scenario outputs are excluded from Git.
 - Retained Round-1/Round-2 Java, config and ignored output evidence because it
   remains referenced historical provenance. The rejected Open-Tour behavior
   was not reactivated.
+
+## 26 August 2026 -- protected resident iteration-zero validation prepared
+
+- Added server Run 11 as a thin reuse of the productive resident scenario and
+  controller setup. It loads the productive XML and permits exactly three
+  in-memory controller changes: the validation run ID, its separate protected
+  output directory and `lastIteration=0`.
+- Added automatic post-run checks for normal iteration-zero completion,
+  readable events/plans/config, exact 324,043-person runtime cohorts, all
+  137,540 resident trips and their five spatial categories, complete resident
+  trip/Pkm rows, background exclusion, car and PT execution evidence and
+  unchanged protected inputs.
+- Added stage-aware input/output main-mode comparison. Routed PT interaction
+  and access/egress legs do not count as main-mode changes; unexplained changes
+  fail.
+- Nonzero stuck events do not fail by an invented threshold. They are reported
+  by runtime cohort, routing main mode and hour and produce `REVIEW_REQUIRED`;
+  missing/unreadable events, inconsistent counts or abnormal termination fail.
+- Local preparation compiled and ran only focused tests and read-only config
+  validation. Run 11 was not invoked, no controller or QSim ran, and neither
+  protected output directory was created.

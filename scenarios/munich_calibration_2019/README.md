@@ -282,6 +282,19 @@ test, not a calibrated parameter.
    and all protected inputs remain unchanged. Any residual event is
    `REVIEW_REQUIRED` and keeps Run 12 blocked.
 
+The completed 48-hour output remains technical evidence rather than an
+accepted productive setting. A read-only root-cause diagnostic found 716
+observed arrivals after 43:00 and 1,701 persistent cases, including 818 Munich
+residents. The persistent resident cases are 552 car and 266 PT. Across all
+cohorts, 897 car cases show unfinished network movement, 505 PT cases never
+boarded, 291 PT cases boarded and later waited for a connection, and only 8
+cases departed during the final hour. Links `419626`, `16208` and `453133`
+contain the last movement of 867 car cases. Detailed generated evidence is under
+`generated/resident_iteration0_stuck_root_cause/`. This result calls for a
+targeted link/topology and late-transfer audit, not another horizon extension;
+Run 12 remains blocked until a controlled correction passes a new iteration-0
+test.
+
 Iteration zero tests execution, routing, transit, runtime cohorts and analysis;
 it is not evidence of calibration or convergence. Choice modes must match the
 input. The narrowly evidenced PT-to-walk physical routing transformation is

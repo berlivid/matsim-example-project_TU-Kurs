@@ -1,0 +1,13 @@
+runtime_cohort,physical_event_leg_mode,routing_choice_mode,root_cause,person_count
+munich_resident,car,car,CAR_NO_PROGRESS_OR_NETWORK_CLUSTER,546
+munich_resident,car,car,VERY_LATE_DEPARTURE,6
+munich_resident,pt,pt,PT_BOARDED_NOT_ARRIVED,54
+munich_resident,pt,pt,PT_NEVER_BOARDED,212
+regional_background,car,car,CAR_NO_PROGRESS_OR_NETWORK_CLUSTER,161
+regional_background,car,car,VERY_LATE_DEPARTURE,2
+regional_background,pt,pt,PT_BOARDED_NOT_ARRIVED,232
+regional_background,pt,pt,PT_NEVER_BOARDED,275
+regional_background,walk,pt,PT_NEVER_BOARDED,17
+unresolved_background,car,car,CAR_NO_PROGRESS_OR_NETWORK_CLUSTER,190
+unresolved_background,pt,pt,PT_BOARDED_NOT_ARRIVED,5
+unresolved_background,walk,pt,PT_NEVER_BOARDED,1

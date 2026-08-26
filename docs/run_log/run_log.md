@@ -610,3 +610,63 @@ Scenario outputs are excluded from Git.
   unchanged protected inputs. Any residual event remains `REVIEW_REQUIRED`.
 - Local work compiled offline and ran only focused tests. Runs 11D, 11E and 11F
   were not invoked; no Controller or QSim ran and no 48-hour output was created.
+
+## 26 August 2026 -- residual 48-hour stuck-event diagnosis
+
+- Verified that both preserved horizon outputs contain output plans,
+  iteration-zero events, output configs and existing analysis evidence.
+- Added a compact read-only analyzer that reads each large event file once per
+  diagnostic execution, reuses the resident cohort and MATSim stage-activity
+  rules, and fails closed on person, cohort, trip or matching inconsistencies.
+- The longer horizon resolves 716 of the original 2,417 affected persons; all
+  716 have an observed arrival after 43:00. It leaves 1,701 persons at the
+  48-hour cutoff: 818 Munich residents, 687 regional-background persons and 196
+  unresolved-background persons.
+- Evidence classes are 8 very-late departures, 897 unfinished car/network
+  cases, 505 PT passengers who never boarded, and 291 PT passengers who boarded
+  but later waited for another connection. The Munich-resident subset is 6,
+  546, 212 and 54 respectively (552 car and 266 PT).
+- The last movement of 867 car cases is concentrated on links `419626` (403),
+  `16208` (317) and `453133` (147). All car cases end with an `entered link`
+  event. PT waiting is dispersed; no single stop or route explains the PT set.
+- The diagnosis therefore does not approve 48 hours as the productive horizon.
+  It recommends a narrow audit of the three dominant links and their downstream
+  topology/capacity, followed by a late-transfer service check. A new protected
+  iteration-zero test is required after any correction, and Run 12 remains
+  blocked.
+- Offline compilation and seven focused classification tests passed. The
+  analyzer read existing files only and wrote five generated, unstaged diagnostic products;
+  no Controller, QSim or calibration run was started and no scenario input or
+  preserved output was changed.
+
+## 26 August 2026 -- fail-closed stuck-resolution audit
+
+- Reused the generated 1,701-person root-cause table. The 43-hour events were
+  not parsed again. One 48-hour event pass supplied entry/exit balances for the
+  three links and actual vehicle passages at relevant PT stops.
+- Compared each target link and all immediate incoming, outgoing and reverse
+  car links with the versioned source `studyNetworkDense.xml`. Endpoints,
+  lengths, free speeds, capacities, lanes, modes and source attributes are
+  preserved. Every target has an outgoing car link; no dead end, immediate
+  downstream capacity drop or synthetic-build road mutation was found.
+- Link `16208` has 1,575 entries, 1,257 exits and 318 remaining vehicles;
+  `419626` has 1,673, 1,266 and 407; `453133` has 1,395, 1,248 and 147. These
+  exactly match all persistent persons on the links. The car-root-cause subset
+  is 317, 403 and 147; five additional persons are very-late departures. All
+  three links are classified as plausible but severe congestion, not confirmed
+  data errors.
+- Classified the 796 PT-routing cases from the schedule and observed vehicle
+  passage: 250 no-later-service, 180 no-compatible-connection, 83 compatible
+  service passed without boarding, 265 transfer-missed-after-delay and 18 with
+  insufficient stop evidence. The resident counts are 72, 108, 38, 48 and 0.
+- Reconciled all 1,701 persons as 905 car-routing and 796 PT-routing cases. The
+  18 physical walk events (17 regional, one unresolved, zero residents) retain
+  PT routing/choice mode and are not additional cases or endogenous choices.
+- No objective input or pipeline error was demonstrated. No capacity, horizon,
+  service, scenario or behavioral value was changed. Run 12 remains blocked
+  until the 1.1895% resident execution loss has an approved reporting/sensitivity
+  decision or a separately justified modeling correction. Another iteration-0
+  run is required only after such a correction.
+- Offline compilation and 14 focused tests passed. No Controller, QSim or
+  calibration run was started; the existing outputs and protected inputs were
+  read only. Four generated audit files remain unstaged.

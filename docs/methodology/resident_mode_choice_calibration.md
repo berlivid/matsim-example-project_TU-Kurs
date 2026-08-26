@@ -219,6 +219,109 @@ moves to hour 48, the output passes all technical checks, and protected inputs
 remain unchanged. A decline with any residual event is `REVIEW_REQUIRED` and
 does not authorize Run 12.
 
+### Read-only diagnosis of the residual 48-hour cases
+
+The completed 48-hour test reduced the affected population from 2,417 to
+1,701 persons. All 716 persons removed from the stuck set have an observed
+arrival after 43:00 in the longer event stream. The residual set comprises 818
+Munich residents, 687 regional-background persons and 196 unresolved-background
+persons. Its event-supported classification is:
+
+| Technical evidence class | All persons | Munich residents |
+|---|---:|---:|
+| `VERY_LATE_DEPARTURE` | 8 | 6 |
+| `CAR_NO_PROGRESS_OR_NETWORK_CLUSTER` | 897 | 546 |
+| `PT_NEVER_BOARDED` | 505 | 212 |
+| `PT_BOARDED_NOT_ARRIVED` | 291 | 54 |
+| `TELEPORTED_LEG_EXCEEDS_HORIZON` | 0 | 0 |
+| `INSUFFICIENT_EVIDENCE` | 0 | 0 |
+
+The diagnostic streams each preserved event file once and retains only the
+2,417 previously affected persons. It deterministically matches their event
+departures to complete selected-plan legs while excluding stage activities as
+main-trip boundaries. Person counts, runtime cohort counts, main-trip counts
+and the expected 716/1,701 split fail closed. Existing output and scenario
+inputs are read only; the five diagnostic products are written under
+`generated/resident_iteration0_stuck_root_cause/`.
+
+The evidence does not support treating the residual cases as a simple
+48-hour-cutoff problem. Of the 897 car cases, 867 have their last vehicle
+movement on links `419626` (403 persons), `16208` (317) or `453133` (147), and
+every car record ends with an `entered link` movement. Of the 505 passengers
+who never board, 487 have an explicit waiting-at-stop event. All 291 passengers
+who boarded have subsequently left a vehicle and are waiting for a connection;
+none is still aboard at the cutoff. Stops and last-used routes are dispersed:
+the largest never-boarded stop clusters contain four persons each, and the
+largest last-used route cluster contains eight persons.
+
+Accordingly, extending the horizon to 48 hours is not accepted for productive
+Run 12 on its own. The subsequent audit below tests the dominant links and PT
+service directly rather than assuming that their persistence is an input
+error.
+
+### Fail-closed road and PT service audit
+
+The resolution audit reuses the 1,701 generated person rows. It reads the
+synthetic calibration network, its versioned road source and the actual 2019
+schedule, then streams only the 48-hour events once. The 43-hour events are not
+read again. Link occupancy includes both `LinkEnter` and initial
+`VehicleEntersTraffic` entries and both `LinkLeave` and final
+`VehicleLeavesTraffic` exits. Actual PT passage requires an observed
+`VehicleDepartsAtFacility` event whose schedule route reaches the required
+destination after the waiting stop.
+
+| Link | Entries | Exits | Vehicles remaining | All persistent persons | Car-root-cause persons | Audit result |
+|---|---:|---:|---:|---:|---:|---|
+| `16208` | 1,575 | 1,257 | 318 | 318 | 317 | plausible but severe congestion |
+| `419626` | 1,673 | 1,266 | 407 | 407 | 403 | plausible but severe congestion |
+| `453133` | 1,395 | 1,248 | 147 | 147 | 147 | plausible but severe congestion |
+
+The five-person difference between 872 persistent persons on these links and
+the previously reported 867 car-root-cause cases consists of separately
+classified very-late departures. All three links, every audited adjacent car
+link and their source attributes are semantically identical to
+`studyNetworkDense.xml`. Each target has an outgoing car continuation. None is
+a dead end, none has an immediate downstream capacity reduction, and the
+synthetic PT build introduced no endpoint, capacity, lane, mode or `origid`
+change. The audit therefore does not prove a topology or capacity pipeline
+error. Congestion is severe, but congestion alone is not permission to change
+a link.
+
+The 796 PT-routing cases divide as follows:
+
+| Service evidence | All PT cases | Munich residents | Share of residents |
+|---|---:|---:|---:|
+| no later service | 250 | 72 | 0.1047% |
+| no compatible connection | 180 | 108 | 0.1570% |
+| compatible vehicle passed without boarding | 83 | 38 | 0.0553% |
+| transfer missed after delay | 265 | 48 | 0.0698% |
+| insufficient stop evidence | 18 | 0 | 0.0000% |
+
+The 18 insufficient cases are exactly the formerly reported physical walk
+events: 17 regional-background and one unresolved-background person. Their
+`PersonStuck` leg is physically represented as walk, while the computational
+routing and choice mode remains PT. They are part of the 796 PT cases, not an
+additional category and not endogenous PT-to-walk choices.
+
+Across PT cases, planned departure times range from 517 to 86,820 seconds
+(median 39,897); final waiting starts range from 18,361 to 157,333 seconds
+(median 70,026). Waiting until the 48-hour cutoff ranges from 15,467 to 154,439
+seconds (median 102,765). The schedule audit does not invent replacement
+services. A compatible passing vehicle without boarding may reflect vehicle
+capacity or another operational boarding constraint; without that evidence it
+is not promoted to a confirmed pipeline error.
+
+No objective road-network or synthetic-schedule pipeline error was proved, so
+no model correction is implemented. The 818 affected residents equal 1.1895%
+of the resident cohort: 552 car-routing cases (0.8027%) and 266 PT-routing
+cases (0.3868%). Scientifically defensible options are either to approve an
+explicit sensitivity and reporting rule for this residual execution loss, or
+to specify and test a separately justified congestion, late-service or
+boarding-capacity assumption. Global capacity changes, a further horizon
+extension and invented departures are excluded. Another iteration-zero run is
+needed only after an approved correction; repeating the unchanged setup adds
+no evidence. Run 12 remains blocked pending the methodological decision.
+
 The automatic validator writes under the validation output's `analysis/`:
 
 - `iteration_0_validation_summary.csv`

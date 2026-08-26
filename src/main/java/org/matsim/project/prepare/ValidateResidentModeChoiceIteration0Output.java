@@ -313,7 +313,7 @@ public final class ValidateResidentModeChoiceIteration0Output {
                 "Output strategy scoping changed");
     }
 
-    private static void validateNormalTermination(Path log) throws IOException {
+    static void validateNormalTermination(Path log) throws IOException {
         String text = Files.readString(log, StandardCharsets.UTF_8);
         require(text.contains("shutdown completed"),
                 "Controller log does not record completed shutdown");

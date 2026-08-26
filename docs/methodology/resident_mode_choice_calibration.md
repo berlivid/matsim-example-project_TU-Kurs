@@ -180,6 +180,45 @@ unique-person and population shares. Zero events yields `PASS`; a consistent
 nonzero count yields `PASS WITH REVIEW REQUIRED`. Missing or unreadable events,
 inconsistent counts or abnormal controller termination fail.
 
+### Isolated 48-hour QSim-horizon test
+
+The validated 43-hour iteration-zero output contains 2,417 unique stuck
+persons, including 1,190 Munich residents, and every event is grouped in hour
+43. The productive XML still records `qsim.endTime=43:00:00`. A fresh streaming
+audit of the protected transit schedule confirms a latest departure at
+`29:40:00`, a largest stop offset of `32:35:00`, a latest vehicle arrival at
+`42:30:00`, and the existing schedule-derived horizon of `43:00:00`. Therefore
+the timetable itself is not truncated, but agents or vehicles still active at
+the QSim boundary may be converted to stuck events. The causal interpretation
+must be tested rather than assumed.
+
+The 48-hour test is a separate technical iteration-zero run. It derives an
+in-memory config from the unchanged productive 43-hour XML and permits exactly
+four differences: run ID, output directory, `lastIteration=0`, and
+`qsim.endTime=48:00:00`. It reuses the productive scenario loader, runtime
+cohort assignment, strategies, SwissRailRaptor, analysis listeners, threads,
+seed and every protected input. Its fail-closed output is
+`output/resident-mode-choice-iteration-0-horizon-48h`; neither the productive
+XML nor the preserved 43-hour output is changed.
+
+After normal shutdown, the comparison validates the 48-hour output config,
+normal log termination, exact runtime cohort assignments, readable events and
+unchanged protected hashes. It groups both event files by runtime cohort, leg
+mode and exact event time and reports whether counts disappear, decline,
+persist, or move into hour 48. The comparison writes only to the new 48-hour
+output:
+
+- `analysis/iteration_0_horizon_43h_vs_48h_stuck_events.csv`
+- `analysis/iteration_0_horizon_43h_vs_48h_summary.csv`
+- `analysis/iteration_0_horizon_43h_vs_48h_report.md`
+
+Forty-eight hours is not a calibrated behavioral parameter. It may be proposed
+for the later productive calibration only if all 2,417 old cutoff events
+disappear, no old affected person remains stuck, no new event occurs, no event
+moves to hour 48, the output passes all technical checks, and protected inputs
+remain unchanged. A decline with any residual event is `REVIEW_REQUIRED` and
+does not authorize Run 12.
+
 The automatic validator writes under the validation output's `analysis/`:
 
 - `iteration_0_validation_summary.csv`
@@ -283,10 +322,17 @@ The shared IntelliJ configurations are:
 4. `11C Diagnose Existing 2019 Resident Iteration-0 Main Modes` -- read-only
    diagnosis of physical leg modes versus routing/choice modes in the preserved
    output; starts no controller or QSim.
-5. `12 Run Initial 2019 Resident Mode Choice Calibration` -- the only entry
+5. `11D Validate 2019 Resident Iteration-0 48h Horizon Test` -- read-only
+   four-override, protected-input, cohort and schedule-horizon preflight.
+6. `11E Run 2019 Resident Iteration-0 48h Horizon Test` -- server-only isolated
+   iteration-zero execution; it automatically performs the post-run comparison.
+7. `11F Compare 43h and 48h Resident Iteration-0 Stuck Events` -- read-only
+   recovery comparison for an already completed 48-hour output; it starts no
+   controller or QSim.
+8. `12 Run Initial 2019 Resident Mode Choice Calibration` -- the only entry
    point that will start the iterations 0--20 controller; do not run before
-   Step 4 approval.
-6. `13 Analyze Initial 2019 Resident Mode Choice Output` -- read-only
+   the horizon result is accepted.
+9. `13 Analyze Initial 2019 Resident Mode Choice Output` -- read-only
    standalone selected-plan analysis after a completed protected run.
 
 For a new iteration-zero execution, update the repository, run 10, then run 11
@@ -303,6 +349,14 @@ physical/choice summaries directly from the existing final plans and does not
 require newly generated iteration-history columns. Do not rerun Run 11. Run 12
 remains blocked until Run 11B passes and any `REVIEW_REQUIRED` stuck-event
 result has been reviewed.
+
+For the horizon diagnosis on the university server, preserve the complete
+43-hour output, pull the reviewed code, run 10, run 11D, then run 11E with
+`-Xms4g -Xmx16g`. Run 11E writes only its new protected 48-hour output and
+automatically compares both event files after normal shutdown. If automatic
+comparison is interrupted after QSim, run 11F with `-Xms2g -Xmx8g`; do not
+repeat 11E. Review all three comparison products before changing the productive
+43-hour XML or authorizing Run 12.
 
 Local Step-4 preparation created neither protected output directory and ran no
 simulation.

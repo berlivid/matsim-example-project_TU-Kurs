@@ -586,3 +586,27 @@ Scenario outputs are excluded from Git.
   Runs 11, 11B and 11C were not invoked; the existing server output and Run-11C
   reports were not rewritten. Run 12 remains blocked pending corrected Run-11B
   acceptance and review of any nonzero stuck events.
+
+## 26 August 2026 -- 48-hour iteration-zero horizon test prepared
+
+- The validated 43-hour iteration-zero run reports 2,417 unique stuck persons,
+  including 1,190 Munich residents; all stuck events are grouped in hour 43.
+- A new streaming audit of the protected schedule confirmed latest departure
+  `29:40:00`, largest arrival/departure offset `32:35:00`, latest vehicle
+  arrival `42:30:00`, and the unchanged schedule-derived horizon `43:00:00`.
+  The timetable is not truncated, but still-active agents may be affected by
+  the QSim boundary.
+- Added a separate fail-closed 48-hour iteration-zero test. It derives the
+  productive config in memory and changes only run ID, output directory,
+  `lastIteration=0` and `qsim.endTime=48:00:00`. The source XML remains at 43
+  hours and the protected 43-hour output is never modified.
+- Added read-only Run 11D preflight, server-only Run 11E and read-only Run 11F
+  recovery comparison. The comparison validates both outputs and groups stuck
+  events by runtime cohort, mode and exact event time, including explicit
+  detection of events moving to hour 48.
+- Forty-eight hours is a technical test rather than a calibrated parameter.
+  Productive adoption requires disappearance of all 2,417 old events, zero new
+  or persisting events, no hour-48 event, normal technical validation and
+  unchanged protected inputs. Any residual event remains `REVIEW_REQUIRED`.
+- Local work compiled offline and ran only focused tests. Runs 11D, 11E and 11F
+  were not invoked; no Controller or QSim ran and no 48-hour output was created.

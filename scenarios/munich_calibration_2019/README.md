@@ -193,9 +193,15 @@ Use the new run configurations in this order:
 4. **11C Diagnose Existing 2019 Resident Iteration-0 Main Modes** compares
    physical output leg modes with official MATSim routing/choice modes in the
    preserved output. It starts no controller or QSim and changes no plan.
-5. **12 Run Initial 2019 Resident Mode Choice Calibration** is the only new
-   entry point that starts the controller. Do not invoke it before Step 4.
-6. **13 Analyze Initial 2019 Resident Mode Choice Output** starts no QSim and
+5. **11D Validate 2019 Resident Iteration-0 48h Horizon Test** performs the
+   read-only preflight for the isolated four-override horizon test.
+6. **11E Run 2019 Resident Iteration-0 48h Horizon Test** is the server-only
+   test and automatic 43h-versus-48h stuck-event comparison.
+7. **11F Compare 43h and 48h Resident Iteration-0 Stuck Events** repeats only
+   the read-only comparison if the 48-hour QSim output already exists.
+8. **12 Run Initial 2019 Resident Mode Choice Calibration** is the productive
+   controller entry point. Do not invoke it before the horizon decision.
+9. **13 Analyze Initial 2019 Resident Mode Choice Output** starts no QSim and
    is used only after a completed protected run.
 
 The productive protected output is `output/resident-mode-choice-initial`; the
@@ -245,6 +251,36 @@ choice transition matrices directly from the existing plans, so no new QSim or
 iteration-history columns are required. Physical modes remain the basis for
 the empirical modal split and Pkm; choice-mode shares are diagnostic only. Run
 12 remains blocked until Run 11B passes and any stuck-event review is complete.
+
+The accepted Run-11 output contains 2,417 unique stuck persons, including
+1,190 Munich residents; every event is in hour 43, where the current QSim ends.
+The protected schedule itself ends earlier: latest departure `29:40:00`,
+largest route offset `32:35:00`, latest vehicle arrival `42:30:00`, and derived
+schedule horizon `43:00:00`. This points to boundary handling of still-active
+agents rather than a truncated timetable, but causality is not assumed.
+
+The separate Run-11E test changes only run ID, output directory,
+`lastIteration=0` and QSim end time to `48:00:00` in memory. It writes to
+`output/resident-mode-choice-iteration-0-horizon-48h` and never changes or
+deletes the 43-hour output. Forty-eight hours is initially a technical horizon
+test, not a calibrated parameter.
+
+### Server sequence for the 48-hour horizon test
+
+1. Preserve the complete 43-hour Run-11 output and pull the reviewed code.
+2. Run **10** and require `PASS`.
+3. Run **11D** and require its read-only pre-run `PASS`.
+4. Confirm that `output/resident-mode-choice-iteration-0-horizon-48h` and the
+   productive `output/resident-mode-choice-initial` do not exist.
+5. Run **11E** with `-Xms4g -Xmx16g`, no arguments and project-root working
+   directory. It runs QSim once and compares both outputs automatically.
+6. If QSim completed but automatic comparison was interrupted, run **11F**
+   with `-Xms2g -Xmx8g`; do not repeat 11E.
+7. Review the comparison CSV, summary and report. Accept 48 hours for a later
+   productive-config change only if all 2,417 old events disappear, no old or
+   new person is stuck, no event occurs in hour 48, normal validation passes
+   and all protected inputs remain unchanged. Any residual event is
+   `REVIEW_REQUIRED` and keeps Run 12 blocked.
 
 Iteration zero tests execution, routing, transit, runtime cohorts and analysis;
 it is not evidence of calibration or convergence. Choice modes must match the

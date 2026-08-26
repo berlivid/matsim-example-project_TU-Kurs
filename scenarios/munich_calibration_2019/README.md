@@ -20,10 +20,11 @@ service date 13 February 2026 is only a technical activation date and must not
 be interpreted as the historical reference year.
 
 The GTFS subset, MATSim transit inputs, reference checks, temporal checks and
-representative SwissRailRaptor connections are structurally validated. Full
-end-to-end approval remains conditional on a normal iteration-zero shutdown on
-the Uni server. No mode-choice strategy is active in the validation
-configuration.
+representative SwissRailRaptor connections are structurally validated. The
+resident Run-11 Controller/QSim execution completed with normal shutdown on the
+Uni server; final technical acceptance remains conditional on read-only Run-11B
+output validation. No mode-choice strategy is active in the separate GTFS
+input-validation configuration.
 
 ## Required server input
 
@@ -183,9 +184,12 @@ Use the new run configurations in this order:
    server-only iteration-zero run. It reuses the productive pipeline and changes
    only run ID, output directory and `lastIteration=0` in memory. It then runs
    the dedicated output validator automatically.
-3. **12 Run Initial 2019 Resident Mode Choice Calibration** is the only new
+3. **11B Validate Existing 2019 Resident Mode Choice Iteration-0 Output**
+   performs only the same read-only output validation against the fixed,
+   already existing Run-11 directory. It starts no controller or QSim.
+4. **12 Run Initial 2019 Resident Mode Choice Calibration** is the only new
    entry point that starts the controller. Do not invoke it before Step 4.
-4. **13 Analyze Initial 2019 Resident Mode Choice Output** starts no QSim and
+5. **13 Analyze Initial 2019 Resident Mode Choice Output** starts no QSim and
    is used only after a completed protected run.
 
 The productive protected output is `output/resident-mode-choice-initial`; the
@@ -212,6 +216,18 @@ ran no controller, MATSim mobility simulation or QSim.
    acceptance threshold.
 6. Keep the complete output as evidence. Do not run **12** until the technical
    result has been reviewed and accepted.
+
+The existing server Run 11 completed Controller/QSim and normal shutdown; its
+automatic post-validation then stopped on an overly positional output-config
+comparison. Do not repeat the simulation. After pulling the comparison fix,
+run **10** and then **11B**. MATSim may reorder parameter sets and writes the
+explicit default `swissRailRaptor` config group installed at runtime. The
+unchanged pre-run guard still permits exactly the three documented overrides.
+The post-run guard now matches known parameter sets by semantic identity and
+strictly compares all values, including the runtime SwissRailRaptor defaults;
+missing, duplicate, unsupported or unexpected sets fail with detailed keys.
+Only after that validation passes are the five intended `analysis/` reports
+written.
 
 Iteration zero tests execution, routing, transit, runtime cohorts and analysis;
 it is not evidence of calibration or convergence. Main modes must match the

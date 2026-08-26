@@ -528,3 +528,22 @@ Scenario outputs are excluded from Git.
 - Local preparation compiled and ran only focused tests and read-only config
   validation. Run 11 was not invoked, no controller or QSim ran, and neither
   protected output directory was created.
+
+## 26 August 2026 -- iteration-zero output-config comparison corrected
+
+- The university-server Run 11 completed Controller/QSim and normal shutdown.
+  Its retained output was not rejected as a simulation failure: only the
+  subsequent positional output-config snapshot comparison failed.
+- A read-only comparison of the copied output config found the three approved
+  controller overrides plus 13 explicit MATSim-2025.0 SwissRailRaptor defaults
+  installed by the productive controller module. It found no unexpected
+  semantic difference in inputs, seed, threads, capacity, horizon, scoring,
+  routing, transit or replanning scope.
+- The exact pre-run three-override snapshot guard remains unchanged. The
+  post-run comparison now matches parameter sets by stable semantic identity,
+  compares every value, rejects missing, duplicate, unsupported and additional
+  sets, and reports exact expected and actual difference keys.
+- Added Run 11B to validate the existing protected server output without
+  repeating Controller/QSim. Local work used only offline compilation, focused
+  tests, the copied output config for diagnosis and the read-only Run-10
+  validator; no simulation or protected output directory was created.

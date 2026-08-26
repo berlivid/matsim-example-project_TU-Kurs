@@ -285,10 +285,7 @@ public final class ValidateResidentModeChoiceIteration0Output {
         Config expected = RunMatsim2019ResidentModeChoiceIteration0Validation
                 .applyApprovedOverrides(ValidateResidentModeChoiceCalibrationConfig
                         .loadAndValidateStructure(false));
-        require(RunMatsim2019ResidentModeChoiceIteration0Validation.snapshot(output)
-                        .equals(RunMatsim2019ResidentModeChoiceIteration0Validation
-                                .snapshot(expected)),
-                "Output config differs from the productive config plus three approved overrides");
+        ResidentOutputConfigSemanticComparison.requireEquivalent(expected, output);
         require(output.controller().getLastIteration() == 0,
                 "Output config does not record lastIteration=0");
         require(ValidateResidentModeChoiceCalibrationConfig.strategyMap(output).equals(

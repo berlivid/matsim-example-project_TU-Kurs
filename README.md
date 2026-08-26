@@ -46,9 +46,10 @@ Future shared IntelliJ run configurations should use stable number groups:
 `20–29` for BAU/Fast Track runs and `30–39` for result analysis. Existing
 productive configurations are not broadly renamed. Resident calibration uses
 10 for read-only config validation, 11 for the protected server-side
-iteration-zero validation, 12 for the later productive run and 13 for
-standalone output analysis. Run 11 changes only run ID, output directory and
-last iteration in memory; local Step-4 preparation did not invoke it.
+iteration-zero validation, 11B for read-only revalidation of an existing
+Run-11 output, 12 for the later productive run and 13 for standalone output
+analysis. Run 11 changes only run ID, output directory and last iteration in
+memory; Run 11B never starts a controller or QSim.
 
 ## Current status
 

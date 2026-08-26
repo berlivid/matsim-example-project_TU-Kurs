@@ -17,11 +17,21 @@ public final class AnalyzeInitial2019ResidentModeChoiceOutput {
         ValidateModeChoiceCalibrationConfig.require(args.length == 0,
                 "This analyzer accepts no arguments and cannot select another output");
         Path output = ValidateResidentModeChoiceCalibrationConfig.OUTPUT;
+        Config config = ValidateResidentModeChoiceCalibrationConfig
+                .loadAndValidateStructure(false);
+        OutputAnalysis outputAnalysis = analyzeOutput(config, output);
+        System.out.printf("RESIDENT MODE-CHOICE OUTPUT ANALYSIS %s%noutput=%s%nplans=%s%nevents=%s%n"
+                        + "residentPersons=%d residentTrips=%d affectedResidentTrips=%d%n",
+                outputAnalysis.sensitivity().status(), output, outputAnalysis.plans(),
+                outputAnalysis.events(), outputAnalysis.residentPersons(),
+                outputAnalysis.residentTrips(),
+                outputAnalysis.sensitivity().affectedMainTrips());
+    }
+
+    static OutputAnalysis analyzeOutput(Config config, Path output) throws Exception {
         ValidateModeChoiceCalibrationConfig.require(Files.isDirectory(output),
                 "Resident calibration output does not exist: " + output);
         Path plans = finalPlans(output);
-        Config config = ValidateResidentModeChoiceCalibrationConfig
-                .loadAndValidateStructure(false);
         config.plans().setInputFile(plans.toAbsolutePath().normalize().toString());
         Scenario scenario = ScenarioUtils.loadScenario(config);
         ResidentCalibrationSubpopulations.assignAndValidate(
@@ -45,12 +55,11 @@ public final class AnalyzeInitial2019ResidentModeChoiceOutput {
         new ResidentModeChoiceCalibrationAnalysisWriter(output).writeStandaloneFinal(result);
         var sensitivityResult = new ResidentModeChoiceStuckSensitivityWriter(output)
                 .write(result, sensitivity, stuck);
-        System.out.printf("RESIDENT MODE-CHOICE OUTPUT ANALYSIS %s%noutput=%s%nplans=%s%nevents=%s%n"
-                        + "residentPersons=%d residentTrips=%d affectedResidentTrips=%d%n",
-                sensitivityResult.status(), output, plans, events, residentPlans.size(),
-                result.metrics(ModeChoiceCalibrationAnalysis.SpatialScope.ALL_TRIPS,
-                        ModeChoiceCalibrationAnalysis.PlanEligibility.ALL_PLANS).mainTrips(),
-                sensitivityResult.affectedMainTrips());
+        long residentTrips = result.metrics(
+                ModeChoiceCalibrationAnalysis.SpatialScope.ALL_TRIPS,
+                ModeChoiceCalibrationAnalysis.PlanEligibility.ALL_PLANS).mainTrips();
+        return new OutputAnalysis(plans, events, residentPlans.size(), residentTrips,
+                sensitivityResult);
     }
 
     static Path finalPlans(Path output) throws Exception {
@@ -81,4 +90,7 @@ public final class AnalyzeInitial2019ResidentModeChoiceOutput {
             return candidates.getFirst();
         }
     }
+
+    record OutputAnalysis(Path plans, Path events, long residentPersons, long residentTrips,
+                          ResidentModeChoiceStuckSensitivityWriter.Result sensitivity) { }
 }

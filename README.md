@@ -57,6 +57,9 @@ choice mode is an additional routing diagnostic. The completed stuck-event
 audit found no objective input error; the productive config now uses the tested
 48-hour horizon and Run 13 adds a separately labelled stuck-trip sensitivity
 while retaining all resident trips in the primary result.
+The completed initial run now supplies a separately protected productive
+Round-1 calibration config. Its damped car-reference constants are documented
+and validated before the server-only R1B run; R1A and R1C are read-only.
 
 ## Current status
 

@@ -21,7 +21,7 @@ class ResidentModeChoiceCalibrationConfigTest {
     @BeforeAll
     static void loadStructure() throws Exception {
         config = ValidateResidentModeChoiceCalibrationConfig
-                .loadAndValidateStructure(true);
+                .loadAndValidateStructure(false);
     }
 
     @Test
@@ -130,6 +130,5 @@ class ResidentModeChoiceCalibrationConfigTest {
         assertEquals(107_618, result.unresolvedPersons());
         assertEquals(137_540, result.residentMainTrips());
         assertEquals(137_540, result.spatialCategorySum());
-        assertFalse(Files.exists(ValidateResidentModeChoiceCalibrationConfig.OUTPUT));
     }
 }

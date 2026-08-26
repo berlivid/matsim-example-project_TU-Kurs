@@ -134,37 +134,27 @@ The current uncalibrated input-plan leg shares across all 324,043 persons are: c
 
 ## 9. Iterative calibration procedure
 
-Use a transparent coordinate-descent procedure:
+The productive resident procedure uses a transparent damped reference-mode
+log-share-ratio update. Car remains fixed at 0.0. For every other mode, Round 1
+applies `0.5 * [ln(target/current) - ln(target_car/current_car)]`. The damping
+factor is a conservative study choice, not a fitted parameter or universal
+standard. The complete input vector and calculated updates are versioned in
+`docs/calibration/resident_mode_choice_calibration_round_1.csv`.
 
-1. run the confirmed baseline with the initial constants;
-2. compute share errors in percentage points for the four modes;
-3. adjust one non-reference constant at a time in the direction of its error, using small fixed steps (for example 0.25 utils, halved after an overshoot);
-4. rerun from the same initial population and random seed;
-5. repeat until the stopping rule is met;
-6. repeat the final vector with at least two additional random seeds to check robustness.
+Every run records the parameter vector, protected input identity, seed,
+iteration window, primary physical trip shares, secondary normalized physical
+Pkm shares and stuck-trip sensitivity. No absolute annual Pkm correction is
+performed through mode constants; population anchoring for external-cost work
+is methodologically separate.
 
-Every run must record the complete parameter vector, input hashes, seed, iteration window and resulting metrics. A more complex optimiser or an eqasim pipeline is not justified for the first calibration stage.
-
-For round 1, compare the mean, minimum and maximum modal shares over iterations
-16--20 with the target vector. A second round is warranted if a late-iteration
-mean remains materially outside the 1--2 percentage-point tolerance, if the
-late values still show a systematic trend, or if improved share agreement is
-accompanied by implausible Pkm shares, distances or a material stuck-event
-pattern. A small positive stuck count alone is recorded rather than treated as
-automatic failure; modes, persons and timing near the 43-hour QSim horizon must
-be inspected without inferring a cause from `PersonStuckEvent`.
-
-Round 2 uses iterations 0--40 and disables innovation after 60% of the run.
-This leaves approximately 16 iterations for selection and stabilisation among
-existing plans. Its primary analysis window is iterations 31--40. For each
-mode, report the mean, minimum, maximum, range and least-squares linear trend
-in percentage points per iteration. A range of at most 1 percentage point and
-an absolute trend of at most 0.1 percentage points per iteration are working
-convergence criteria, not universal MATSim thresholds. Exceeding them is a
-calibration result rather than a technical run failure. Target accuracy of
-1--2 percentage points is reported separately. Constants alter modal utility,
-whereas the post-innovation period tests stability; these functions must not
-be conflated.
+Productive resident Round 1 uses iterations 0--40 and evaluates exactly
+iterations 31--40. For each mode it reports mean, minimum, maximum, range,
+least-squares trend, final value and target differences. An absolute trend of
+at most 0.10 percentage points per iteration, range at most 1.0 percentage
+point and resident stuck-trip share at most 1.0% are thesis-specific review
+criteria. A violation is `REVIEW_REQUIRED`, not a technical failure and never
+an automatic instruction to change constants. The older territorial Round 1
+and Round 2 below are retained only as legacy preliminary experiments.
 
 The legacy target CSV at
 `original-input-data/calibration/mode_choice_targets_2019.csv` preserves the

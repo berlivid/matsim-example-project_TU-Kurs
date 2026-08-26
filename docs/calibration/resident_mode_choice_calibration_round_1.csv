@@ -1,0 +1,5 @@
+mode,initial_physical_trip_share_percent,target_trip_share_percent,undamped_reference_log_ratio_update,damping_factor,applied_constant,reference_mode,primary_provenance,secondary_target_provenance
+car,45.559837138,34.000000000,0.000000000000,0.500000,0.000000,car,scenarios/munich_calibration_2019/output/resident-mode-choice-initial/analysis/resident_mode_choice_final_summary.csv,docs/methodology/resident_mode_choice_calibration.md
+pt,14.688817798,24.000000000,0.783633359337,0.500000,0.391817,car,scenarios/munich_calibration_2019/output/resident-mode-choice-initial/analysis/resident_mode_choice_final_summary.csv,docs/methodology/resident_mode_choice_calibration.md
+bike,29.740439145,18.000000000,-0.209469909881,0.500000,-0.104735,car,scenarios/munich_calibration_2019/output/resident-mode-choice-initial/analysis/resident_mode_choice_final_summary.csv,docs/methodology/resident_mode_choice_calibration.md
+walk,10.010905918,24.000000000,1.167044779103,0.500000,0.583522,car,scenarios/munich_calibration_2019/output/resident-mode-choice-initial/analysis/resident_mode_choice_final_summary.csv,docs/methodology/resident_mode_choice_calibration.md

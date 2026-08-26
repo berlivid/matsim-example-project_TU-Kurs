@@ -423,6 +423,47 @@ It also reports a transparent annualized diagnostic (`daily sample Pkm × 20 ×
 population universe does not reproduce the complete observed population total,
 so scaled absolute Pkm have a population-total comparability limitation.
 
+## Productive resident calibration Round 1
+
+The completed initial run contains all iterations 0--20 and preserves 68,770
+resident persons and 137,540 resident main trips in every iteration. Its final
+physical trip shares are 45.559837138% car, 14.688817798% PT, 29.740439145%
+bike and 10.010905918% walk. The final stuck-event sensitivity excludes 54
+affected resident trips (0.039261306%); its maximum modal-share effect is
+0.0336 percentage points and its total-Pkm effect is 0.0771%. It therefore
+passes the documented sensitivity criteria.
+
+Round 1 changes only alternative-specific constants, using car as the fixed
+reference at zero. For each non-reference mode (m), the update is:
+
+`0.5 * [ln(target_m/current_m) - ln(target_car/current_car)]`
+
+The factor 0.5 is a conservative, thesis-specific damping choice intended to
+reduce overshooting. The resulting constants are car 0.000000, PT 0.391817,
+bike -0.104735 and walk 0.583522. Their inputs, undamped values, provenance and
+rounding are versioned in
+`docs/calibration/resident_mode_choice_calibration_round_1.csv` and checked by
+the pre-run validator. No travel-time, distance, money, activity, strategy,
+routing, capacity or availability parameter is adjusted.
+
+`config_resident_mode_choice_calibration_round_1.xml` is a separate protected
+config. Relative to the productive initial config, its only semantic
+differences are run ID, output directory, `lastIteration=40`, and the three
+nonzero approved constant changes; the fourth approved car constant remains
+0.0. The population, network, transit files, runtime cohorts, seed, 48-hour
+horizon, strategies and all other scoring values are identical. Output is
+protected at `output/resident-mode-choice-round-1`.
+
+Late evaluation uses exactly iterations 31--40. For every mode, the report
+contains late mean, minimum, maximum, range, least-squares trend, final trip
+share and trip-target difference, plus final normalized Pkm share and its
+secondary target difference. The thesis-specific convergence review requires
+an absolute trip-share trend no greater than 0.10 percentage points per
+iteration, a range no greater than 1.0 percentage point, and no resident
+stuck-trip share above 1.0%. Violations produce `REVIEW_REQUIRED`; they never
+trigger an automatic parameter change. Absolute annual Pkm anchoring for the
+external-cost calculation is a later and separate methodological step.
+
 ## Relationship to legacy experiments
 
 Round 1 and Round 2 calibrated `BOTH_INSIDE` as a technical preliminary scope.
@@ -464,6 +505,12 @@ The shared IntelliJ configurations are:
 9. `13 Analyze Initial 2019 Resident Mode Choice Output` -- read-only
    standalone all-trip primary and stuck-trip sensitivity analysis after a
    completed protected run.
+10. `R1A Validate 2019 Resident Mode Choice Calibration Round 1` -- read-only
+    initial-evidence, formula, config-difference, input and cohort validation.
+11. `R1B Run 2019 Resident Mode Choice Calibration Round 1` -- server-only
+    iterations 0--40 using the protected Round-1 config.
+12. `R1C Analyze 2019 Resident Mode Choice Calibration Round 1` -- read-only
+    final, sensitivity and iterations-31--40 convergence reporting.
 
 For a new iteration-zero execution, update the repository, run 10, then run 11
 manually through IntelliJ with `-Xms4g -Xmx16g`. For the existing university-
@@ -489,9 +536,8 @@ comparison is interrupted after QSim, run 11F with `-Xms2g -Xmx8g`; do not
 repeat 11E. These reports preserve the basis for the later 48-hour decision;
 they must not be overwritten.
 
-For the productive server execution, pull the reviewed change, verify that
-`output/resident-mode-choice-initial` is absent, run 10, run 12 once, then run
-13 only after normal completion. Run 13 writes
+The initial productive execution is complete and its output must now remain
+unchanged. Its Run-13 analysis writes
 `resident_mode_choice_final_primary.csv`,
 `resident_mode_choice_final_stuck_sensitivity.csv`,
 `resident_mode_choice_final_sensitivity_comparison.csv` and
@@ -499,6 +545,12 @@ For the productive server execution, pull the reviewed change, verify that
 addition to the existing final resident summary and report. No further
 iteration-zero run is required because no model input or behavioral correction
 was made.
+
+For Round 1, pull the reviewed change, preserve the complete initial output,
+verify that `output/resident-mode-choice-round-1` is absent, run R1A and require
+PASS, run R1B once, then run R1C only after normal completion. Copy the complete
+Round-1 `analysis/` directory plus final plans, final-iteration events, output
+config and controller log back to the local evidence store.
 
 Local Step-4 preparation created neither protected output directory and ran no
 simulation.

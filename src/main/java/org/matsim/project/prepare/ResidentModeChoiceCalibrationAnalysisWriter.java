@@ -21,7 +21,9 @@ import org.matsim.project.prepare.ModeChoiceCalibrationAnalysis.SpatialScope;
 public final class ResidentModeChoiceCalibrationAnalysisWriter {
     public static final double SAMPLE_TO_POPULATION_FACTOR = 20.0;
     public static final double DAYS_PER_YEAR_DIAGNOSTIC = 365.0;
-    public static final int LATE_ITERATION_WINDOW = 5;
+    public static final int LATE_ITERATION_WINDOW = 10;
+    public static final double LATE_TREND_REVIEW_THRESHOLD_PP_PER_ITERATION = 0.10;
+    public static final double LATE_RANGE_REVIEW_THRESHOLD_PP = 1.0;
     private static final List<SpatialScope> SPATIAL_CATEGORIES = List.of(
             SpatialScope.BOTH_INSIDE,
             SpatialScope.ORIGIN_ONLY,
@@ -44,8 +46,9 @@ public final class ResidentModeChoiceCalibrationAnalysisWriter {
         writeAtomically(analysisDirectory.resolve(
                 "resident_mode_choice_late_iteration_statistics.csv"),
                 lateIterationStatistics(ordered));
-        if (finalResult) writeFinal(ordered.getLast(), ordered,
-                "complete AfterMobsim selected-plan history");
+        if (finalResult) writeFinal(ordered.getLast(),
+                "complete AfterMobsim selected-plan history",
+                Math.min(LATE_ITERATION_WINDOW, ordered.size()));
     }
 
     public void writeStandaloneFinal(AnalysisResult result) throws IOException {
@@ -54,15 +57,17 @@ public final class ResidentModeChoiceCalibrationAnalysisWriter {
         String status = Files.isRegularFile(history)
                 ? "existing listener history preserved"
                 : "iteration history unavailable; standalone analysis did not invent one";
-        writeFinal(result, List.of(result), status);
+        writeFinal(result, status,
+                lateIterationsRecorded(analysisDirectory.resolve(
+                        "resident_mode_choice_late_iteration_statistics.csv")));
     }
 
-    private void writeFinal(AnalysisResult result, List<AnalysisResult> history,
-                            String historyStatus) throws IOException {
+    private void writeFinal(AnalysisResult result, String historyStatus,
+                            int lateIterationsUsed) throws IOException {
         writeAtomically(analysisDirectory.resolve("resident_mode_choice_final_summary.csv"),
                 iterationMetrics(List.of(result)));
         writeAtomically(analysisDirectory.resolve("resident_mode_choice_report.md"),
-                report(result, history, historyStatus));
+                report(result, historyStatus, lateIterationsUsed));
     }
 
     static String iterationMetrics(List<AnalysisResult> results) {
@@ -143,12 +148,16 @@ public final class ResidentModeChoiceCalibrationAnalysisWriter {
         int start = Math.max(0, ordered.size() - LATE_ITERATION_WINDOW);
         List<AnalysisResult> late = ordered.subList(start, ordered.size());
         StringBuilder out = new StringBuilder(
-                "metric,mode,first_iteration,last_iteration,iterations,mean,minimum,maximum,linear_trend_per_iteration,unit\n");
+                "metric,mode,first_iteration,last_iteration,iterations,mean,minimum,maximum,range,linear_trend_per_iteration,final_value,target_value,difference_to_target,trend_review_threshold,range_review_threshold,review_status,unit\n");
         for (String mode : ResidentModeChoiceCalibrationTargets.MODES) {
             statistics(out, "resident_trip_share", mode, late,
-                    result -> primary(result).modalSharePercent(mode), "percentage_points");
+                    result -> primary(result).modalSharePercent(mode),
+                    ResidentModeChoiceCalibrationTargets.TRIP_SHARE_PERCENT.get(mode), true,
+                    "percentage_points");
             statistics(out, "resident_pkm_share", mode, late,
-                    result -> pkmShare(primary(result), mode), "percentage_points");
+                    result -> pkmShare(primary(result), mode),
+                    ResidentModeChoiceCalibrationTargets.NORMALIZED_PKM_SHARE_PERCENT.get(mode),
+                    false, "percentage_points");
         }
         return out.toString();
     }
@@ -156,6 +165,7 @@ public final class ResidentModeChoiceCalibrationAnalysisWriter {
     private static void statistics(StringBuilder out, String metric, String mode,
                                    List<AnalysisResult> results,
                                    java.util.function.ToDoubleFunction<AnalysisResult> value,
+                                   double target, boolean applyConvergenceCriteria,
                                    String unit) {
         List<Point> points = new ArrayList<>();
         for (AnalysisResult result : results) {
@@ -166,12 +176,25 @@ public final class ResidentModeChoiceCalibrationAnalysisWriter {
         double mean = points.stream().mapToDouble(Point::value).average().orElseThrow();
         double min = points.stream().mapToDouble(Point::value).min().orElseThrow();
         double max = points.stream().mapToDouble(Point::value).max().orElseThrow();
+        double range = max - min;
+        double trend = linearTrend(points);
+        double finalValue = points.getLast().value();
+        String status = applyConvergenceCriteria
+                && (Math.abs(trend) > LATE_TREND_REVIEW_THRESHOLD_PP_PER_ITERATION
+                || range > LATE_RANGE_REVIEW_THRESHOLD_PP)
+                ? "REVIEW_REQUIRED" : applyConvergenceCriteria ? "PASS" : "SECONDARY_ONLY";
         out.append(metric).append(',').append(mode).append(',')
                 .append(points.getFirst().iteration()).append(',')
                 .append(points.getLast().iteration()).append(',').append(points.size())
                 .append(',').append(number(mean)).append(',').append(number(min))
-                .append(',').append(number(max)).append(',')
-                .append(number(linearTrend(points))).append(',').append(unit).append('\n');
+                .append(',').append(number(max)).append(',').append(number(range)).append(',')
+                .append(number(trend)).append(',').append(number(finalValue)).append(',')
+                .append(number(target)).append(',').append(number(finalValue - target)).append(',')
+                .append(applyConvergenceCriteria
+                        ? number(LATE_TREND_REVIEW_THRESHOLD_PP_PER_ITERATION) : "")
+                .append(',').append(applyConvergenceCriteria
+                        ? number(LATE_RANGE_REVIEW_THRESHOLD_PP) : "")
+                .append(',').append(status).append(',').append(unit).append('\n');
     }
 
     private static double linearTrend(List<Point> points) {
@@ -187,8 +210,8 @@ public final class ResidentModeChoiceCalibrationAnalysisWriter {
         return denominator == 0.0 ? 0.0 : numerator / denominator;
     }
 
-    private static String report(AnalysisResult result, List<AnalysisResult> history,
-                                 String historyStatus) {
+    private static String report(AnalysisResult result, String historyStatus,
+                                 int lateIterationsUsed) {
         MetricSnapshot primary = primary(result);
         StringBuilder out = new StringBuilder("# Resident mode-choice calibration analysis\n\n")
                 .append("Iteration ").append(result.iteration())
@@ -248,7 +271,7 @@ public final class ResidentModeChoiceCalibrationAnalysisWriter {
                 .append("`). `BOTH_INSIDE` is a secondary territorial indicator, not the calibration cohort.\n\n")
                 .append("## Late-iteration stability\n\n")
                 .append("Late means, ranges and linear trends use the last ")
-                .append(Math.min(LATE_ITERATION_WINDOW, history.size()))
+                .append(lateIterationsUsed)
                 .append(" available iterations and are written to `resident_mode_choice_late_iteration_statistics.csv`. History status: ")
                 .append(historyStatus).append(".\n\n")
                 .append("Resident persons represented in primary metrics: ")
@@ -258,6 +281,26 @@ public final class ResidentModeChoiceCalibrationAnalysisWriter {
                 .append(ResidentCalibrationSubpopulations.EXPECTED_UNRESOLVED_BACKGROUND)
                 .append(". Resident stuck events by iteration and mode are written separately by the event listener.\n");
         return out.toString();
+    }
+
+    private static int lateIterationsRecorded(Path statistics) throws IOException {
+        if (!Files.isRegularFile(statistics)) return 1;
+        try (var lines = Files.lines(statistics, StandardCharsets.UTF_8)) {
+            String first = lines.skip(1).filter(line -> !line.isBlank()).findFirst()
+                    .orElseThrow(() -> new IllegalStateException(
+                            "Late-iteration statistics contain no data: " + statistics));
+            String[] fields = first.split(",", -1);
+            if (fields.length < 5) {
+                throw new IllegalStateException(
+                        "Malformed late-iteration statistics: " + statistics);
+            }
+            int iterations = Integer.parseInt(fields[4]);
+            if (iterations < 1 || iterations > LATE_ITERATION_WINDOW) {
+                throw new IllegalStateException(
+                        "Invalid late-iteration count in " + statistics + ": " + iterations);
+            }
+            return iterations;
+        }
     }
 
     private static List<AnalysisResult> validatedOrder(List<AnalysisResult> results) {

@@ -692,3 +692,30 @@ Scenario outputs are excluded from Git.
   input or behavioral correction.
 - This local preparation compiled offline and ran focused tests only. Run 12,
   Run 13, Controller and QSim were not started.
+
+## 26 August 2026 -- productive resident parameter Round 1 preparation
+
+- Validated the complete initial iterations 0--20 analysis and its final
+  physical shares: car 45.559837138%, PT 14.688817798%, bike 29.740439145% and
+  walk 10.010905918%.
+- Confirmed the iteration-20 sensitivity result: 54 affected resident trips,
+  0.039261306% of resident trips, maximum modal effect below 0.0336 percentage
+  points and total-Pkm effect 0.0771%.
+- Versioned and executable formula checking reproduces the damped
+  car-reference constants car 0.000000, PT 0.391817, bike -0.104735 and walk
+  0.583522. Only constants are adjusted; absolute annual Pkm anchoring remains
+  outside calibration.
+- Added a separate fail-if-exists Round-1 config for iterations 0--40 and
+  output `resident-mode-choice-round-1`. The pre-run validator proves that only
+  run ID, output directory, last iteration and the approved constants differ
+  from the productive initial config.
+- Reused the resident runner, selected-plan analysis, StuckEvent matching and
+  final stuck-trip sensitivity. Late evaluation uses iterations 31--40 and
+  reports mean, minimum, maximum, range, trend, final value and trip/Pkm target
+  differences.
+- Review criteria are |trend| <= 0.10 pp/iteration, range <= 1.0 pp and
+  resident stuck trips <= 1.0%. Violations are `REVIEW_REQUIRED` and do not
+  alter parameters automatically.
+- Added read-only R1A, server-only R1B and read-only R1C run configurations.
+  Local preparation did not start Controller, QSim, R1B or R1C and did not
+  modify the complete initial output.

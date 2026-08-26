@@ -337,6 +337,30 @@ run 10, run 12 once, then run 13. No additional iteration-zero test is required
 for this horizon adoption because no model input or behavioral setting was
 corrected.
 
+## Productive resident parameter Round 1
+
+The completed initial 0--20 run ends at physical shares of 45.559837138% car,
+14.688817798% PT, 29.740439145% bike and 10.010905918% walk. Its iteration-20
+stuck sensitivity passes: 54 affected resident main trips (0.039261306%), a
+maximum modal effect of 0.0336 percentage points and a total-Pkm effect of
+0.0771%.
+
+The versioned Round-1 specification applies the damped car-reference
+log-share-ratio rule with factor 0.5. Constants are car 0.000000, PT 0.391817,
+bike -0.104735 and walk 0.583522. The separate config
+`config_resident_mode_choice_calibration_round_1.xml` changes only run ID,
+output directory, last iteration (40) and those approved constants. It keeps
+all protected inputs, cohorts, seed, 48-hour horizon, strategies, routing,
+capacity and other scoring values unchanged.
+
+Use **R1A** to validate, **R1B** to run once on the server, and **R1C** to
+postprocess. R1C uses the shared physical/choice, resident, StuckEvent and
+sensitivity code and evaluates exactly iterations 31--40. It applies the
+study-specific review criteria of 0.10 pp/iteration trend, 1.0 pp range and
+1.0% resident stuck trips. Round-1 output is protected at
+`output/resident-mode-choice-round-1`; the initial output must not be removed,
+renamed or overwritten.
+
 ## Isolated open-tour test
 
 The separate five-iteration experiment tested

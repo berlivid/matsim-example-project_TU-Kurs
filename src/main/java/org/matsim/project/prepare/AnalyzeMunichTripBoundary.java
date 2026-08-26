@@ -137,7 +137,8 @@ public final class AnalyzeMunichTripBoundary {
             StringBuilder out = new StringBuilder("metric,category,count,share_percent,value,notes\n");
             metadata(out, "population_file", population.toString(), "unchanged input");
             metadata(out, "boundary_file", boundaryFile.toString(), "unchanged administrative boundary");
-            metadata(out, "boundary_sha256", boundarySha256, "read-only SHA-256");
+            metadata(out, "boundary_sha256", boundarySha256,
+                    "canonical UTF-8/LF SHA-256");
             metadata(out, "boundary_geojson_root_type", sourceGeoJsonType, "source file root geometry type");
             metadata(out, "boundary_geometry_type", geometryType, "parsed GeoJSON geometry");
             metadata(out, "boundary_valid", Boolean.toString(valid), "JTS validity");
@@ -186,7 +187,8 @@ public final class AnalyzeMunichTripBoundary {
                     .append("This is a read-only diagnostic of the approved analysis filter. A main trip enters the primary Munich sample only when both its origin and destination main activities are covered by the administrative City of Munich boundary. Boundary points are included. The regional population, network and public-transport supply remain unfiltered and unchanged. No modal split, passenger-kilometre or vehicle-kilometre result is calculated here.\n\n")
                     .append("## Spatial reference\n\n")
                     .append("- Boundary: `").append(boundaryFile).append("`\n")
-                    .append("- SHA-256: `").append(boundarySha256).append("`\n")
+                    .append("- Canonical UTF-8/LF SHA-256: `")
+                    .append(boundarySha256).append("`\n")
                     .append("- GeoJSON root/effective JTS geometry: ").append(sourceGeoJsonType)
                     .append(" / ").append(geometryType).append("; valid=").append(valid)
                     .append("; empty=").append(empty).append("; top-level geometries=")

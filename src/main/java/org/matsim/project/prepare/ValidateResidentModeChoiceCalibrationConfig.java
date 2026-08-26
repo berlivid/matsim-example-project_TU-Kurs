@@ -176,7 +176,9 @@ public final class ValidateResidentModeChoiceCalibrationConfig {
         LinkedHashMap<Path, String> result = new LinkedHashMap<>();
         for (Path path : protectedInputExpectations().keySet()) {
             require(Files.isRegularFile(path), "Protected input is missing: " + path);
-            result.put(path, sha256(path));
+            result.put(path, path.equals(MunichMunicipalBoundary.DEFAULT_FILE.normalize())
+                    ? MunichMunicipalBoundary.canonicalTextSha256(path)
+                    : sha256(path));
         }
         result.put(CONFIG.normalize(), sha256(CONFIG));
         return Map.copyOf(result);

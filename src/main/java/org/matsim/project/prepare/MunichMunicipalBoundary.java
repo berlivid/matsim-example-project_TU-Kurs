@@ -1,10 +1,9 @@
 package org.matsim.project.prepare;
 
-import java.io.BufferedInputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.util.HexFormat;
 import org.locationtech.jts.geom.Coordinate;
@@ -68,7 +67,7 @@ public final class MunichMunicipalBoundary {
             throw new IllegalArgumentException("Boundary coordinate range is incompatible with EPSG:31468: "
                     + envelope);
         }
-        return new MunichMunicipalBoundary(source.normalize(), sha256(source),
+        return new MunichMunicipalBoundary(source.normalize(), canonicalTextSha256(source),
                 parsed.sourceType(), geometry);
     }
 
@@ -113,13 +112,16 @@ public final class MunichMunicipalBoundary {
                 && Double.isFinite(coordinate.getY());
     }
 
-    private static String sha256(Path file) throws IOException {
+    /**
+     * Hashes this Git text input as UTF-8 after normalizing only line endings to LF.
+     * All non-line-ending characters, whitespace and coordinate values are preserved.
+     */
+    static String canonicalTextSha256(Path file) throws IOException {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            try (DigestInputStream input = new DigestInputStream(
-                    new BufferedInputStream(Files.newInputStream(file)), digest)) {
-                input.transferTo(java.io.OutputStream.nullOutputStream());
-            }
+            String text = Files.readString(file, StandardCharsets.UTF_8);
+            String normalized = text.replace("\r\n", "\n").replace('\r', '\n');
+            digest.update(normalized.getBytes(StandardCharsets.UTF_8));
             return HexFormat.of().withUpperCase().formatHex(digest.digest());
         } catch (java.security.NoSuchAlgorithmException exception) {
             throw new IllegalStateException("SHA-256 is unavailable", exception);

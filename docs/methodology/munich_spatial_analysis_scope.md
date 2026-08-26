@@ -28,8 +28,14 @@ will select the resident cohort. No filtered population is produced.
 ## Administrative boundary and coordinate reference
 
 The spatial reference is
-`original-input-data/munich-demography/munich_boundary.json`, SHA-256
+`original-input-data/munich-demography/munich_boundary.json`, canonical
+UTF-8/LF SHA-256
 `EFBC37F0627F94D95DAB67D1C5A2B9D05507DC9E8C9492A98A35BFF4A4AE2A26`.
+For cross-platform reproducibility, this text-file digest reads UTF-8 and
+normalizes CRLF and lone CR line endings to LF before hashing. No other
+character, whitespace, geometry type or coordinate value is normalized, so
+every substantive content or geometry change remains detectable. Binary and
+compressed model inputs continue to use exact raw-byte SHA-256 values.
 The project input documentation identifies the source as the City of Munich
 Open Data Portal dataset of city-district boundaries, retrieved on 30 July
 2026. The preparation merged the official district polygons and transformed

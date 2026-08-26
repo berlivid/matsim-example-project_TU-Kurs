@@ -77,6 +77,14 @@ runtime labels after loading, installs SwissRailRaptor and the resident
 analysis listeners, and starts the controller only when its main class is
 explicitly invoked.
 
+The municipal-boundary protection uses canonical UTF-8/LF SHA-256
+`EFBC37F0627F94D95DAB67D1C5A2B9D05507DC9E8C9492A98A35BFF4A4AE2A26`.
+Only CRLF or lone CR line endings in this Git text file are normalized to LF;
+all other characters, whitespace, geometry declarations and coordinate values
+remain hash-sensitive. This makes Linux and Windows checkouts reproducible
+without weakening geometry protection. Population, network, schedule,
+vehicles and all binary or compressed protected inputs retain raw-byte hashes.
+
 ## Protected iteration-zero validation
 
 Run 11 is a thin server-side use of the productive pipeline, not a second

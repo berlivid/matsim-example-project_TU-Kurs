@@ -9,55 +9,58 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
-import java.util.TreeMap;
-import org.matsim.api.core.v01.Id;
+import java.util.TreeSet;
 import org.matsim.api.core.v01.Scenario;
+import org.matsim.api.core.v01.events.PersonDepartureEvent;
 import org.matsim.api.core.v01.events.PersonStuckEvent;
+import org.matsim.api.core.v01.events.handler.PersonDepartureEventHandler;
 import org.matsim.api.core.v01.events.handler.PersonStuckEventHandler;
-import org.matsim.api.core.v01.population.Person;
 import org.matsim.core.config.Config;
 import org.matsim.core.controler.events.AfterMobsimEvent;
 import org.matsim.core.controler.listener.AfterMobsimListener;
-import org.matsim.core.population.PopulationUtils;
 
-/** Records only Munich-resident stuck events by iteration and leg mode. */
+/** Reports Munich-resident stuck persons and their deterministically matched main trips. */
 @Singleton
 public final class ResidentModeChoiceStuckEventListener
-        implements PersonStuckEventHandler, AfterMobsimListener {
-    private final Scenario scenario;
+        implements PersonDepartureEventHandler, PersonStuckEventHandler, AfterMobsimListener {
+    static final double STUCK_TRIP_REVIEW_THRESHOLD_PERCENT = 1.0;
+
+    private final ResidentStuckMainTripTracker tracker;
     private final Path target;
     private final List<IterationSnapshot> history = new ArrayList<>();
-    private final List<StuckRecord> current = new ArrayList<>();
     private long cumulativeResidentEvents;
 
     @Inject
     public ResidentModeChoiceStuckEventListener(Scenario scenario, Config config) {
-        this.scenario = scenario;
+        tracker = new ResidentStuckMainTripTracker(scenario);
         target = Path.of(config.controller().getOutputDirectory()).resolve("analysis")
                 .resolve("resident_stuck_events_by_iteration_and_mode.csv");
     }
 
     @Override
     public synchronized void reset(int iteration) {
-        current.clear();
+        tracker.reset(iteration);
+    }
+
+    @Override
+    public synchronized void handleEvent(PersonDepartureEvent event) {
+        tracker.handleEvent(event);
     }
 
     @Override
     public synchronized void handleEvent(PersonStuckEvent event) {
-        Person person = scenario.getPopulation().getPersons().get(event.getPersonId());
-        if (person == null || !ResidentCalibrationSubpopulations.MUNICH_RESIDENT.equals(
-                PopulationUtils.getSubpopulation(person))) return;
-        current.add(new StuckRecord(event.getPersonId(), normalize(event.getLegMode())));
-        cumulativeResidentEvents++;
+        long before = tracker.snapshot().events();
+        tracker.handleEvent(event);
+        if (tracker.snapshot().events() > before) cumulativeResidentEvents++;
     }
 
     @Override
     public synchronized void notifyAfterMobsim(AfterMobsimEvent event) {
-        history.add(snapshot(event.getIteration(), current, cumulativeResidentEvents));
+        history.add(snapshot(event.getIteration(), tracker.snapshot(), cumulativeResidentEvents));
         try {
             Files.createDirectories(target.getParent());
             writeAtomically(target, csv(history));
@@ -67,49 +70,83 @@ public final class ResidentModeChoiceStuckEventListener
     }
 
     synchronized long currentResidentEventCount() {
-        return current.size();
+        return tracker.snapshot().events();
     }
 
-    static IterationSnapshot snapshot(int iteration, List<StuckRecord> records,
+    static IterationSnapshot snapshot(int iteration,
+                                      ResidentStuckMainTripTracker.Snapshot tracked,
                                       long cumulativeEvents) {
-        TreeMap<String, ModeSnapshot> modes = new TreeMap<>();
-        Set<Id<Person>> persons = new HashSet<>();
-        for (StuckRecord record : records) {
-            persons.add(record.personId());
-            modes.computeIfAbsent(record.mode(), ignored -> new ModeSnapshot())
-                    .add(record.personId());
-        }
-        return new IterationSnapshot(iteration, records.size(), persons.size(),
-                cumulativeEvents, List.copyOf(modes.entrySet().stream()
-                .map(entry -> new ModeResult(entry.getKey(), entry.getValue().events,
-                        entry.getValue().persons.size())).toList()));
+        return new IterationSnapshot(iteration, tracked.events(), tracked.uniquePersons(),
+                tracked.affectedMainTripCount(), cumulativeEvents, tracked.modes());
     }
 
     static String csv(List<IterationSnapshot> snapshots) {
+        List<IterationSnapshot> ordered = snapshots.stream()
+                .sorted(Comparator.comparingInt(IterationSnapshot::iteration)).toList();
+        Set<Integer> iterations = new TreeSet<>();
+        for (IterationSnapshot snapshot : ordered) {
+            if (!iterations.add(snapshot.iteration())) {
+                throw new IllegalStateException(
+                        "Duplicate resident stuck-event iteration: " + snapshot.iteration());
+            }
+        }
+        IterationSnapshot baseline = ordered.stream()
+                .filter(snapshot -> snapshot.iteration() == 0).findFirst().orElse(null);
         StringBuilder out = new StringBuilder(
-                "iteration,leg_mode,event_count,unique_resident_persons,resident_population_share_percent,cumulative_resident_events\n");
-        snapshots.stream().sorted(java.util.Comparator.comparingInt(
-                        IterationSnapshot::iteration))
-                .forEach(snapshot -> {
-                    row(out, snapshot, "all", snapshot.events(), snapshot.uniquePersons());
-                    snapshot.modes().forEach(mode -> row(out, snapshot, mode.mode(),
-                            mode.events(), mode.uniquePersons()));
-                });
+                "iteration,routing_mode,event_count,unique_affected_residents,affected_resident_main_trips,resident_person_share_percent,resident_main_trip_share_percent,difference_from_iteration_0_events,difference_from_iteration_0_persons,difference_from_iteration_0_trips,cumulative_resident_events,review_status\n");
+        for (IterationSnapshot current : ordered) {
+            row(out, current, baseline, "all", current.events(), current.uniquePersons(),
+                    current.affectedMainTrips());
+            TreeSet<String> modes = new TreeSet<>();
+            current.modes().forEach(mode -> modes.add(mode.routingMode()));
+            if (baseline != null) baseline.modes()
+                    .forEach(mode -> modes.add(mode.routingMode()));
+            for (String routingMode : modes) {
+                ResidentStuckMainTripTracker.ModeResult mode = current.modes().stream()
+                        .filter(candidate -> candidate.routingMode().equals(routingMode))
+                        .findFirst().orElse(new ResidentStuckMainTripTracker.ModeResult(
+                                routingMode, 0, 0, 0));
+                ResidentStuckMainTripTracker.ModeResult baselineMode = baseline == null ? null
+                        : baseline.modes().stream()
+                        .filter(candidate -> candidate.routingMode().equals(routingMode))
+                        .findFirst().orElse(null);
+                row(out, current, baseline == null ? null : new IterationSnapshot(
+                                0,
+                                baselineMode == null ? 0 : baselineMode.events(),
+                                baselineMode == null ? 0 : baselineMode.uniquePersons(),
+                                baselineMode == null ? 0 : baselineMode.affectedMainTrips(),
+                                0, List.of()),
+                        routingMode, mode.events(), mode.uniquePersons(),
+                        mode.affectedMainTrips());
+            }
+        }
         return out.toString();
     }
 
-    private static void row(StringBuilder out, IterationSnapshot snapshot, String mode,
-                            long events, long persons) {
-        out.append(snapshot.iteration()).append(',').append(mode).append(',')
-                .append(events).append(',').append(persons).append(',')
-                .append(String.format(Locale.ROOT, "%.9f",
-                        100.0 * persons
-                                / ResidentCalibrationSubpopulations.EXPECTED_MUNICH_RESIDENTS))
-                .append(',').append(snapshot.cumulativeEvents()).append('\n');
+    private static void row(StringBuilder out, IterationSnapshot current,
+                            IterationSnapshot baseline, String mode, long events,
+                            long persons, long trips) {
+        long baselineEvents = baseline == null ? 0 : baseline.events();
+        long baselinePersons = baseline == null ? 0 : baseline.uniquePersons();
+        long baselineTrips = baseline == null ? 0 : baseline.affectedMainTrips();
+        double personShare = 100.0 * persons
+                / ResidentCalibrationSubpopulations.EXPECTED_MUNICH_RESIDENTS;
+        double tripShare = 100.0 * trips / ResidentStuckMainTripTracker.RESIDENT_MAIN_TRIPS;
+        String status = 100.0 * current.affectedMainTrips()
+                / ResidentStuckMainTripTracker.RESIDENT_MAIN_TRIPS
+                > STUCK_TRIP_REVIEW_THRESHOLD_PERCENT ? "REVIEW_REQUIRED" : "PASS";
+        out.append(current.iteration()).append(',').append(mode).append(',')
+                .append(events).append(',').append(persons).append(',').append(trips)
+                .append(',').append(number(personShare)).append(',').append(number(tripShare))
+                .append(',').append(events - baselineEvents)
+                .append(',').append(persons - baselinePersons)
+                .append(',').append(trips - baselineTrips)
+                .append(',').append(current.cumulativeEvents()).append(',')
+                .append(status).append('\n');
     }
 
-    private static String normalize(String mode) {
-        return mode == null || mode.isBlank() ? "unknown" : mode.toLowerCase(Locale.ROOT);
+    private static String number(double value) {
+        return String.format(Locale.ROOT, "%.9f", value);
     }
 
     private static void writeAtomically(Path target, String content) throws IOException {
@@ -122,18 +159,7 @@ public final class ResidentModeChoiceStuckEventListener
         }
     }
 
-    record StuckRecord(Id<Person> personId, String mode) { }
     record IterationSnapshot(int iteration, long events, long uniquePersons,
-                             long cumulativeEvents, List<ModeResult> modes) { }
-    record ModeResult(String mode, long events, long uniquePersons) { }
-
-    private static final class ModeSnapshot {
-        private long events;
-        private final Set<Id<Person>> persons = new HashSet<>();
-
-        void add(Id<Person> person) {
-            events++;
-            persons.add(person);
-        }
-    }
+                             long affectedMainTrips, long cumulativeEvents,
+                             List<ResidentStuckMainTripTracker.ModeResult> modes) { }
 }

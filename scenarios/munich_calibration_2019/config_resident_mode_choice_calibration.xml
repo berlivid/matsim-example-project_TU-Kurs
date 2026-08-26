@@ -37,7 +37,7 @@
     </module>
 
     <module name="qsim">
-        <param name="endTime" value="43:00:00" />
+        <param name="endTime" value="48:00:00" />
         <param name="flowCapacityFactor" value="0.05" />
         <param name="storageCapacityFactor" value="0.05" />
         <param name="numberOfThreads" value="2" />

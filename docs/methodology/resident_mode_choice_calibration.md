@@ -12,8 +12,10 @@ shutdown. Run 11C then established that all 8,764 apparent physical main-mode
 differences are PT requests realized as walk-only routes while retaining
 `routingMode=pt`; there were no true choice changes, missing or inconsistent
 routing modes, or changed main-trip structures. Run 11B now applies this
-evidence narrowly. Run 12 remains blocked until the preserved output passes
-the corrected read-only validation and any stuck-event review is documented.
+evidence narrowly. The subsequent stuck-event audit found no objective input
+or pipeline error. The documented methodological decision now accepts the
+tested 48-hour horizon with an explicit all-trip primary result and a
+stuck-affected-trip sensitivity; this preparation does not itself run Run 12.
 
 The calibration estimates a common behavioral baseline for later BAU and Fast
 Track comparisons. It does not filter the regional demand and does not modify
@@ -69,7 +71,7 @@ changes remain absent.
 The only productive resident calibration config is
 `scenarios/munich_calibration_2019/config_resident_mode_choice_calibration.xml`.
 It retains the validated synthetic-2019 network, unchanged five-percent
-population, schedule, vehicles, 43-hour horizon, 0.05 flow/storage capacity
+population, schedule, vehicles, 48-hour horizon, 0.05 flow/storage capacity
 factors, SwissRailRaptor and seed 4711. It covers iterations 0--20 and starts
 with car, PT, walk and bike constants at 0.0.
 
@@ -184,7 +186,8 @@ inconsistent counts or abnormal controller termination fail.
 
 The validated 43-hour iteration-zero output contains 2,417 unique stuck
 persons, including 1,190 Munich residents, and every event is grouped in hour
-43. The productive XML still records `qsim.endTime=43:00:00`. A fresh streaming
+43. At the time of that isolated test, the productive XML recorded
+`qsim.endTime=43:00:00`. A fresh streaming
 audit of the protected transit schedule confirms a latest departure at
 `29:40:00`, a largest stop offset of `32:35:00`, a latest vehicle arrival at
 `42:30:00`, and the existing schedule-derived horizon of `43:00:00`. Therefore
@@ -192,8 +195,8 @@ the timetable itself is not truncated, but agents or vehicles still active at
 the QSim boundary may be converted to stuck events. The causal interpretation
 must be tested rather than assumed.
 
-The 48-hour test is a separate technical iteration-zero run. It derives an
-in-memory config from the unchanged productive 43-hour XML and permits exactly
+The 48-hour test was a separate technical iteration-zero run. It derived an
+in-memory config from the then-unchanged productive 43-hour XML and permitted exactly
 four differences: run ID, output directory, `lastIteration=0`, and
 `qsim.endTime=48:00:00`. It reuses the productive scenario loader, runtime
 cohort assignment, strategies, SwissRailRaptor, analysis listeners, threads,
@@ -320,7 +323,10 @@ to specify and test a separately justified congestion, late-service or
 boarding-capacity assumption. Global capacity changes, a further horizon
 extension and invented departures are excluded. Another iteration-zero run is
 needed only after an approved correction; repeating the unchanged setup adds
-no evidence. Run 12 remains blocked pending the methodological decision.
+no evidence. The methodological decision has since accepted the tested
+48-hour horizon without changing links or transit service. The residual is
+treated as a reported limitation and sensitivity, not as evidence for a model
+input correction.
 
 The automatic validator writes under the validation output's `analysis/`:
 
@@ -360,12 +366,32 @@ at `AfterMobsim`, after routing/mobsim and before the next replanning step. It
 does not use the incomplete former `ExperiencedPlansService` representation.
 Per iteration it records physical resident trip counts and shares, physical
 route-distance passenger-kilometres and shares, target differences, the five
-spatial categories, resident stuck events by mode, and late-iteration means,
-ranges and linear trends. These realized physical metrics alone are compared
+spatial categories, resident stuck events by routing mode, and late-iteration
+means, ranges and linear trends. For each iteration, the event listener also
+reports unique affected residents, deterministically matched affected resident
+main trips, their shares of resident persons and trips, and differences from
+the observed iteration-zero values. These realized physical metrics alone are compared
 with the MiD/Schröder targets. Additional non-target diagnostics record resident
 choice/routing-mode counts and shares, physical-versus-choice transitions, and
 PT requests resulting in walk-only physical routes. Selected-plan metrics are
 planned/routed outcomes; stuck events remain a separate execution diagnostic.
+
+The final Run-13 analysis writes two explicitly labelled variants. Variant A,
+the thesis primary result, retains every selected-plan main trip of every
+Munich resident, including a trip affected by `PersonStuckEvent`, so its demand
+denominator remains comparable with the empirical mobility survey. Variant B
+excludes only the individual main trips matched to a stuck event in the final
+iteration; it neither drops whole persons nor changes any plan. Both variants
+report physical trip split, physical Pkm split, raw daily sample Pkm, the
+five-percent annualised diagnostic, mean trip distance and target gaps.
+
+The review criteria are thesis-specific transparency rules: affected resident
+main trips no greater than 1.0%, modal-share sensitivity no greater than 0.5
+percentage points for each mode, and total-Pkm sensitivity no greater than
+1.0%. Exceeding a criterion yields `REVIEW_REQUIRED`; it never changes a
+constant, strategy, network capacity or service. The iteration-zero reference
+is 818 affected residents (1.1895% of the resident cohort), corresponding to
+approximately 0.595% of 137,540 resident main trips.
 
 ## Calibration targets
 
@@ -433,10 +459,11 @@ The shared IntelliJ configurations are:
    recovery comparison for an already completed 48-hour output; it starts no
    controller or QSim.
 8. `12 Run Initial 2019 Resident Mode Choice Calibration` -- the only entry
-   point that will start the iterations 0--20 controller; do not run before
-   the horizon result is accepted.
+   point that starts the productive iterations 0--20 controller, now with the
+   validated 48-hour horizon.
 9. `13 Analyze Initial 2019 Resident Mode Choice Output` -- read-only
-   standalone selected-plan analysis after a completed protected run.
+   standalone all-trip primary and stuck-trip sensitivity analysis after a
+   completed protected run.
 
 For a new iteration-zero execution, update the repository, run 10, then run 11
 manually through IntelliJ with `-Xms4g -Xmx16g`. For the existing university-
@@ -450,16 +477,28 @@ merely to repeat QSim. Run 11C does not need to be repeated: preserve and review
 its four existing diagnostic products. The corrected Run 11B derives the new
 physical/choice summaries directly from the existing final plans and does not
 require newly generated iteration-history columns. Do not rerun Run 11. Run 12
-remains blocked until Run 11B passes and any `REVIEW_REQUIRED` stuck-event
-result has been reviewed.
+was blocked until the iteration-zero evidence and stuck-event audit were
+reviewed. That review is complete; the current productive sequence starts with
+a fresh Run-10 validation.
 
 For the horizon diagnosis on the university server, preserve the complete
 43-hour output, pull the reviewed code, run 10, run 11D, then run 11E with
 `-Xms4g -Xmx16g`. Run 11E writes only its new protected 48-hour output and
 automatically compares both event files after normal shutdown. If automatic
 comparison is interrupted after QSim, run 11F with `-Xms2g -Xmx8g`; do not
-repeat 11E. Review all three comparison products before changing the productive
-43-hour XML or authorizing Run 12.
+repeat 11E. These reports preserve the basis for the later 48-hour decision;
+they must not be overwritten.
+
+For the productive server execution, pull the reviewed change, verify that
+`output/resident-mode-choice-initial` is absent, run 10, run 12 once, then run
+13 only after normal completion. Run 13 writes
+`resident_mode_choice_final_primary.csv`,
+`resident_mode_choice_final_stuck_sensitivity.csv`,
+`resident_mode_choice_final_sensitivity_comparison.csv` and
+`resident_mode_choice_final_sensitivity_report.md` under `analysis/`, in
+addition to the existing final resident summary and report. No further
+iteration-zero run is required because no model input or behavioral correction
+was made.
 
 Local Step-4 preparation created neither protected output directory and ran no
 simulation.

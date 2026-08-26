@@ -67,6 +67,11 @@ public final class ModeChoiceCalibrationAnalysis {
     }
 
     public AnalysisResult analyze(int iteration, Map<Id<Person>, Plan> plans) {
+        return analyze(iteration, plans, Set.of());
+    }
+
+    AnalysisResult analyze(int iteration, Map<Id<Person>, Plan> plans,
+                           Set<ResidentStuckMainTripTracker.MainTripKey> excludedMainTrips) {
         Map<GroupKey, MutableMetrics> metrics = new HashMap<>();
         long plansWithClosedSubtour = 0;
         long plansWithoutClosedSubtour = 0;
@@ -84,7 +89,10 @@ public final class ModeChoiceCalibrationAnalysis {
                     : PlanEligibility.NOT_MODE_CHOICE_CAPABLE;
             List<TripStructureUtils.Trip> trips = TripStructureUtils.getTrips(
                     plan, StageActivityTypeIdentifier::isStageActivity);
-            for (TripStructureUtils.Trip trip : trips) {
+            for (int tripIndex = 0; tripIndex < trips.size(); tripIndex++) {
+                if (excludedMainTrips.contains(new ResidentStuckMainTripTracker.MainTripKey(
+                        entry.getKey(), tripIndex))) continue;
+                TripStructureUtils.Trip trip = trips.get(tripIndex);
                 MunichTripBoundaryFilter.SpatialCategory category = boundaryFilter.classify(
                         trip.getOriginActivity(), trip.getDestinationActivity());
                 ResidentTripModeClassifier.Classification classification =

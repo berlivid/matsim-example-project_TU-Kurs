@@ -670,3 +670,25 @@ Scenario outputs are excluded from Git.
 - Offline compilation and 14 focused tests passed. No Controller, QSim or
   calibration run was started; the existing outputs and protected inputs were
   read only. Four generated audit files remain unstaged.
+
+## 26 August 2026 -- productive resident calibration horizon decision
+
+- Adopted the already tested `qsim.endTime=48:00:00` for the protected
+  iterations 0--20 resident calibration. No strategy, constant, seed, capacity
+  factor, cohort, network link, transit service or protected input changed.
+- Retained all 137,540 selected-plan resident main trips as the primary
+  empirical-comparison scope. Added a separate final-iteration sensitivity
+  that excludes only main trips deterministically matched to a resident
+  `PersonStuckEvent`.
+- Extended iteration reporting with resident stuck events, unique residents,
+  affected main trips, person/trip shares, routing-mode distributions and
+  differences from iteration 0.
+- Added thesis-specific review criteria: 1.0% affected resident trips, 0.5
+  percentage points of modal-share sensitivity per mode and 1.0% total-Pkm
+  sensitivity. Violations are `REVIEW_REQUIRED` and never alter the model.
+- The known iteration-zero residual remains 818 residents (1.1895% of the
+  cohort; approximately 0.595% of resident trips). It is documented as a model
+  limitation. No further iteration-zero test is required without a separate
+  input or behavioral correction.
+- This local preparation compiled offline and ran focused tests only. Run 12,
+  Run 13, Controller and QSim were not started.

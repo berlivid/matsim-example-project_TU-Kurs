@@ -227,8 +227,8 @@ public final class ValidateResidentModeChoiceCalibrationConfig {
                         && close(config.qsim().getStorageCapFactor(), 0.05),
                 "Resident calibration capacity factors must remain 5%");
         require(config.qsim().getEndTime().isDefined()
-                        && close(config.qsim().getEndTime().seconds(), 43 * 3600.0),
-                "Resident calibration qsim horizon must remain 43 hours");
+                        && close(config.qsim().getEndTime().seconds(), 48 * 3600.0),
+                "Resident calibration qsim horizon must remain 48 hours");
         require(OUTPUT.toString().replace('\\', '/').equals(
                         config.controller().getOutputDirectory().replace('\\', '/')),
                 "Unexpected protected resident output path");

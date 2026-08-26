@@ -53,8 +53,10 @@ ID, output directory and last iteration in memory; runs 11B and 11C never start
 a controller or QSim. Run 11C has shown that all 8,764 apparent changes are PT
 requests realized as physical walk while preserving `routingMode=pt`, with no
 true choice changes. Physical mode remains the empirical calibration metric;
-choice mode is an additional routing diagnostic. Run 12 remains blocked until
-the corrected Run 11B passes and any stuck-event review is complete.
+choice mode is an additional routing diagnostic. The completed stuck-event
+audit found no objective input error; the productive config now uses the tested
+48-hour horizon and Run 13 adds a separately labelled stuck-trip sensitivity
+while retaining all resident trips in the primary result.
 
 ## Current status
 

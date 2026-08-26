@@ -82,6 +82,8 @@ class ResidentModeChoiceCalibrationConfigTest {
         assertEquals(4711, config.global().getRandomSeed());
         assertEquals(0.05, config.qsim().getFlowCapFactor(), 1e-12);
         assertEquals(0.05, config.qsim().getStorageCapFactor(), 1e-12);
+        assertTrue(config.qsim().getEndTime().isDefined());
+        assertEquals(48 * 3600.0, config.qsim().getEndTime().seconds(), 1e-12);
         assertEquals(OutputDirectoryHierarchy.OverwriteFileSetting.failIfDirectoryExists,
                 config.controller().getOverwriteFileSetting());
         assertEquals(ValidateResidentModeChoiceCalibrationConfig.OUTPUT.toString()

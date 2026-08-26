@@ -29,6 +29,13 @@ are PT requests realized as walk-only routes with `routingMode=pt`, including
 physical or choice transition. No mode-choice strategy is active in the
 separate GTFS input-validation configuration.
 
+The completed stuck-event audit demonstrated no network, schedule, conversion
+or other objective pipeline error. The productive resident config therefore
+uses the already tested `48:00:00` QSim horizon without changing links or
+inventing PT services. Its known iteration-zero limitation is 818 affected
+Munich residents (1.1895% of residents; approximately 0.595% of resident main
+trips), monitored by an all-trip primary result and a stuck-trip sensitivity.
+
 ## Required server input
 
 The unchanged source archive must be copied manually to:
@@ -200,7 +207,8 @@ Use the new run configurations in this order:
 7. **11F Compare 43h and 48h Resident Iteration-0 Stuck Events** repeats only
    the read-only comparison if the 48-hour QSim output already exists.
 8. **12 Run Initial 2019 Resident Mode Choice Calibration** is the productive
-   controller entry point. Do not invoke it before the horizon decision.
+   controller entry point. The horizon decision is complete; run 10 must pass
+   immediately before it is invoked.
 9. **13 Analyze Initial 2019 Resident Mode Choice Output** starts no QSim and
    is used only after a completed protected run.
 
@@ -253,7 +261,8 @@ the empirical modal split and Pkm; choice-mode shares are diagnostic only. Run
 12 remains blocked until Run 11B passes and any stuck-event review is complete.
 
 The accepted Run-11 output contains 2,417 unique stuck persons, including
-1,190 Munich residents; every event is in hour 43, where the current QSim ends.
+1,190 Munich residents; every event is in hour 43, where that historical QSim
+ended.
 The protected schedule itself ends earlier: latest departure `29:40:00`,
 largest route offset `32:35:00`, latest vehicle arrival `42:30:00`, and derived
 schedule horizon `43:00:00`. This points to boundary handling of still-active
@@ -291,15 +300,42 @@ boarded, 291 PT cases boarded and later waited for a connection, and only 8
 cases departed during the final hour. Links `419626`, `16208` and `453133`
 contain the last movement of 867 car cases. Detailed generated evidence is under
 `generated/resident_iteration0_stuck_root_cause/`. This result calls for a
-targeted link/topology and late-transfer audit, not another horizon extension;
-Run 12 remains blocked until a controlled correction passes a new iteration-0
-test.
+targeted link/topology and late-transfer audit, not another horizon extension.
+This was the intermediate diagnosis; the completed follow-up audit found no
+objective correction to test. The approved productive treatment is documented
+below.
 
 Iteration zero tests execution, routing, transit, runtime cohorts and analysis;
 it is not evidence of calibration or convergence. Choice modes must match the
 input. The narrowly evidenced PT-to-walk physical routing transformation is
 reported separately and is not an endogenous mode-choice change. Actual
 resident mode changes are evaluated only in the later iterations 0--20 run.
+
+## Productive 48-hour run and stuck-trip sensitivity
+
+The protected productive config now differs from its previous version only in
+`qsim.endTime=48:00:00`. Run 10 enforces that value together with all unchanged
+inputs, seed, capacity factors, targets, strategies and mode constants. Run 12
+continues to execute iterations 0--20 and writes only to
+`output/resident-mode-choice-initial` with fail-if-exists protection.
+
+Each iteration records resident stuck events, unique affected residents,
+event-matched affected resident main trips, person/trip shares, routing-mode
+distribution and differences from iteration 0. A resident stuck-trip share
+above 1.0% is `REVIEW_REQUIRED`, not a reason to alter the simulation.
+
+After normal completion, Run 13 reads the final plans and final-iteration
+events without starting QSim. It reports (A) all resident selected-plan main
+trips as the primary empirical-comparison scope and (B) a sensitivity excluding
+only event-matched stuck main trips. Both report physical trip/Pkm shares, Pkm
+totals, mean distances and target gaps. Differences greater than 0.5 percentage
+points per mode or 1.0% in total Pkm are review flags, not universal MATSim
+standards.
+
+Server order: confirm that `output/resident-mode-choice-initial` is absent,
+run 10, run 12 once, then run 13. No additional iteration-zero test is required
+for this horizon adoption because no model input or behavioral setting was
+corrected.
 
 ## Isolated open-tour test
 

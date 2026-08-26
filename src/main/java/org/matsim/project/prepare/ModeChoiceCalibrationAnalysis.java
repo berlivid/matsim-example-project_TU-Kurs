@@ -267,9 +267,19 @@ public final class ModeChoiceCalibrationAnalysis {
         scopes.add(SpatialScope.ALL_TRIPS);
         switch (category) {
             case BOTH_INSIDE -> scopes.add(SpatialScope.BOTH_INSIDE);
-            case ORIGIN_ONLY, DESTINATION_ONLY -> scopes.add(SpatialScope.BOUNDARY_CROSSING);
+            case ORIGIN_ONLY -> {
+                scopes.add(SpatialScope.ORIGIN_ONLY);
+                scopes.add(SpatialScope.BOUNDARY_CROSSING);
+            }
+            case DESTINATION_ONLY -> {
+                scopes.add(SpatialScope.DESTINATION_ONLY);
+                scopes.add(SpatialScope.BOUNDARY_CROSSING);
+            }
             case BOTH_OUTSIDE -> scopes.add(SpatialScope.BOTH_OUTSIDE);
-            case INVALID_OR_MISSING_COORDINATE -> scopes.add(SpatialScope.INVALID_COORDINATE);
+            case INVALID_OR_MISSING_COORDINATE -> {
+                scopes.add(SpatialScope.INVALID_OR_MISSING_COORDINATE);
+                scopes.add(SpatialScope.INVALID_COORDINATE);
+            }
         }
         return scopes;
     }
@@ -286,8 +296,11 @@ public final class ModeChoiceCalibrationAnalysis {
     public enum SpatialScope {
         ALL_TRIPS,
         BOTH_INSIDE,
+        ORIGIN_ONLY,
+        DESTINATION_ONLY,
         BOUNDARY_CROSSING,
         BOTH_OUTSIDE,
+        INVALID_OR_MISSING_COORDINATE,
         INVALID_COORDINATE
     }
 

@@ -478,3 +478,32 @@ Scenario outputs are excluded from Git.
   remain in place.
 - Added concise legacy records under `docs/methodology/legacy/`. No MATSim,
   QSim, population, scenario or GTFS artifact was changed by the cleanup.
+
+## 26 August 2026 — resident-based calibration architecture prepared
+
+- Added the productive resident config and one reusable runner/validator/
+  listener/writer architecture. No controller, MATSim mobility simulation,
+  QSim or iteration-zero run was started in this step.
+- The unchanged 324,043-person population is assigned only in memory to
+  `munich_resident` (68,770), `regional_background` (147,655) and
+  `unresolved_background` (107,618). The unresolved no-home group is not
+  interpreted as confirmed commuters or non-residents.
+- Only Munich residents receive ChangeExpBeta/ReRoute/SubtourModeChoice with
+  weights 0.8/0.1/0.1. Both background groups receive ChangeExpBeta/ReRoute
+  with weights 0.9/0.1 and have no mode-changing strategy. No default or
+  unscoped strategy exists.
+- The primary analysis now contains all 137,540 resident main trips. The fixed
+  secondary spatial counts are 123,186 `BOTH_INSIDE`, 7,177 `ORIGIN_ONLY`,
+  7,177 `DESTINATION_ONLY`, zero `BOTH_OUTSIDE` and zero invalid-coordinate
+  trips. Background plans are excluded before target metrics are calculated.
+- Primary trip targets remain car/PT/bike/walk 34/24/18/24%. Secondary exact
+  Pkm shares are 62.945329/26.687543/6.695437/3.671691%, derived from annual
+  values 10,637.49/4,510.08/1,131.50/620.50 million Pkm. Absolute scaled Pkm
+  are diagnostic only and do not adjust constants automatically.
+- Added run 10 for read-only config validation, reserved 11 for the next
+  iteration-zero task, added run 12 for the later protected controller and run
+  13 for standalone output analysis. The historical stuck-event audit moved
+  from 11 to 30.
+- Retained Round-1/Round-2 Java, config and ignored output evidence because it
+  remains referenced historical provenance. The rejected Open-Tour behavior
+  was not reactivated.

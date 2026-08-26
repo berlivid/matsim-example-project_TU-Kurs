@@ -34,15 +34,19 @@ Authoritative methods:
   rejected Open-Tour test are technical provenance, summarized in the
   [BOTH_INSIDE legacy note](docs/methodology/legacy/both_inside_calibration_preliminary.md)
   and [Open-Tour legacy note](docs/methodology/legacy/open_tour_mode_choice_experiment.md).
-- **Forthcoming resident-based calibration:** the full regional population
-  will remain simulated, while future calibration and primary analysis will
-  include all trips made by Munich residents. Residence will later be derived
-  from the home activity; that classifier and its config do not yet exist.
+- **Resident-based calibration:** the productive local architecture now keeps
+  all 324,043 regional persons in the simulation, assigns three runtime-only
+  subpopulations and restricts mode choice to the 68,770 classified Munich
+  residents. All 137,540 resident trips form the primary analysis scope;
+  `BOTH_INSIDE` remains secondary. See the
+  [resident calibration method](docs/methodology/resident_mode_choice_calibration.md).
 
 Future shared IntelliJ run configurations should use stable number groups:
 `01–09` for input preparation and validation, `10–19` for calibration,
 `20–29` for BAU/Fast Track runs and `30–39` for result analysis. Existing
-productive configurations are not broadly renamed by this cleanup.
+productive configurations are not broadly renamed. Resident calibration uses
+10 for config validation, reserves 11 for Step 4 iteration-zero validation,
+uses 12 for the protected run and 13 for standalone output analysis.
 
 ## Current status
 

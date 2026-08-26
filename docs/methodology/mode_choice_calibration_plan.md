@@ -1,10 +1,10 @@
 # Mode-choice calibration plan
 
-> **Current methodological decision:** the full regional population will
-> remain in future simulations. Future calibration and primary analysis will
-> cover all trips made by Munich residents. Residence will later be determined
-> from the home activity, but that classification and its productive config are
-> not implemented yet. The existing `BOTH_INSIDE` rounds described below are
+> **Current productive architecture:** the full regional population remains in
+> the simulation. Calibration and primary analysis cover all trips made by the
+> tested `MunichResidentClassifier` cohort. Runtime-only subpopulation labels
+> restrict mode choice to Munich residents; the productive config is implemented
+> but has not yet been run. The existing `BOTH_INSIDE` rounds described below are
 > technical preliminary experiments and may support only a secondary
 > territorial indicator.
 
@@ -27,7 +27,7 @@ The repository now contains the structurally and end-to-end validated synthetic 
 ## 2. Observed targets required
 
 The authoritative four-mode trip-share target is car 34%, PT 24%, bike 18%
-and walk 24%. It will apply to the future Munich-resident cohort, subject to a
+and walk 24%. It applies to the Munich-resident cohort, subject to a
 method-compatible source definition. The previous `BOTH_INSIDE`, `ALL_PLANS`
 application is retained only as preliminary evidence. The values originate
 from the thesis external-cost dataset, but the researcher must still add its
@@ -42,7 +42,7 @@ Targets from different years or definitions must not be silently combined. Count
 
 The authoritative annual passenger-kilometre values are car 10,637.49 million,
 PT 4,510.08 million, bike 1,131.50 million and walk 620.50 million. Their
-normalized shares are 62.9453%, 26.6875%, 6.6954% and 3.6717%, respectively.
+exact normalized shares are 62.945329%, 26.687543%, 6.695437% and 3.671691%, respectively.
 The rounded 63/27/7/4 figures sum to 101% and must not be used as exact
 targets. Absolute annual values are not directly comparable to one simulated
 reference day until an annualisation rule is approved. Vehicle-km are never
@@ -52,13 +52,14 @@ mode-choice targets.
 
 The calibration metric is the share of **main-mode trips between consecutive main activities** in selected plans. Stage activities such as `pt interaction` are excluded. A routed PT journey with access and egress legs counts once as `pt`; it is not counted as several walk and PT legs. MATSim's standard analysis main-mode identification is applied to all physical legs of a trip. `ride` is not a separate calibration category under the approved aggregate-car approximation. Unknown results are reported explicitly. The same algorithm must be used for observations and simulation exports.
 
-The future primary cohort consists of Munich residents, and all of their main
+The primary cohort consists of 68,770 classified Munich residents, and all 137,540 of their main
 trips remain eligible even when one or both endpoints are outside Munich. The
 full regional population remains in the simulation and continues to affect
 traffic and public-transport conditions. Residence will later be classified
 from the home activity with the municipal boundary; missing or ambiguous home
-information must fail closed and be reported. This logic is deliberately not
-implemented in the present cleanup. The existing two-endpoints-inside filter
+information fails closed and is reported. The 107,618 persons without an
+identifiable home remain unresolved background traffic and are not inferred to
+be commuters or non-residents. The existing two-endpoints-inside filter
 is documented in `munich_spatial_analysis_scope.md` as preliminary and as a
 possible secondary territorial indicator.
 
@@ -70,18 +71,22 @@ The first calibration allows `car`, `pt`, `walk` and `bike`. These four modes ar
 
 Car and bike are chain-based in the MATSim 2025.0 default `SubtourModeChoice` configuration. This preserves vehicle continuity over a closed subtour. Bike remains teleported in the current project; its constant can be calibrated, but network-specific cycling measures still cannot be evaluated credibly without a separate calibrated bicycle network and router.
 
-## 5. Minimal technical configuration changes
+## 5. Productive technical configuration
 
-A separate non-production configuration now exists at `scenarios/munich_calibration_2019/config_mode_choice_calibration.xml`. It:
+The productive architecture is defined by
+`scenarios/munich_calibration_2019/config_resident_mode_choice_calibration.xml`.
+After loading the unchanged population, it assigns `munich_resident` (68,770),
+`regional_background` (147,655) and `unresolved_background` (107,618) in
+memory. Residents receive ChangeExpBeta/ReRoute/SubtourModeChoice weights
+0.8/0.1/0.1. Both background groups receive only ChangeExpBeta/ReRoute weights
+0.9/0.1 and cannot change mode. There is no unscoped strategy.
 
-1. activate explicit, year-consistent PT and SwissRailRaptor routing;
-2. consolidate the two legacy `strategy` modules into one canonical `replanning` module;
-3. use `ChangeExpBeta` with weight 0.8, `ReRoute` with weight 0.1 and `SubtourModeChoice` with weight 0.1;
-4. explicitly set `SubtourModeChoice` modes to `car,pt,walk,bike`, chain-based modes to `car,bike`, behaviour to `fromSpecifiedModesToSpecifiedModes` and single-trip probability to zero;
-5. keep random seed 4711 and the five-percent QSim capacity factors;
-6. uses iterations 0 through 20 only as an initial technical diagnostic. A later calibration must run long enough for shares and scores to stabilise; the required iteration count is an empirical convergence finding, not a fixed assumption.
-
-The iteration-zero input config is a technical input check, not a calibration config. `SubtourModeChoice` is active only in the separate calibration configuration; BAU and Fast Track remain unchanged.
+The config retains SwissRailRaptor, `car,pt,walk,bike`, chain-based `car,bike`,
+the stable `fromSpecifiedModesToSpecifiedModes` behavior, seed 4711, five-percent
+capacity factors and iterations 0--20. All four initial constants are zero.
+Output uses `failIfDirectoryExists`. Step 3 validated this architecture without
+starting a controller; Step 4 must add and run the protected iteration-zero
+validation before the initial calibration is authorized.
 
 ## 6. Parameters to calibrate
 
@@ -116,11 +121,12 @@ Time, distance, money, parking, fares, transfer penalties and value-of-time para
 
 ## 8. Simulation–observation comparison
 
-For each future parameter vector, observations and simulation exports must use
-the same Munich-resident cohort and main-trip definition. The existing analyzer
-still reports `BOTH_INSIDE`, boundary-crossing and all-trip metrics; until a
-resident classifier exists, these are preliminary diagnostics rather than the
-final primary comparison. Use the mean of several stable late iterations rather
+For each parameter vector, observations and simulation exports must use
+the same Munich-resident cohort and main-trip definition. The productive analyzer
+uses complete selected scenario plans at `AfterMobsim`, includes all resident
+trips, excludes both background groups and reports `BOTH_INSIDE`, `ORIGIN_ONLY`,
+`DESTINATION_ONLY`, `BOTH_OUTSIDE` and invalid-coordinate trips secondarily.
+Use the mean of several stable late iterations rather
 than a single noisy iteration. Door-to-door travel time remains a later
 extension and is not inferred by the present distance analyzer.
 
@@ -160,13 +166,14 @@ calibration result rather than a technical run failure. Target accuracy of
 whereas the post-innovation period tests stability; these functions must not
 be conflated.
 
-The target schema is versioned at
-`original-input-data/calibration/mode_choice_targets_2019.csv`. Its current
-spatial metadata still records the preliminary `BOTH_INSIDE` workflow and must
-be revised only when the resident classifier is implemented. Authoritative
-trip shares, annual Pkm values and normalized Pkm shares remain distinct from
-external-cost Fkm references. The analyzer does not alter constants. Full
-output definitions are documented in `mode_choice_output_analysis.md`.
+The legacy target CSV at
+`original-input-data/calibration/mode_choice_targets_2019.csv` preserves the
+preliminary `BOTH_INSIDE` workflow. The productive resident pipeline validates
+its targets in `ResidentModeChoiceCalibrationTargets`: primary trip shares,
+absolute annual Pkm references and exact normalized secondary Pkm shares remain
+distinct from external-cost Fkm references. The analyzer does not alter
+constants. Full resident definitions are documented in
+`resident_mode_choice_calibration.md`.
 
 ## 10. Stopping rule
 
@@ -180,7 +187,7 @@ Future modal-split differences are interpretable as scenario outputs only after 
 
 ## 12. Methodological limitations and readiness finding
 
-The population is technically clean but only partly ready. All 324,043 persons have exactly one selected plan; all 540,468 main-trip modes are canonical; activity/leg alternation and coordinates are complete; and no unknown modes occur. A reproducible MATSim subtour audit identifies 216,425 persons (66.789%) with a closed subtour and 107,618 (33.211%) without one. The former are technically eligible for the configured subtour change; the latter cannot change mode under this subtour-only strategy. Every selected plan is initially monomodal, and no availability attributes exist. The separate configuration and safeguards are documented in `mode_choice_calibration_configuration.md`.
+The population is technically clean but only partly ready. All 324,043 persons have exactly one selected plan; all 540,468 main-trip modes are canonical; activity/leg alternation and coordinates are complete; and no unknown modes occur. The residence audit identifies 68,770 Munich residents, all with a closed subtour and all technically eligible for the configured strategy. The 147,655 classified non-residents and 107,618 unresolved no-home persons remain background traffic without mode-changing strategies. Every selected plan is initially monomodal, and no availability attributes exist. The productive safeguards are documented in `resident_mode_choice_calibration.md`.
 
 Among the open plans, 75,149 end with the same activity type at a different
 location and 32,469 end with a different activity type; no missing/problematic
@@ -190,8 +197,8 @@ The exploratory `betweenAllAndFewerConstraints` test is not adopted because it
 relaxes end-of-day location consistency for chain-based car and bike. Its
 former `ExperiencedPlansService` representation found identifiers but zero
 current trips, so it provides no evidence for changing the behavior. The
-37,417 fixed `BOTH_INSIDE` trips remain a limitation of the preliminary
-territorial experiment, not a definition of the future resident cohort.
+ 37,417 fixed `BOTH_INSIDE` trips remain a limitation of the preliminary
+territorial experiment, not a definition of the resident cohort.
 
 The first completed run preserves only iteration 20 because standalone postprocessing replaced its history. Its final trip shares are car 41.295763%, PT 13.843940%, bike 26.705034% and walk 18.155262%. These are valid final-state diagnostics, not evidence of convergence.
 
@@ -199,5 +206,6 @@ The synthetic 2019 PT reference passed the full 324,043-person iteration-zero
 server validation on 24 August 2026, but the broader baseline-year provenance
 remains the main substantive uncertainty. Round 1 is structurally valid,
 directionally useful and not converged. Round 2 was prepared as another
-`BOTH_INSIDE` diagnostic. Neither vector is a final calibrated result, and the
-resident-based replacement remains future work.
+`BOTH_INSIDE` diagnostic. Neither vector is a final calibrated result. The
+resident-based architecture now replaces their primary scope, but its Step 4
+iteration-zero validation and subsequent calibration runs remain outstanding.

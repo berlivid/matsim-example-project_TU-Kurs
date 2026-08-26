@@ -2,10 +2,11 @@
 
 > **Current workflow status:** steps 01--03 remain the protected GTFS 2019
 > preparation and validation chain. The initial, Open-Tour and `BOTH_INSIDE`
-> calibration runs are technical preliminary experiments. Future calibration
-> will retain the full regional population and analyze all trips made by Munich
-> residents, with residence later determined from the home activity. That
-> classification and its productive config are not yet implemented. See the
+> calibration runs are technical preliminary experiments. The productive
+> resident architecture now retains all 324,043 persons, assigns runtime-only
+> labels and analyzes all 137,540 trips made by 68,770 classified Munich
+> residents. No simulation was started while building this architecture. See the
+> [resident calibration method](../../docs/methodology/resident_mode_choice_calibration.md),
 > [legacy BOTH_INSIDE note](../../docs/methodology/legacy/both_inside_calibration_preliminary.md)
 > and [legacy Open-Tour note](../../docs/methodology/legacy/open_tour_mode_choice_experiment.md).
 
@@ -157,7 +158,41 @@ no file in the copied folder can reconstruct iterations 0-19. Do not claim
 convergence from that run. The corrected pipeline preserves future histories.
 The alternative `betweenAllAndFewerConstraints` was tested but is not adopted.
 The preliminary rounds retained `fromSpecifiedModesToSpecifiedModes`; the
-resident-based productive calibration is not yet implemented.
+resident-based productive calibration retains that stable behavior.
+
+## Productive resident-based calibration architecture
+
+The productive config is
+`config_resident_mode_choice_calibration.xml`. It loads the unchanged regional
+population and assigns `munich_resident` (68,770), `regional_background`
+(147,655) and `unresolved_background` (107,618) only in memory. The unresolved
+group consists of persons without an identifiable home and must not be called
+confirmed commuters or non-residents.
+
+Only `munich_resident` receives `SubtourModeChoice`; both background groups
+retain their existing modes and receive only `ChangeExpBeta` plus `ReRoute`.
+The primary analysis includes all 137,540 resident trips. Its secondary
+territorial breakdown is 123,186 `BOTH_INSIDE`, 7,177 `ORIGIN_ONLY`, 7,177
+`DESTINATION_ONLY`, zero `BOTH_OUTSIDE` and zero invalid-coordinate trips.
+
+Use the new run configurations in this order:
+
+1. **10 Validate 2019 Resident Mode Choice Configuration** performs read-only
+   input-hash, config, cohort, strategy and target checks. It starts no QSim.
+2. **11** is deliberately reserved for the iteration-zero validation runner
+   that will be added in Step 4.
+3. **12 Run Initial 2019 Resident Mode Choice Calibration** is the only new
+   entry point that starts the controller. Do not invoke it before Step 4.
+4. **13 Analyze Initial 2019 Resident Mode Choice Output** starts no QSim and
+   is used only after a completed protected run.
+
+The protected output is
+`output/resident-mode-choice-initial`; it must not exist before runs 10 or 12.
+The config uses `failIfDirectoryExists`. Initial mode constants are all zero,
+trip-share targets are 34/24/18/24, and exact secondary Pkm-share targets are
+62.945329/26.687543/6.695437/3.671691 percent for car/PT/bike/walk. Step 3
+compiled and unit-tested this architecture but created no output directory and
+ran no controller, MATSim mobility simulation or QSim.
 
 ## Isolated open-tour test
 
@@ -175,7 +210,7 @@ preserved. Its Java entry points, focused tests and IntelliJ configurations
 
 ## Existing stuck-event audit
 
-**11 Analyze Existing 2019 Calibration Stuck Events** starts no QSim. It scans
+**30 Analyze Existing 2019 Calibration Stuck Events** starts no QSim. It scans
 only event files that already exist under the initial and open-tour-test output
 directories, avoids counting a root and iteration copy twice, reports missing
 iterations explicitly, and writes only to the fail-closed ignored directory
@@ -196,9 +231,9 @@ configurations 12--14 have been removed.
 
 ## Mode-choice calibration round 2
 
-Round 2 was prepared as a longer second `BOTH_INSIDE` experiment but does not
-define the forthcoming resident-based method. Its config, Java classes,
-validators and tests are retained until that replacement exists. Obsolete
+Round 2 was prepared as a longer second `BOTH_INSIDE` experiment and does not
+define the productive resident-based method. Its config, Java classes,
+validators and tests remain historical reproducibility evidence. Obsolete
 IntelliJ configurations 15--17 have been removed, and no existing output is
 deleted. Round details and authoritative trip/pkm targets are preserved in the
 [legacy preliminary-round note](../../docs/methodology/legacy/both_inside_calibration_preliminary.md).

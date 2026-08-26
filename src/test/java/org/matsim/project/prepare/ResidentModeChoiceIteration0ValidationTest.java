@@ -2,6 +2,7 @@ package org.matsim.project.prepare;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -58,8 +59,8 @@ class ResidentModeChoiceIteration0ValidationTest {
         assertThrows(IllegalStateException.class, () ->
                 RunMatsim2019ResidentModeChoiceIteration0Validation
                         .validateApprovedOverrides(before, config));
-        assertFalse(Files.exists(RunMatsim2019ResidentModeChoiceIteration0Validation.OUTPUT));
-        assertFalse(Files.exists(ValidateResidentModeChoiceCalibrationConfig.OUTPUT));
+        assertNotEquals(RunMatsim2019ResidentModeChoiceIteration0Validation.OUTPUT,
+                ValidateResidentModeChoiceCalibrationConfig.OUTPUT);
     }
 
     @Test
@@ -106,6 +107,36 @@ class ResidentModeChoiceIteration0ValidationTest {
     }
 
     @Test
+    void preservedIterationHistoryFormatNeedsNoNewChoiceColumns(@TempDir Path temp)
+            throws Exception {
+        Path file = temp.resolve("resident_mode_choice_iteration_metrics.csv");
+        StringBuilder csv = new StringBuilder(
+                "iteration,metric,dimension,value,unit,target_value,difference_to_target\n")
+                .append("0,resident_persons,all,68770,persons,,\n")
+                .append("0,resident_main_trips,all,137540,trips,,\n");
+        for (String mode : ResidentModeChoiceCalibrationTargets.MODES) {
+            csv.append("0,resident_trip_share,").append(mode)
+                    .append(",25,percent,,\n")
+                    .append("0,raw_simulated_daily_sample_pkm,").append(mode)
+                    .append(",1,person_km_per_simulated_day,,\n")
+                    .append("0,resident_pkm_share,").append(mode)
+                    .append(",25,percent,,\n");
+        }
+        csv.append("0,resident_spatial_main_trips,BOTH_INSIDE,123186,trips,,\n")
+                .append("0,resident_spatial_main_trips,ORIGIN_ONLY,7177,trips,,\n")
+                .append("0,resident_spatial_main_trips,DESTINATION_ONLY,7177,trips,,\n")
+                .append("0,resident_spatial_main_trips,BOTH_OUTSIDE,0,trips,,\n")
+                .append("0,resident_spatial_main_trips,INVALID_OR_MISSING_COORDINATE,0,trips,,\n")
+                .append("0,background_persons_excluded_from_targets,regional_background,147655,persons,,\n")
+                .append("0,background_persons_excluded_from_targets,unresolved_background,107618,persons,,\n");
+        Files.writeString(file, csv);
+
+        var audit = ValidateResidentModeChoiceIteration0Output.validateAnalysis(file);
+        assertTrue(audit.complete());
+        assertTrue(audit.backgroundExcluded());
+    }
+
+    @Test
     void missingIterationEventsOrPlansFailClosed(@TempDir Path temp) throws Exception {
         assertThrows(IllegalStateException.class, () ->
                 ValidateResidentModeChoiceIteration0Output
@@ -134,26 +165,30 @@ class ResidentModeChoiceIteration0ValidationTest {
                 ValidateResidentModeChoiceIteration0Output.validateFacts(
                         new ValidateResidentModeChoiceIteration0Output.Facts(
                                 4, valid.cohorts(), valid.residentTrips(), valid.spatial(),
-                                true, true, 10, 1, 1, 1, 1, 1, 0, 0, 0),
+                                true, true, 10, 1, 1, 1, 1, 1, 0, 0,
+                                0, 0, 0, 0, 0, 0),
                         expectations()));
         assertThrows(IllegalStateException.class, () ->
                 ValidateResidentModeChoiceIteration0Output.validateFacts(
                         new ValidateResidentModeChoiceIteration0Output.Facts(
                                 valid.persons(), valid.cohorts(), 3, valid.spatial(),
-                                true, true, 10, 1, 1, 1, 1, 1, 0, 0, 0),
+                                true, true, 10, 1, 1, 1, 1, 1, 0, 0,
+                                0, 0, 0, 0, 0, 0),
                         expectations()));
         assertThrows(IllegalStateException.class, () ->
                 ValidateResidentModeChoiceIteration0Output.validateFacts(
                         new ValidateResidentModeChoiceIteration0Output.Facts(
                                 valid.persons(), valid.cohorts(), valid.residentTrips(),
                                 valid.spatial(), true, false, 10,
-                                1, 1, 1, 1, 1, 0, 0, 0), expectations()));
+                                1, 1, 1, 1, 1, 0, 0,
+                                0, 0, 0, 0, 0, 0), expectations()));
         assertThrows(IllegalStateException.class, () ->
                 ValidateResidentModeChoiceIteration0Output.validateFacts(
                         new ValidateResidentModeChoiceIteration0Output.Facts(
                                 valid.persons(), valid.cohorts(), valid.residentTrips(),
                                 valid.spatial(), true, true, 10,
-                                1, 1, 1, 1, 1, 0, 0, 1), expectations()));
+                                1, 1, 1, 1, 1, 0, 0,
+                                1, 0, 0, 0, 0, 0), expectations()));
     }
 
     @Test
@@ -212,7 +247,8 @@ class ResidentModeChoiceIteration0ValidationTest {
                         ResidentCalibrationSubpopulations.REGIONAL_BACKGROUND, 1L,
                         ResidentCalibrationSubpopulations.UNRESOLVED_BACKGROUND, 1L),
                 2, expectations().spatial(), true, true, 10,
-                1, 1, 1, 1, 1, stuck, stuck == 0 ? 0 : 1, 0);
+                1, 1, 1, 1, 1, stuck, stuck == 0 ? 0 : 1,
+                0, 0, 0, 0, 0, 0);
     }
 
     private static void createRequiredFiles(Path output, String runId) throws Exception {

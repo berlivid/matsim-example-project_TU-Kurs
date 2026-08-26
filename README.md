@@ -50,8 +50,11 @@ iteration-zero validation, 11B for read-only revalidation of an existing
 Run-11 output, 11C for physical-versus-routing-mode diagnosis, 12 for the later
 productive run and 13 for standalone output analysis. Run 11 changes only run
 ID, output directory and last iteration in memory; runs 11B and 11C never start
-a controller or QSim. Run 12 remains blocked pending review of the Run-11C
-diagnostic.
+a controller or QSim. Run 11C has shown that all 8,764 apparent changes are PT
+requests realized as physical walk while preserving `routingMode=pt`, with no
+true choice changes. Physical mode remains the empirical calibration metric;
+choice mode is an additional routing diagnostic. Run 12 remains blocked until
+the corrected Run 11B passes and any stuck-event review is complete.
 
 ## Current status
 

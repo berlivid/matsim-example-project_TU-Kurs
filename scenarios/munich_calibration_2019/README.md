@@ -22,10 +22,12 @@ be interpreted as the historical reference year.
 The GTFS subset, MATSim transit inputs, reference checks, temporal checks and
 representative SwissRailRaptor connections are structurally validated. The
 resident Run-11 Controller/QSim execution completed with normal shutdown on the
-Uni server. Run 11B accepts its config and technical artifacts but stops on
-8,764 apparent physical main-mode differences. Read-only Run 11C diagnoses
-those cases before any mode-definition decision. No mode-choice strategy is
-active in the separate GTFS input-validation configuration.
+Uni server. Run 11C established that all 8,764 apparent physical differences
+are PT requests realized as walk-only routes with `routingMode=pt`, including
+1,376 resident trips, and that no true choice change occurred. Corrected Run
+11B accepts only that evidenced transformation and still fails on every other
+physical or choice transition. No mode-choice strategy is active in the
+separate GTFS input-validation configuration.
 
 ## Required server input
 
@@ -233,19 +235,22 @@ missing, duplicate, unsupported or unexpected sets fail with detailed keys.
 Only after that validation passes are the five intended `analysis/` reports
 written.
 
-Run 11B now reaches the stage-aware input/output mode comparison and reports
-8,764 differences under the current physical-leg definition. Preserve the
-output and do not repeat Run 11. After pulling the Run-11C change, run **10**
-and then **11C** with no arguments and `-Xms2g -Xmx8g`. It creates four new
-diagnostic reports under the existing `analysis/` directory and refuses to
-overwrite them. A physical walk result with `routingMode=pt` is kept distinct
-from a genuine choice-mode change. No current difference is accepted as
-harmless until these reports are reviewed, and Run 12 remains blocked.
+Run 11C matched all persons and trips and showed that the 8,764 differences
+(1,376 resident) are exclusively input PT to physical walk with choice PT. It
+found zero choice changes, missing or inconsistent routing modes, and changed
+trip structures. Preserve the output and do not repeat Run 11 or overwrite the
+Run-11C reports. After pulling the validator correction, run **10** and then
+**11B** with no arguments and `-Xms2g -Xmx8g`. Run 11B derives physical and
+choice transition matrices directly from the existing plans, so no new QSim or
+iteration-history columns are required. Physical modes remain the basis for
+the empirical modal split and Pkm; choice-mode shares are diagnostic only. Run
+12 remains blocked until Run 11B passes and any stuck-event review is complete.
 
 Iteration zero tests execution, routing, transit, runtime cohorts and analysis;
-it is not evidence of calibration or convergence. Main modes must match the
-input after stage-aware comparison. Actual resident mode changes are evaluated
-only in the later iterations 0--20 run.
+it is not evidence of calibration or convergence. Choice modes must match the
+input. The narrowly evidenced PT-to-walk physical routing transformation is
+reported separately and is not an endogenous mode-choice change. Actual
+resident mode changes are evaluated only in the later iterations 0--20 run.
 
 ## Isolated open-tour test
 

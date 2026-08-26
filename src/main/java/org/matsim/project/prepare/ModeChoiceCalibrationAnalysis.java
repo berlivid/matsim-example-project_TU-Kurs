@@ -26,7 +26,6 @@ import org.matsim.api.core.v01.population.Route;
 import org.matsim.core.config.Config;
 import org.matsim.core.population.routes.NetworkRoute;
 import org.matsim.core.population.routes.RouteUtils;
-import org.matsim.core.router.DefaultAnalysisMainModeIdentifier;
 import org.matsim.core.router.StageActivityTypeIdentifier;
 import org.matsim.core.router.TripStructureUtils;
 import org.matsim.pt.routes.TransitPassengerRoute;
@@ -49,9 +48,6 @@ public final class ModeChoiceCalibrationAnalysis {
             "bus", "tram", "subway", "rail", "ferry");
     private static final double MAX_PLAUSIBLE_LEG_DISTANCE_METRES = 2_000_000.0;
     private static final double RAW_PLAN_COORDINATE_TOLERANCE_METRES = 1e-6;
-    private static final DefaultAnalysisMainModeIdentifier MAIN_MODE_IDENTIFIER =
-            new DefaultAnalysisMainModeIdentifier();
-
     private final Network network;
     private final TransitSchedule schedule;
     private final Config config;
@@ -91,15 +87,22 @@ public final class ModeChoiceCalibrationAnalysis {
             for (TripStructureUtils.Trip trip : trips) {
                 MunichTripBoundaryFilter.SpatialCategory category = boundaryFilter.classify(
                         trip.getOriginActivity(), trip.getDestinationActivity());
-                String rawMainMode = identifyMainMode(trip);
+                ResidentTripModeClassifier.Classification classification =
+                        ResidentTripModeClassifier.classify(trip);
+                String rawMainMode = classification.physicalMode();
                 String mainMode = MAIN_MODES.contains(rawMainMode) ? rawMainMode : "unknown";
+                String rawChoiceMode = classification.routingState()
+                        == ResidentTripModeClassifier.RoutingState.CONSISTENT
+                        ? classification.choiceMode() : "unknown";
+                String choiceMode = MAIN_MODES.contains(rawChoiceMode)
+                        ? rawChoiceMode : "unknown";
                 if ("unknown".equals(mainMode)) unknownMainModes.add(rawMainMode);
                 TripMeasurement measurement = measureTrip(trip, mainMode);
                 for (SpatialScope scope : scopes(category)) {
                     add(metrics, new GroupKey(scope, PlanEligibility.ALL_PLANS), entry.getKey(),
-                            mainMode, measurement);
+                            mainMode, choiceMode, measurement);
                     add(metrics, new GroupKey(scope, eligibility), entry.getKey(),
-                            mainMode, measurement);
+                            mainMode, choiceMode, measurement);
                 }
             }
         }
@@ -112,9 +115,10 @@ public final class ModeChoiceCalibrationAnalysis {
     }
 
     private static void add(Map<GroupKey, MutableMetrics> metrics, GroupKey key,
-                            Id<Person> personId, String mainMode, TripMeasurement measurement) {
+                            Id<Person> personId, String mainMode, String choiceMode,
+                            TripMeasurement measurement) {
         metrics.computeIfAbsent(key, ignored -> new MutableMetrics())
-                .add(personId, mainMode, measurement);
+                .add(personId, mainMode, choiceMode, measurement);
     }
 
     private TripMeasurement measureTrip(TripStructureUtils.Trip trip, String mainMode) {
@@ -236,15 +240,6 @@ public final class ModeChoiceCalibrationAnalysis {
         }
     }
 
-    private static String identifyMainMode(TripStructureUtils.Trip trip) {
-        try {
-            String mode = MAIN_MODE_IDENTIFIER.identifyMainMode(trip.getTripElements());
-            return mode == null || mode.isBlank() ? "unknown" : mode.toLowerCase(Locale.ROOT);
-        } catch (RuntimeException exception) {
-            return "unknown";
-        }
-    }
-
     private static Activity previousActivity(List<? extends PlanElement> elements, int legIndex,
                                              Activity fallback) {
         for (int i = legIndex - 1; i >= 0; i--) {
@@ -329,6 +324,9 @@ public final class ModeChoiceCalibrationAnalysis {
 
     public record MetricSnapshot(long validPersons, long mainTrips,
                                  Map<String, Long> mainTripsByMode,
+                                 Map<String, Long> choiceMainTripsByMode,
+                                 Map<PhysicalChoiceTransition, Long> physicalChoiceTransitions,
+                                 long ptRequestsWithWalkOnlyPhysicalRoute,
                                  Map<String, Long> validDistanceTripsByMode,
                                  Map<String, Double> mainModePassengerMetresByMode,
                                  Map<String, Double> physicalPassengerMetresByMode,
@@ -338,6 +336,11 @@ public final class ModeChoiceCalibrationAnalysis {
         public double modalSharePercent(String mode) {
             return mainTrips == 0 ? Double.NaN
                     : 100.0 * mainTripsByMode.getOrDefault(mode, 0L) / mainTrips;
+        }
+
+        public double choiceModalSharePercent(String mode) {
+            return mainTrips == 0 ? Double.NaN
+                    : 100.0 * choiceMainTripsByMode.getOrDefault(mode, 0L) / mainTrips;
         }
 
         public double mainModePkm(String mode) {
@@ -359,6 +362,15 @@ public final class ModeChoiceCalibrationAnalysis {
         }
     }
 
+    public record PhysicalChoiceTransition(String physicalMode, String choiceMode)
+            implements Comparable<PhysicalChoiceTransition> {
+        @Override
+        public int compareTo(PhysicalChoiceTransition other) {
+            int physical = physicalMode.compareTo(other.physicalMode);
+            return physical != 0 ? physical : choiceMode.compareTo(other.choiceMode);
+        }
+    }
+
     public record AnalysisResult(int iteration, Map<GroupKey, MetricSnapshot> groups,
                                  long plansWithClosedSubtour,
                                  long plansWithoutClosedSubtour,
@@ -368,8 +380,8 @@ public final class ModeChoiceCalibrationAnalysis {
         }
 
         private static MetricSnapshot emptySnapshot() {
-            return new MetricSnapshot(0, 0, Map.of(), Map.of(), Map.of(), Map.of(),
-                    Map.of(), 0, 0);
+            return new MetricSnapshot(0, 0, Map.of(), Map.of(), Map.of(), 0,
+                    Map.of(), Map.of(), Map.of(), Map.of(), 0, 0);
         }
     }
 
@@ -384,6 +396,9 @@ public final class ModeChoiceCalibrationAnalysis {
     private static final class MutableMetrics {
         final Set<Id<Person>> persons = new TreeSet<>();
         final TreeMap<String, Long> mainTrips = new TreeMap<>();
+        final TreeMap<String, Long> choiceMainTrips = new TreeMap<>();
+        final TreeMap<PhysicalChoiceTransition, Long> physicalChoiceTransitions =
+                new TreeMap<>();
         final TreeMap<String, Long> validDistanceTrips = new TreeMap<>();
         final TreeMap<String, Double> mainMetres = new TreeMap<>();
         final TreeMap<String, Double> physicalMetres = new TreeMap<>();
@@ -391,11 +406,21 @@ public final class ModeChoiceCalibrationAnalysis {
         long trips;
         long invalidStages;
         long invalidMainTrips;
+        long ptRequestsWithWalkOnlyPhysicalRoute;
 
-        void add(Id<Person> personId, String mainMode, TripMeasurement measurement) {
+        void add(Id<Person> personId, String mainMode, String choiceMode,
+                 TripMeasurement measurement) {
             persons.add(personId);
             trips++;
             mainTrips.merge(mainMode, 1L, Long::sum);
+            choiceMainTrips.merge(choiceMode, 1L, Long::sum);
+            physicalChoiceTransitions.merge(
+                    new PhysicalChoiceTransition(mainMode, choiceMode), 1L, Long::sum);
+            if ("walk".equals(mainMode) && "pt".equals(choiceMode)
+                    && measurement.stages().stream()
+                    .allMatch(stage -> "walk".equals(stage.physicalMode()))) {
+                ptRequestsWithWalkOnlyPhysicalRoute++;
+            }
             if (Double.isFinite(measurement.mainDistanceMetres())) {
                 validDistanceTrips.merge(mainMode, 1L, Long::sum);
                 mainMetres.merge(mainMode, measurement.mainDistanceMetres(), Double::sum);
@@ -414,6 +439,8 @@ public final class ModeChoiceCalibrationAnalysis {
 
         MetricSnapshot snapshot() {
             return new MetricSnapshot(persons.size(), trips, Map.copyOf(mainTrips),
+                    Map.copyOf(choiceMainTrips), Map.copyOf(physicalChoiceTransitions),
+                    ptRequestsWithWalkOnlyPhysicalRoute,
                     Map.copyOf(validDistanceTrips), Map.copyOf(mainMetres),
                     Map.copyOf(physicalMetres), Map.copyOf(sources),
                     invalidStages, invalidMainTrips);

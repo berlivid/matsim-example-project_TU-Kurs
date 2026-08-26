@@ -8,10 +8,12 @@ locally compiled and structurally validated. Step 4 did not start a controller,
 MATSim mobility simulation or QSim; the iteration-zero execution was reserved
 for a deliberate manual server run before iterations 0--20 are authorized.
 That Run-11 server execution has since completed Controller/QSim and normal
-shutdown. Corrected Run 11B now accepts its output config and confirms normal
-shutdown, readable events and plans, but stops fail-closed on 8,764 apparent
-input-to-output physical main-mode differences. Run 11C diagnoses those cases;
-Run 12 remains blocked.
+shutdown. Run 11C then established that all 8,764 apparent physical main-mode
+differences are PT requests realized as walk-only routes while retaining
+`routingMode=pt`; there were no true choice changes, missing or inconsistent
+routing modes, or changed main-trip structures. Run 11B now applies this
+evidence narrowly. Run 12 remains blocked until the preserved output passes
+the corrected read-only validation and any stuck-event review is documented.
 
 The calibration estimates a common behavioral baseline for later BAU and Fast
 Track comparisons. It does not filter the regional demand and does not modify
@@ -136,9 +138,15 @@ post-run comparison is order-independent but remains fail-closed for inputs,
 seed, threads, capacity, horizon, scoring, routing, transit and strategy scope.
 
 Input and output selected plans are compared by person and runtime cohort with
-MATSim's stage-activity handling. PT interaction and access/egress legs therefore
-cannot be mistaken for a main-mode change. Iteration 0 is expected to preserve
-all input main modes; any unexplained change fails validation.
+MATSim's stage-activity handling. The validator separately derives realized
+physical mode from actual legs and choice mode from MATSim's official leg
+`routingMode`. It requires zero true choice changes, missing or inconsistent
+routing modes, and changed main-trip structures. The only accepted physical
+transition is input PT to physical walk with output choice PT and diagnostic
+status `PHYSICAL_CHANGED_CHOICE_PRESERVED`. Any other physical transition fails
+closed. The count is observed and reported rather than used as a universal
+threshold; the preserved output is additionally checked for its evidenced
+8,764 overall and 1,376 resident cases.
 
 ### Preserved-output main-mode diagnostic
 
@@ -158,11 +166,13 @@ input PT trip routed as walk-only legs with `routingMode=pt` is reported as
 remains a visible `CHOICE_MODE_CHANGED`. Missing, inconsistent and structurally
 changed cases receive separate fail-closed diagnostic statuses.
 
-Run 11C writes transition and routing summaries, deterministic examples capped
-at 200 per transition/status, and an English interpretation report. These
-outputs are evidence for a later decision, not approval to redefine a mode.
-The existing validator, targets, strategies and productive analyzer remain
-unchanged until the report is reviewed.
+Run 11C found 324,043 matched persons, 540,468 matched main trips and 137,540
+resident main trips. All 8,764 physical differences (1,376 among residents)
+are exactly input PT to physical walk with choice PT. It found zero true choice
+changes, zero missing or inconsistent routing modes and zero changed trip
+structures. The reports remain preserved as an independent diagnostic tool.
+This evidence supports a narrow validator correction; it does not redefine a
+mode and does not require QSim to be repeated.
 
 Stuck events are descriptive rather than assigned an arbitrary threshold. They
 are counted by runtime cohort, current routing main mode and hour, including
@@ -206,11 +216,14 @@ target metrics even when they occur inside Munich.
 The iteration listener uses every resident's complete selected scenario plan
 at `AfterMobsim`, after routing/mobsim and before the next replanning step. It
 does not use the incomplete former `ExperiencedPlansService` representation.
-Per iteration it records resident persons and trips, trip counts and shares,
+Per iteration it records physical resident trip counts and shares, physical
 route-distance passenger-kilometres and shares, target differences, the five
 spatial categories, resident stuck events by mode, and late-iteration means,
-ranges and linear trends. Selected-plan metrics are planned/routed outcomes;
-stuck events remain a separate execution diagnostic.
+ranges and linear trends. These realized physical metrics alone are compared
+with the MiD/Schröder targets. Additional non-target diagnostics record resident
+choice/routing-mode counts and shares, physical-versus-choice transitions, and
+PT requests resulting in walk-only physical routes. Selected-plan metrics are
+planned/routed outcomes; stuck events remain a separate execution diagnostic.
 
 ## Calibration targets
 
@@ -284,12 +297,12 @@ directory, performs no simulation, and writes the five `analysis/` products
 only after the complete validation passes. Read its final console status and
 all reports. A review-required result must be examined and documented before
 Run 12; a failure blocks Run 12. Never delete or overwrite the existing output
-merely to repeat QSim. Because Run 11B now stops on 8,764 apparent physical
-main-mode differences, pull the Run-11C diagnostic change, run 10, and then run
-11C with `-Xms2g -Xmx8g`. Do not rerun Run 11, and do not interpret Run 11C as
-acceptance of those differences. Review all four diagnostic products before
-any validator or mode-definition correction is considered. Run 12 remains
-blocked.
+merely to repeat QSim. Run 11C does not need to be repeated: preserve and review
+its four existing diagnostic products. The corrected Run 11B derives the new
+physical/choice summaries directly from the existing final plans and does not
+require newly generated iteration-history columns. Do not rerun Run 11. Run 12
+remains blocked until Run 11B passes and any `REVIEW_REQUIRED` stuck-event
+result has been reviewed.
 
 Local Step-4 preparation created neither protected output directory and ran no
 simulation.

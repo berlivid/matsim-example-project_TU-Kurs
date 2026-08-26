@@ -20,15 +20,11 @@ import java.util.function.Consumer;
 import org.matsim.api.core.v01.Coord;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.population.Activity;
-import org.matsim.api.core.v01.population.Leg;
 import org.matsim.api.core.v01.population.Person;
 import org.matsim.api.core.v01.population.Plan;
-import org.matsim.api.core.v01.population.Route;
 import org.matsim.core.config.ConfigUtils;
 import org.matsim.core.population.PopulationUtils;
 import org.matsim.core.population.io.StreamingPopulationReader;
-import org.matsim.core.router.DefaultAnalysisMainModeIdentifier;
-import org.matsim.core.router.MainModeIdentifier;
 import org.matsim.core.router.StageActivityTypeIdentifier;
 import org.matsim.core.router.TripStructureUtils;
 import org.matsim.core.scenario.ScenarioUtils;
@@ -40,13 +36,8 @@ import org.matsim.core.scenario.ScenarioUtils;
 public final class DiagnoseResidentModeChoiceIteration0MainModes {
     static final int EXAMPLES_PER_TRANSITION = 200;
     private static final double COORDINATE_TOLERANCE_METRES = 1e-6;
-    private static final String MISSING = "<missing>";
-    private static final String INCONSISTENT = "<inconsistent>";
-    private static final String UNKNOWN = "unknown";
-    private static final DefaultAnalysisMainModeIdentifier PHYSICAL_MODE_IDENTIFIER =
-            new DefaultAnalysisMainModeIdentifier();
-    private static final MainModeIdentifier ROUTING_MODE_IDENTIFIER =
-            TripStructureUtils.getRoutingModeIdentifier();
+    private static final String MISSING = ResidentTripModeClassifier.MISSING;
+    private static final String UNKNOWN = ResidentTripModeClassifier.UNKNOWN;
     private static final Path OUTPUT =
             RunMatsim2019ResidentModeChoiceIteration0Validation.OUTPUT;
     private static final String RUN_ID =
@@ -108,7 +99,7 @@ public final class DiagnoseResidentModeChoiceIteration0MainModes {
                             + cohort + " != " + input.cohort());
             List<TripDiagnostic> diagnostics = diagnoseTrips(personId, cohort,
                     input.trips(), person.getSelectedPlan(), boundaryFilter);
-            accumulator.addPerson(cohort, diagnostics);
+            accumulator.addPerson(personId, cohort, diagnostics);
         });
 
         require(baseline.persons().isEmpty(),
@@ -123,6 +114,23 @@ public final class DiagnoseResidentModeChoiceIteration0MainModes {
                                               MunichTripBoundaryFilter boundaryFilter) {
         return diagnoseTrips(personId, cohort, inputTrips(inputPlan), outputPlan,
                 boundaryFilter);
+    }
+
+    /** Builds the full aggregate evidence from focused synthetic diagnostic rows. */
+    static DiagnosticResult summarizeDiagnostics(Collection<TripDiagnostic> rows) {
+        TreeMap<String, List<TripDiagnostic>> byPerson = new TreeMap<>();
+        rows.forEach(row -> byPerson.computeIfAbsent(row.personId(), ignored ->
+                new ArrayList<>()).add(row));
+        Accumulator accumulator = new Accumulator();
+        byPerson.forEach((personId, diagnostics) -> {
+            TreeSet<String> cohorts = diagnostics.stream()
+                    .map(TripDiagnostic::cohort)
+                    .collect(java.util.stream.Collectors.toCollection(TreeSet::new));
+            require(cohorts.size() == 1,
+                    "Synthetic diagnostic person has multiple cohorts: " + personId);
+            accumulator.addPerson(personId, cohorts.getFirst(), diagnostics);
+        });
+        return accumulator.result();
     }
 
     private static List<TripDiagnostic> diagnoseTrips(
@@ -144,81 +152,38 @@ public final class DiagnoseResidentModeChoiceIteration0MainModes {
     private static TripDiagnostic diagnoseTrip(
             String personId, int tripIndex, String cohort, InputTrip input,
             TripStructureUtils.Trip output, MunichTripBoundaryFilter boundaryFilter) {
-        String physicalMode = physicalMainMode(output);
-        List<Leg> legs = output.getLegsOnly();
-        List<String> legModes = legs.stream().map(leg -> normalize(leg.getMode())).toList();
-        List<String> routingModes = legs.stream()
-                .map(TripStructureUtils::getRoutingMode)
-                .map(DiagnoseResidentModeChoiceIteration0MainModes::normalize)
-                .toList();
-        RoutingAssessment routing = assessRoutingMode(output, routingModes);
-        List<String> stageTypes = output.getTripElements().stream()
-                .filter(Activity.class::isInstance).map(Activity.class::cast)
-                .filter(activity -> activity.getType() != null
-                        && StageActivityTypeIdentifier.isStageActivity(activity.getType()))
-                .map(Activity::getType).toList();
+        ResidentTripModeClassifier.Classification modes =
+                ResidentTripModeClassifier.classify(output);
         boolean structureChanged = !input.origin().matches(output.getOriginActivity())
                 || !input.destination().matches(output.getDestinationActivity());
-        DiagnosticStatus status = status(input.mainMode(), physicalMode, routing,
-                structureChanged);
+        DiagnosticStatus status = status(input.mainMode(), modes, structureChanged);
         return new TripDiagnostic(personId, tripIndex, cohort,
                 boundaryFilter.classify(output.getOriginActivity(),
                         output.getDestinationActivity()),
                 type(output.getOriginActivity()), type(output.getDestinationActivity()),
-                input.mainMode(), physicalMode, routing.mode(), List.copyOf(legModes),
-                List.copyOf(routingModes), List.copyOf(stageTypes), routeDistance(legs),
-                status);
+                input.mainMode(), modes.physicalMode(), modes.choiceMode(), modes.legModes(),
+                modes.routingModes(), modes.stageActivityTypes(), modes.routeDistance(), status);
     }
 
-    private static DiagnosticStatus status(String inputMode, String physicalMode,
-                                           RoutingAssessment routing,
+    private static DiagnosticStatus status(String inputMode,
+                                           ResidentTripModeClassifier.Classification modes,
                                            boolean structureChanged) {
         if (structureChanged) return DiagnosticStatus.TRIP_STRUCTURE_CHANGED;
-        if (routing.inconsistent()) return DiagnosticStatus.ROUTING_MODE_INCONSISTENT;
-        if (routing.missing()) return DiagnosticStatus.ROUTING_MODE_MISSING;
-        if (UNKNOWN.equals(inputMode) || UNKNOWN.equals(physicalMode)
-                || routing.unknown()) return DiagnosticStatus.UNKNOWN_OR_UNCLASSIFIABLE;
-        if (!inputMode.equals(routing.mode())) return DiagnosticStatus.CHOICE_MODE_CHANGED;
-        if (!inputMode.equals(physicalMode)) {
+        if (modes.routingState() == ResidentTripModeClassifier.RoutingState.INCONSISTENT) {
+            return DiagnosticStatus.ROUTING_MODE_INCONSISTENT;
+        }
+        if (modes.routingState() == ResidentTripModeClassifier.RoutingState.MISSING) {
+            return DiagnosticStatus.ROUTING_MODE_MISSING;
+        }
+        if (UNKNOWN.equals(inputMode) || UNKNOWN.equals(modes.physicalMode())
+                || modes.routingState() == ResidentTripModeClassifier.RoutingState.UNKNOWN) {
+            return DiagnosticStatus.UNKNOWN_OR_UNCLASSIFIABLE;
+        }
+        if (!inputMode.equals(modes.choiceMode())) return DiagnosticStatus.CHOICE_MODE_CHANGED;
+        if (!inputMode.equals(modes.physicalMode())) {
             return DiagnosticStatus.PHYSICAL_CHANGED_CHOICE_PRESERVED;
         }
         return DiagnosticStatus.UNCHANGED_PHYSICAL_AND_CHOICE;
-    }
-
-    private static RoutingAssessment assessRoutingMode(
-            TripStructureUtils.Trip trip, List<String> routingModes) {
-        if (routingModes.isEmpty()) {
-            return new RoutingAssessment(UNKNOWN, false, false, true);
-        }
-        TreeSet<String> present = routingModes.stream()
-                .filter(mode -> !MISSING.equals(mode)).collect(
-                        java.util.stream.Collectors.toCollection(TreeSet::new));
-        if (present.size() > 1) {
-            return new RoutingAssessment(INCONSISTENT, false, true, false);
-        }
-        if (present.isEmpty() || routingModes.contains(MISSING)) {
-            return new RoutingAssessment(MISSING, true, false, false);
-        }
-        String only = present.getFirst();
-        try {
-            String official = normalize(ROUTING_MODE_IDENTIFIER
-                    .identifyMainMode(trip.getTripElements()));
-            if (!only.equals(official)) {
-                return new RoutingAssessment(INCONSISTENT, false, true, false);
-            }
-            return new RoutingAssessment(official, false, false, false);
-        } catch (RuntimeException exception) {
-            return new RoutingAssessment(INCONSISTENT, false, true, false);
-        }
-    }
-
-    private static String physicalMainMode(TripStructureUtils.Trip trip) {
-        try {
-            String mode = PHYSICAL_MODE_IDENTIFIER.identifyMainMode(trip.getTripElements());
-            return blank(mode) ? UNKNOWN : mode.toLowerCase(Locale.ROOT);
-        } catch (RuntimeException exception) {
-            return UNKNOWN;
-        }
     }
 
     private static List<InputTrip> inputTrips(Plan plan) {
@@ -226,7 +191,7 @@ public final class DiagnoseResidentModeChoiceIteration0MainModes {
         return trips(plan).stream().map(trip -> new InputTrip(
                 ActivitySignature.of(trip.getOriginActivity()),
                 ActivitySignature.of(trip.getDestinationActivity()),
-                physicalMainMode(trip))).toList();
+                ResidentTripModeClassifier.physicalMainMode(trip))).toList();
     }
 
     private static List<TripStructureUtils.Trip> trips(Plan plan) {
@@ -239,17 +204,6 @@ public final class DiagnoseResidentModeChoiceIteration0MainModes {
         }
     }
 
-    private static double routeDistance(List<Leg> legs) {
-        if (legs.isEmpty()) return Double.NaN;
-        double sum = 0.0;
-        for (Leg leg : legs) {
-            Route route = leg.getRoute();
-            if (route == null || !Double.isFinite(route.getDistance())
-                    || route.getDistance() < 0.0) return Double.NaN;
-            sum += route.getDistance();
-        }
-        return sum;
-    }
 
     private static Baseline readBaseline(Path population,
                                          MunichMunicipalBoundary boundary) {
@@ -412,13 +366,6 @@ public final class DiagnoseResidentModeChoiceIteration0MainModes {
         return String.join("|", values);
     }
 
-    private static String normalize(String value) {
-        return blank(value) ? MISSING : value.toLowerCase(Locale.ROOT);
-    }
-
-    private static boolean blank(String value) {
-        return value == null || value.isBlank();
-    }
 
     private static String type(Activity activity) {
         return activity == null || activity.getType() == null ? MISSING : activity.getType();
@@ -449,8 +396,6 @@ public final class DiagnoseResidentModeChoiceIteration0MainModes {
     private record InputTrip(ActivitySignature origin, ActivitySignature destination,
                              String mainMode) { }
     private record InputPerson(String cohort, List<InputTrip> trips) { }
-    private record RoutingAssessment(String mode, boolean missing,
-                                     boolean inconsistent, boolean unknown) { }
 
     private record ActivitySignature(String type, Coord coord) {
         static ActivitySignature of(Activity activity) {
@@ -533,6 +478,7 @@ public final class DiagnoseResidentModeChoiceIteration0MainModes {
 
     record DiagnosticResult(long persons, long trips, long residentTrips,
                             Map<String, Long> personCohorts,
+                            Map<String, String> cohortByPerson,
                             long physicalDifferences, long choiceDifferences,
                             long missingRoutingModes, long inconsistentRoutingModes,
                             long changedTripStructures,
@@ -612,6 +558,7 @@ public final class DiagnoseResidentModeChoiceIteration0MainModes {
         private long inconsistentRoutingModes;
         private long changedTripStructures;
         private final TreeMap<String, Long> personCohorts = new TreeMap<>();
+        private final TreeMap<String, String> cohortByPerson = new TreeMap<>();
         private final TreeMap<TransitionKey, Long> transitions = new TreeMap<>();
         private final TreeMap<RoutingKey, Long> routing = new TreeMap<>();
         private final TreeMap<MatrixKey, Long> matrix = new TreeMap<>();
@@ -621,8 +568,10 @@ public final class DiagnoseResidentModeChoiceIteration0MainModes {
         private final BoundedExamples examples =
                 new BoundedExamples(EXAMPLES_PER_TRANSITION);
 
-        void addPerson(String cohort, List<TripDiagnostic> diagnostics) {
+        void addPerson(String personId, String cohort, List<TripDiagnostic> diagnostics) {
             persons++;
+            require(cohortByPerson.put(personId, cohort) == null,
+                    "Duplicate output person " + personId);
             personCohorts.merge(cohort, 1L, Long::sum);
             for (TripDiagnostic row : diagnostics) add(row);
         }
@@ -670,7 +619,8 @@ public final class DiagnoseResidentModeChoiceIteration0MainModes {
             TreeMap<String, CohortCounts> cohortSnapshots = new TreeMap<>();
             cohorts.forEach((key, value) -> cohortSnapshots.put(key, value.snapshot()));
             return new DiagnosticResult(persons, trips, residentTrips,
-                    sortedMap(personCohorts), physicalDifferences, choiceDifferences,
+                    sortedMap(personCohorts), sortedMap(cohortByPerson),
+                    physicalDifferences, choiceDifferences,
                     missingRoutingModes, inconsistentRoutingModes, changedTripStructures,
                     Collections.unmodifiableSet(new TreeSet<>(physicalDifferenceStatuses)),
                     sortedMap(transitions), sortedMap(routing), sortedMap(matrix),

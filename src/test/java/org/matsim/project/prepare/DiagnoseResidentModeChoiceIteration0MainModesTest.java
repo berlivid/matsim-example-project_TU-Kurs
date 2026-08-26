@@ -2,6 +2,7 @@ package org.matsim.project.prepare;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -82,6 +83,36 @@ class DiagnoseResidentModeChoiceIteration0MainModesTest {
     }
 
     @Test
+    void validatorAcceptsOnlyTheEvidencedPtWalkPtRouterTransformation() {
+        var row = diagnose(oneLeg("pt", null, "work"),
+                oneLeg("walk", "pt", "work"));
+        var evidence = ValidateResidentModeChoiceIteration0Output.validateModeEvidence(
+                DiagnoseResidentModeChoiceIteration0MainModes
+                        .summarizeDiagnostics(List.of(row)));
+
+        assertEquals(1, evidence.physicalMainModeDifferences());
+        assertEquals(1, evidence.acceptedPtToWalkTransformations());
+        assertEquals(0, evidence.trueChoiceModeChanges());
+    }
+
+    @Test
+    void validatorRejectsPtWalkWithWalkChoiceAndCarWalkWithCarChoice() {
+        var ptChoiceChange = diagnose(oneLeg("pt", null, "work"),
+                oneLeg("walk", "walk", "work"));
+        assertThrows(IllegalStateException.class, () ->
+                ValidateResidentModeChoiceIteration0Output.validateModeEvidence(
+                        DiagnoseResidentModeChoiceIteration0MainModes
+                                .summarizeDiagnostics(List.of(ptChoiceChange))));
+
+        var unapprovedCarTransformation = diagnose(oneLeg("car", null, "work"),
+                oneLeg("walk", "car", "work"));
+        assertThrows(IllegalStateException.class, () ->
+                ValidateResidentModeChoiceIteration0Output.validateModeEvidence(
+                        DiagnoseResidentModeChoiceIteration0MainModes
+                                .summarizeDiagnostics(List.of(unapprovedCarTransformation))));
+    }
+
+    @Test
     void genuinePtToWalkChoiceChangeRemainsVisible() {
         var row = diagnose(oneLeg("pt", null, "work"),
                 oneLeg("walk", "walk", "work"));
@@ -116,6 +147,24 @@ class DiagnoseResidentModeChoiceIteration0MainModesTest {
         assertEquals("<inconsistent>", row.choiceMode());
         assertEquals(DiagnoseResidentModeChoiceIteration0MainModes.DiagnosticStatus
                 .ROUTING_MODE_INCONSISTENT, row.status());
+    }
+
+    @Test
+    void validatorFailsClosedForMissingInconsistentAndChangedStructure() {
+        var missing = diagnose(oneLeg("car", null, "work"),
+                oneLeg("car", null, "work"));
+        assertModeEvidenceFails(missing);
+
+        Plan inconsistent = factory.createPlan();
+        inconsistent.addActivity(activity("home", inside));
+        inconsistent.addLeg(leg("transit_walk", "pt"));
+        inconsistent.addActivity(activity(PtConstants.TRANSIT_ACTIVITY_TYPE, inside));
+        inconsistent.addLeg(leg("walk", "walk"));
+        inconsistent.addActivity(activity("work", inside));
+        assertModeEvidenceFails(diagnose(oneLeg("pt", null, "work"), inconsistent));
+
+        assertModeEvidenceFails(diagnose(oneLeg("car", null, "work"),
+                oneLeg("car", "car", "shopping")));
     }
 
     @Test
@@ -164,6 +213,14 @@ class DiagnoseResidentModeChoiceIteration0MainModesTest {
         return DiagnoseResidentModeChoiceIteration0MainModes.diagnosePlans(
                 "person", ResidentCalibrationSubpopulations.MUNICH_RESIDENT,
                 input, output, boundaryFilter).getFirst();
+    }
+
+    private static void assertModeEvidenceFails(
+            DiagnoseResidentModeChoiceIteration0MainModes.TripDiagnostic row) {
+        assertThrows(IllegalStateException.class, () ->
+                ValidateResidentModeChoiceIteration0Output.validateModeEvidence(
+                        DiagnoseResidentModeChoiceIteration0MainModes
+                                .summarizeDiagnostics(List.of(row))));
     }
 
     private Plan oneLeg(String mode, String routingMode, String destinationType) {

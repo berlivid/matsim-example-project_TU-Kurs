@@ -14,8 +14,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import org.matsim.api.core.v01.Id;
-import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.events.PersonDepartureEvent;
 import org.matsim.api.core.v01.events.PersonEntersVehicleEvent;
@@ -35,9 +35,6 @@ import org.matsim.core.config.ConfigUtils;
 import org.matsim.core.events.EventsUtils;
 import org.matsim.core.events.MatsimEventsReader;
 import org.matsim.core.events.handler.BasicEventHandler;
-import org.matsim.core.population.PopulationUtils;
-import org.matsim.core.population.io.StreamingPopulationReader;
-import org.matsim.core.scenario.ScenarioUtils;
 
 /** Read-only technical acceptance check for the protected server iteration-0 run. */
 public final class ValidateResidentModeChoiceIteration0Output {
@@ -82,11 +79,18 @@ public final class ValidateResidentModeChoiceIteration0Output {
         PlanAudit plans = comparePlans(inputPopulation, files.finalPlans(), boundary);
         AnalysisAudit analysis = validateAnalysis(files.iterationAnalysis());
         EventAudit events = readEvents(files.events(), plans.cohortByPerson());
+        validateAuthoritativeModeEvidence(plans.diagnostics());
+        ModeEvidence modeEvidence = validateModeEvidence(plans.diagnostics());
         Facts facts = new Facts(plans.persons(), plans.cohorts(), plans.residentTrips(),
                 plans.spatial(), analysis.complete(), analysis.backgroundExcluded(),
                 events.totalEvents(), events.carDepartures(), events.carVehicles(),
                 events.ptDepartures(), events.transitDrivers(), events.ptBoardings(),
-                events.stuck().size(), events.uniqueStuckPersons(), plans.modeChanges());
+                events.stuck().size(), events.uniqueStuckPersons(),
+                modeEvidence.physicalMainModeDifferences(),
+                modeEvidence.trueChoiceModeChanges(), modeEvidence.missingRoutingModes(),
+                modeEvidence.inconsistentRoutingModes(),
+                modeEvidence.changedTripStructures(),
+                modeEvidence.acceptedPtToWalkTransformations());
         boolean reviewRequired = validateFacts(facts, AUTHORITATIVE);
 
         Map<Path, HashAudit> hashes = protectedHashes(protectedBefore);
@@ -146,9 +150,21 @@ public final class ValidateResidentModeChoiceIteration0Output {
         require(facts.ptDepartures() > 0 && facts.transitDrivers() > 0
                         && facts.ptBoardings() > 0,
                 "PT routing, vehicle or passenger events are missing");
-        require(facts.modeChanges() == 0,
-                "Iteration 0 contains unexplained input-to-output main-mode changes: "
-                        + facts.modeChanges());
+        require(facts.trueChoiceModeChanges() == 0,
+                "Iteration 0 contains true choice/routing-mode changes: "
+                        + facts.trueChoiceModeChanges());
+        require(facts.missingRoutingModes() == 0,
+                "Iteration 0 contains missing routing modes: "
+                        + facts.missingRoutingModes());
+        require(facts.inconsistentRoutingModes() == 0,
+                "Iteration 0 contains inconsistent routing modes: "
+                        + facts.inconsistentRoutingModes());
+        require(facts.changedTripStructures() == 0,
+                "Iteration 0 contains changed main-trip structures: "
+                        + facts.changedTripStructures());
+        require(facts.acceptedPtToWalkTransformations()
+                        == facts.physicalMainModeDifferences(),
+                "Iteration 0 contains unapproved physical main-mode transitions");
         require(facts.uniqueStuckPersons() <= facts.stuckEvents(),
                 "Unique stuck persons exceed stuck events");
         return facts.stuckEvents() > 0;
@@ -162,76 +178,80 @@ public final class ValidateResidentModeChoiceIteration0Output {
 
     private static PlanAudit comparePlans(Path input, Path output,
                                           MunichMunicipalBoundary boundary) {
-        Map<String, InputPerson> baseline = readBaseline(input, boundary);
-        TreeMap<String, Long> cohorts = new TreeMap<>();
+        DiagnoseResidentModeChoiceIteration0MainModes.DiagnosticResult diagnostics =
+                DiagnoseResidentModeChoiceIteration0MainModes.analyze(input, output, boundary);
         EnumMap<MunichTripBoundaryFilter.SpatialCategory, Long> spatial =
                 new EnumMap<>(MunichTripBoundaryFilter.SpatialCategory.class);
-        TreeMap<ModeKey, Long> comparisons = new TreeMap<>();
-        Map<String, String> cohortByPerson = new HashMap<>();
-        Counter counter = new Counter();
-        MunichTripBoundaryFilter filter = new MunichTripBoundaryFilter(boundary);
-        stream(output, person -> {
-            counter.persons++;
-            String id = person.getId().toString();
-            InputPerson source = baseline.remove(id);
-            require(source != null, "Output contains an unknown person: " + id);
-            String cohort = PopulationUtils.getSubpopulation(person);
-            require(source.cohort().equals(cohort),
-                    "Runtime cohort changed for person " + id + ": " + cohort);
-            cohorts.merge(cohort, 1L, Long::sum);
-            cohortByPerson.put(id, cohort);
-            List<MunichTripBoundaryFilter.ClassifiedTrip> trips =
-                    filter.classify(person.getSelectedPlan());
-            List<String> modes = trips.stream()
-                    .map(MunichTripBoundaryFilter.ClassifiedTrip::inputMainMode).toList();
-            require(modes.size() == source.modes().size(),
-                    "Main-trip count changed for person " + id);
-            for (int index = 0; index < modes.size(); index++) {
-                String from = source.modes().get(index);
-                String to = modes.get(index);
-                comparisons.merge(new ModeKey(cohort, from, to), 1L, Long::sum);
-                if (!from.equals(to)) counter.modeChanges++;
-            }
-            if (ResidentCalibrationSubpopulations.MUNICH_RESIDENT.equals(cohort)) {
-                counter.residentTrips += trips.size();
-                trips.forEach(trip -> spatial.merge(trip.category(), 1L, Long::sum));
+        diagnostics.transitions().forEach((key, count) -> {
+            if (ResidentCalibrationSubpopulations.MUNICH_RESIDENT.equals(key.cohort())) {
+                spatial.merge(key.spatial(), count, Long::sum);
             }
         });
-        require(baseline.isEmpty(), "Output plans omit " + baseline.size() + " input persons");
-        return new PlanAudit(counter.persons, Map.copyOf(cohorts), counter.residentTrips,
-                Map.copyOf(spatial), counter.modeChanges, Map.copyOf(comparisons),
-                Map.copyOf(cohortByPerson));
+        return new PlanAudit(diagnostics, Map.copyOf(spatial));
     }
 
-    private static Map<String, InputPerson> readBaseline(
-            Path input, MunichMunicipalBoundary boundary) {
-        Map<String, InputPerson> result = new HashMap<>();
-        MunichResidentClassifier classifier = new MunichResidentClassifier(boundary);
-        MunichTripBoundaryFilter filter = new MunichTripBoundaryFilter(boundary);
-        stream(input, person -> {
-            var classification = classifier.classify(person).classification();
-            String cohort = switch (classification) {
-                case MUNICH_RESIDENT -> ResidentCalibrationSubpopulations.MUNICH_RESIDENT;
-                case NON_MUNICH_RESIDENT ->
-                        ResidentCalibrationSubpopulations.REGIONAL_BACKGROUND;
-                default -> ResidentCalibrationSubpopulations.UNRESOLVED_BACKGROUND;
-            };
-            List<String> modes = filter.classify(person.getSelectedPlan()).stream()
-                    .map(MunichTripBoundaryFilter.ClassifiedTrip::inputMainMode).toList();
-            require(result.put(person.getId().toString(),
-                    new InputPerson(cohort, modes)) == null,
-                    "Duplicate input person " + person.getId());
-        });
-        return result;
+    static ModeEvidence validateModeEvidence(
+            DiagnoseResidentModeChoiceIteration0MainModes.DiagnosticResult diagnostics) {
+        long accepted = 0;
+        TreeMap<String, Long> unexpected = new TreeMap<>();
+        long unclassifiable = 0;
+        for (var entry : diagnostics.matrix().entrySet()) {
+            var key = entry.getKey();
+            long count = entry.getValue();
+            if (key.status() == DiagnoseResidentModeChoiceIteration0MainModes
+                    .DiagnosticStatus.UNKNOWN_OR_UNCLASSIFIABLE) {
+                unclassifiable += count;
+            }
+            if (!key.input().equals(key.physical())) {
+                if (isAcceptedPtToWalkTransformation(key)) accepted += count;
+                else unexpected.merge(key.input() + "->" + key.physical() + "/choice="
+                        + key.choice() + "/status=" + key.status(), count, Long::sum);
+            }
+        }
+        require(diagnostics.choiceDifferences() == 0,
+                "True choice/routing-mode changes found: "
+                        + diagnostics.choiceDifferences());
+        require(diagnostics.missingRoutingModes() == 0,
+                "Missing routing modes found: " + diagnostics.missingRoutingModes());
+        require(diagnostics.inconsistentRoutingModes() == 0,
+                "Inconsistent routing modes found: "
+                        + diagnostics.inconsistentRoutingModes());
+        require(diagnostics.changedTripStructures() == 0,
+                "Changed main-trip structures found: "
+                        + diagnostics.changedTripStructures());
+        require(unclassifiable == 0,
+                "Unknown or unclassifiable main trips found: " + unclassifiable);
+        require(unexpected.isEmpty(),
+                "Unapproved physical main-mode transitions found: " + unexpected);
+        require(accepted == diagnostics.physicalDifferences(),
+                "Not every physical difference is an approved PT-to-walk router "
+                        + "transformation: accepted=" + accepted + " observed="
+                        + diagnostics.physicalDifferences());
+        return new ModeEvidence(diagnostics.physicalDifferences(),
+                diagnostics.choiceDifferences(), diagnostics.missingRoutingModes(),
+                diagnostics.inconsistentRoutingModes(), diagnostics.changedTripStructures(),
+                accepted);
     }
 
-    private static void stream(Path population,
-                               java.util.function.Consumer<Person> consumer) {
-        require(Files.isRegularFile(population), "Population file is missing: " + population);
-        Scenario scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig());
-        StreamingPopulationReader reader = new StreamingPopulationReader(scenario);
-        reader.addAlgorithm(consumer::accept);
-        reader.readFile(population.toString());
+    private static boolean isAcceptedPtToWalkTransformation(
+            DiagnoseResidentModeChoiceIteration0MainModes.MatrixKey key) {
+        return "pt".equals(key.input()) && "walk".equals(key.physical())
+                && "pt".equals(key.choice())
+                && key.status() == DiagnoseResidentModeChoiceIteration0MainModes
+                .DiagnosticStatus.PHYSICAL_CHANGED_CHOICE_PRESERVED;
+    }
+
+    private static void validateAuthoritativeModeEvidence(
+            DiagnoseResidentModeChoiceIteration0MainModes.DiagnosticResult diagnostics) {
+        require(diagnostics.physicalDifferences() == 8_764,
+                "Preserved output physical-difference count changed: "
+                        + diagnostics.physicalDifferences() + " != 8764");
+        long resident = diagnostics.cohorts().get(
+                ResidentCalibrationSubpopulations.MUNICH_RESIDENT)
+                .physicalDifferences();
+        require(resident == 1_376,
+                "Preserved output resident physical-difference count changed: "
+                        + resident + " != 1376");
     }
 
     private static EventAudit readEvents(Path file, Map<String, String> cohorts) {
@@ -242,7 +262,7 @@ public final class ValidateResidentModeChoiceIteration0Output {
         return collector.result();
     }
 
-    private static AnalysisAudit validateAnalysis(Path file) throws IOException {
+    static AnalysisAudit validateAnalysis(Path file) throws IOException {
         Map<CsvKey, Double> rows = new HashMap<>();
         List<String> lines = Files.readAllLines(file, StandardCharsets.UTF_8);
         require(!lines.isEmpty() && lines.getFirst().startsWith("iteration,metric,dimension"),
@@ -333,9 +353,9 @@ public final class ValidateResidentModeChoiceIteration0Output {
         Path analysis = output.resolve("analysis");
         Files.createDirectories(analysis);
         Files.writeString(analysis.resolve("iteration_0_validation_summary.csv"),
-                summaryCsv(facts, review), StandardCharsets.UTF_8);
+                summaryCsv(facts, plans, review), StandardCharsets.UTF_8);
         Files.writeString(analysis.resolve("iteration_0_validation_report.md"),
-                report(facts, events, review), StandardCharsets.UTF_8);
+                report(facts, plans, events, review), StandardCharsets.UTF_8);
         Files.writeString(analysis.resolve("iteration_0_stuck_summary.csv"),
                 stuckCsv(events), StandardCharsets.UTF_8);
         Files.writeString(analysis.resolve("iteration_0_mode_comparison.csv"),
@@ -344,7 +364,7 @@ public final class ValidateResidentModeChoiceIteration0Output {
                 hashCsv(hashes), StandardCharsets.UTF_8);
     }
 
-    private static String summaryCsv(Facts facts, boolean review) {
+    private static String summaryCsv(Facts facts, PlanAudit plans, boolean review) {
         String csv = "metric,value,status\n"
                 + "validation_status," + (review ? "PASS_WITH_REVIEW_REQUIRED" : "PASS")
                 + "," + (review ? "REVIEW_REQUIRED" : "PASS") + "\n"
@@ -356,10 +376,28 @@ public final class ValidateResidentModeChoiceIteration0Output {
                 + "unresolved_background," + facts.cohorts().get(
                         ResidentCalibrationSubpopulations.UNRESOLVED_BACKGROUND) + ",PASS\n"
                 + "resident_main_trips," + facts.residentTrips() + ",PASS\n"
-                + "main_mode_changes," + facts.modeChanges() + ",PASS\n"
+                + "physical_main_mode_differences,"
+                + facts.physicalMainModeDifferences()
+                + ",PASS_ACCEPTED_ROUTER_TRANSFORMATION\n"
+                + "accepted_pt_to_walk_router_transformations,"
+                + facts.acceptedPtToWalkTransformations() + ",PASS\n"
+                + "true_choice_mode_changes," + facts.trueChoiceModeChanges()
+                + ",PASS\nmissing_routing_modes," + facts.missingRoutingModes()
+                + ",PASS\ninconsistent_routing_modes,"
+                + facts.inconsistentRoutingModes()
+                + ",PASS\nchanged_trip_structures," + facts.changedTripStructures()
+                + ",PASS\n"
                 + "stuck_events," + facts.stuckEvents() + ","
                 + (review ? "REVIEW_REQUIRED" : "PASS") + "\n";
         StringBuilder result = new StringBuilder(csv);
+        plans.diagnostics().cohorts().forEach((cohort, counts) -> result
+                .append("physical_main_mode_differences_").append(cohort).append(',')
+                .append(counts.physicalDifferences())
+                .append(",PASS_ACCEPTED_ROUTER_TRANSFORMATION\n"));
+        appendModeSummary(result, "resident_physical", plans.residentPhysicalModes(),
+                facts.residentTrips());
+        appendModeSummary(result, "resident_choice", plans.residentChoiceModes(),
+                facts.residentTrips());
         facts.spatial().entrySet().stream().sorted(Map.Entry.comparingByKey())
                 .forEach(entry -> result.append("resident_spatial_")
                         .append(entry.getKey()).append(',').append(entry.getValue())
@@ -373,21 +411,34 @@ public final class ValidateResidentModeChoiceIteration0Output {
         return result.toString();
     }
 
-    private static String report(Facts facts, EventAudit events, boolean review) {
+    private static void appendModeSummary(StringBuilder out, String prefix,
+                                          Map<String, Long> modes, long total) {
+        modes.forEach((mode, count) -> out.append(prefix).append("_mode_count_")
+                .append(mode).append(',').append(count).append(",PASS\n")
+                .append(prefix).append("_mode_share_percent_").append(mode).append(',')
+                .append(percent(count, total)).append(",PASS\n"));
+    }
+
+    private static String report(Facts facts, PlanAudit plans, EventAudit events,
+                                 boolean review) {
         long residentStuck = events.stuck().stream()
                 .map(StuckRecord::person).distinct()
                 .filter(person -> ResidentCalibrationSubpopulations.MUNICH_RESIDENT.equals(
                         events.cohorts().get(person))).count();
-        return "# Resident calibration iteration-0 validation\n\n"
-                + "Status: **" + (review ? "PASS WITH REVIEW REQUIRED" : "PASS")
+        StringBuilder out = new StringBuilder(
+                "# Resident calibration iteration-0 validation\n\n");
+        out.append("Status: **" + (review ? "PASS WITH REVIEW REQUIRED" : "PASS")
                 + "**.\n\nIteration 0 validates technical execution, routing, transit, "
                 + "runtime cohort assignment and analysis. It does not demonstrate calibrated "
                 + "mode choice or convergence. Strategy scoping is established structurally by "
                 + "the productive config validator and focused tests; observed resident mode "
                 + "change is assessed in the later 0-20 run.\n\n"
                 + "Persons: " + facts.persons() + "; resident trips: "
-                + facts.residentTrips() + "; unexplained main-mode changes: "
-                + facts.modeChanges() + ".\n\nStuck events: " + facts.stuckEvents()
+                + facts.residentTrips() + "; physical main-mode differences: "
+                + facts.physicalMainModeDifferences() + "; accepted PT-to-walk router "
+                + "transformations: " + facts.acceptedPtToWalkTransformations()
+                + "; true choice/routing-mode changes: "
+                + facts.trueChoiceModeChanges() + ".\n\nStuck events: " + facts.stuckEvents()
                 + "; unique affected persons: " + facts.uniqueStuckPersons() + " ("
                 + percent(facts.uniqueStuckPersons(), facts.persons()) + "% of all persons); "
                 + "affected residents: " + residentStuck + " ("
@@ -398,7 +449,47 @@ public final class ValidateResidentModeChoiceIteration0Output {
                 + "Car departures/vehicles: " + events.carDepartures() + "/"
                 + events.carVehicles() + "; PT departures/drivers/passenger boardings: "
                 + events.ptDepartures() + "/" + events.transitDrivers() + "/"
-                + events.ptBoardings() + ".\n";
+                + events.ptBoardings() + ".\n");
+        out.append("\n## Physical mode transition matrix\n\n")
+                .append("| Input mode | Realized physical mode | Trips |\n")
+                .append("|---|---|---:|\n");
+        aggregateTransitions(plans, true).forEach((key, count) -> out.append("| `")
+                .append(key.from()).append("` | `").append(key.to()).append("` | ")
+                .append(count).append(" |\n"));
+        out.append("\n## Choice/routing-mode transition matrix\n\n")
+                .append("| Input mode | Output choice mode | Trips |\n")
+                .append("|---|---|---:|\n");
+        aggregateTransitions(plans, false).forEach((key, count) -> out.append("| `")
+                .append(key.from()).append("` | `").append(key.to()).append("` | ")
+                .append(count).append(" |\n"));
+        out.append("\n## Runtime cohorts and accepted transformations\n\n")
+                .append("| Cohort | Persons | Trips | Physical differences | True choice changes |\n")
+                .append("|---|---:|---:|---:|---:|\n");
+        plans.diagnostics().cohorts().forEach((cohort, counts) -> out.append("| `")
+                .append(cohort).append("` | ").append(facts.cohorts().get(cohort))
+                .append(" | ").append(counts.trips()).append(" | ")
+                .append(counts.physicalDifferences()).append(" | ")
+                .append(counts.choiceDifferences()).append(" |\n"));
+        out.append("\n## Resident realized and choice modal splits\n\n")
+                .append("| Mode | Physical trips | Physical share | Choice trips | Choice share |\n")
+                .append("|---|---:|---:|---:|---:|\n");
+        TreeSet<String> modes = new TreeSet<>();
+        modes.addAll(plans.residentPhysicalModes().keySet());
+        modes.addAll(plans.residentChoiceModes().keySet());
+        for (String mode : modes) {
+            long physical = plans.residentPhysicalModes().getOrDefault(mode, 0L);
+            long choice = plans.residentChoiceModes().getOrDefault(mode, 0L);
+            out.append("| `").append(mode).append("` | ").append(physical)
+                    .append(" | ").append(percent(physical, facts.residentTrips()))
+                    .append("% | ").append(choice).append(" | ")
+                    .append(percent(choice, facts.residentTrips())).append("% |\n");
+        }
+        out.append("\nPhysical realized modes remain the basis for trip-share and Pkm "
+                + "comparison with the Schröder targets. Choice/routing shares diagnose the "
+                + "requested MATSim alternative and are not compared with empirical targets. "
+                + "The accepted PT-to-walk cases are router transformations, not endogenous "
+                + "mode-choice changes.\n");
+        return out.toString();
     }
 
     private static String stuckCsv(EventAudit events) {
@@ -418,12 +509,30 @@ public final class ValidateResidentModeChoiceIteration0Output {
 
     private static String modeCsv(PlanAudit plans) {
         StringBuilder csv = new StringBuilder(
-                "runtime_cohort,input_main_mode,output_main_mode,trip_count,changed,status\n");
-        plans.comparisons().forEach((key, count) -> csv.append(key.cohort()).append(',')
-                .append(key.from()).append(',').append(key.to()).append(',').append(count)
-                .append(',').append(!key.from().equals(key.to())).append(',')
-                .append(key.from().equals(key.to()) ? "PASS" : "FAIL").append('\n'));
+                "runtime_cohort,spatial_category,input_main_mode,"
+                        + "output_physical_main_mode,output_choice_mode,diagnostic_status,"
+                        + "trip_count,validation_status\n");
+        plans.diagnostics().transitions().forEach((key, count) -> csv
+                .append(key.cohort()).append(',').append(key.spatial()).append(',')
+                .append(key.input()).append(',').append(key.physical()).append(',')
+                .append(key.choice()).append(',').append(key.status()).append(',')
+                .append(count).append(',')
+                .append(key.input().equals(key.physical()) ? "PASS"
+                        : isAcceptedPtToWalkTransformation(new
+                        DiagnoseResidentModeChoiceIteration0MainModes.MatrixKey(
+                        key.input(), key.physical(), key.choice(), key.status()))
+                        ? "PASS_ACCEPTED_ROUTER_TRANSFORMATION" : "FAIL")
+                .append('\n'));
         return csv.toString();
+    }
+
+    private static Map<SimpleTransition, Long> aggregateTransitions(
+            PlanAudit plans, boolean physical) {
+        TreeMap<SimpleTransition, Long> result = new TreeMap<>();
+        plans.diagnostics().matrix().forEach((key, count) -> result.merge(
+                new SimpleTransition(key.input(), physical ? key.physical() : key.choice()),
+                count, Long::sum));
+        return result;
     }
 
     private static String hashCsv(Map<Path, HashAudit> hashes) {
@@ -464,26 +573,50 @@ public final class ValidateResidentModeChoiceIteration0Output {
                  boolean analysisComplete, boolean backgroundExcluded, long totalEvents,
                  long carDepartures, long carVehicles, long ptDepartures,
                  long transitDrivers, long ptBoardings, long stuckEvents,
-                 long uniqueStuckPersons, long modeChanges) { }
+                 long uniqueStuckPersons, long physicalMainModeDifferences,
+                 long trueChoiceModeChanges, long missingRoutingModes,
+                 long inconsistentRoutingModes, long changedTripStructures,
+                 long acceptedPtToWalkTransformations) { }
+    record ModeEvidence(long physicalMainModeDifferences, long trueChoiceModeChanges,
+                        long missingRoutingModes, long inconsistentRoutingModes,
+                        long changedTripStructures,
+                        long acceptedPtToWalkTransformations) { }
     record ValidationResult(boolean reviewRequired, Facts facts) { }
     record RequiredFiles(Path output, Path events, Path iterationPlans, Path finalPlans,
                          Path outputConfig, Path outputNetwork, Path outputSchedule,
                          Path outputVehicles, Path log, Path iterationAnalysis) { }
-    private record InputPerson(String cohort, List<String> modes) { }
-    private record ModeKey(String cohort, String from, String to)
-            implements Comparable<ModeKey> {
-        @Override public int compareTo(ModeKey other) {
-            int value = cohort.compareTo(other.cohort);
-            if (value == 0) value = from.compareTo(other.from);
+    private record PlanAudit(
+            DiagnoseResidentModeChoiceIteration0MainModes.DiagnosticResult diagnostics,
+            Map<MunichTripBoundaryFilter.SpatialCategory, Long> spatial) {
+        long persons() { return diagnostics.persons(); }
+        Map<String, Long> cohorts() { return diagnostics.personCohorts(); }
+        long residentTrips() { return diagnostics.residentTrips(); }
+        Map<String, String> cohortByPerson() { return diagnostics.cohortByPerson(); }
+        Map<String, Long> residentPhysicalModes() {
+            return residentModes(true);
+        }
+        Map<String, Long> residentChoiceModes() {
+            return residentModes(false);
+        }
+        private Map<String, Long> residentModes(boolean physical) {
+            TreeMap<String, Long> result = new TreeMap<>();
+            diagnostics.transitions().forEach((key, count) -> {
+                if (ResidentCalibrationSubpopulations.MUNICH_RESIDENT.equals(key.cohort())) {
+                    result.merge(physical ? key.physical() : key.choice(), count, Long::sum);
+                }
+            });
+            return Map.copyOf(result);
+        }
+    }
+    record AnalysisAudit(boolean complete, boolean backgroundExcluded) { }
+    private record CsvKey(String metric, String dimension) { }
+    private record SimpleTransition(String from, String to)
+            implements Comparable<SimpleTransition> {
+        @Override public int compareTo(SimpleTransition other) {
+            int value = from.compareTo(other.from);
             return value == 0 ? to.compareTo(other.to) : value;
         }
     }
-    private record PlanAudit(long persons, Map<String, Long> cohorts, long residentTrips,
-                             Map<MunichTripBoundaryFilter.SpatialCategory, Long> spatial,
-                             long modeChanges, Map<ModeKey, Long> comparisons,
-                             Map<String, String> cohortByPerson) { }
-    private record AnalysisAudit(boolean complete, boolean backgroundExcluded) { }
-    private record CsvKey(String metric, String dimension) { }
     private record HashAudit(String before, String after, String status) { }
     private record StuckRecord(String person, String cohort, String mainMode, int hour) { }
     private record StuckKey(String cohort, String mainMode, int hour)

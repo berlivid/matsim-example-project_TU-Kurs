@@ -122,6 +122,45 @@ class ResidentModeChoiceCalibrationAnalysisTest {
                 .contains("complete selected scenario-plan snapshot"));
     }
 
+    @Test
+    void physicalAndChoiceModalSplitsRemainSeparateAndTargetsUsePhysicalOnly(
+            @TempDir Path temp) throws Exception {
+        Person resident = factory.createPerson(Id.createPersonId("resident-choice"));
+        Plan routedPtRequest = oneTrip("walk", activity("home", inside),
+                activity("work", outside), 1_000);
+        ((Leg) routedPtRequest.getPlanElements().get(1)).setRoutingMode("pt");
+        resident.addPlan(routedPtRequest);
+        resident.setSelectedPlan(routedPtRequest);
+        scenario.getPopulation().addPerson(resident);
+        PopulationUtils.putSubpopulation(resident,
+                ResidentCalibrationSubpopulations.MUNICH_RESIDENT);
+
+        var result = new ModeChoiceCalibrationAnalysis(scenario, boundary)
+                .analyze(0, ResidentModeChoiceCalibrationIterationListener
+                        .selectedResidentPlanSnapshot(scenario));
+        var primary = metrics(result, ModeChoiceCalibrationAnalysis.SpatialScope.ALL_TRIPS);
+        assertEquals(1, primary.mainTripsByMode().get("walk"));
+        assertEquals(1, primary.choiceMainTripsByMode().get("pt"));
+        assertEquals(100.0, primary.modalSharePercent("walk"), 1e-12);
+        assertEquals(100.0, primary.choiceModalSharePercent("pt"), 1e-12);
+        assertEquals(1, primary.ptRequestsWithWalkOnlyPhysicalRoute());
+        assertEquals(1, primary.physicalChoiceTransitions().get(
+                new ModeChoiceCalibrationAnalysis.PhysicalChoiceTransition("walk", "pt")));
+
+        ResidentModeChoiceCalibrationAnalysisWriter writer =
+                new ResidentModeChoiceCalibrationAnalysisWriter(temp);
+        writer.write(List.of(result), true);
+        String csv = Files.readString(temp.resolve(
+                "analysis/resident_mode_choice_iteration_metrics.csv"));
+        assertTrue(csv.contains(
+                "resident_physical_trip_share,walk,100.000000000,percent,24.000000000,76.000000000"));
+        assertTrue(csv.contains(
+                "resident_choice_trip_share,pt,100.000000000,percent,,"));
+        assertTrue(csv.contains(
+                "resident_physical_choice_transition,walk->pt,1.000000000,trips,,"));
+        assertFalse(csv.contains("resident_choice_trip_share,pt,100.000000000,percent,24"));
+    }
+
     private Plan oneTrip(String mode, Activity origin, Activity destination,
                          double distance) {
         Plan plan = factory.createPlan();

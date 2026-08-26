@@ -565,3 +565,24 @@ Scenario outputs are excluded from Git.
 - Local preparation compiled offline and ran only focused synthetic tests and
   Run 10. Runs 11, 11B and 11C were not invoked locally; no controller, QSim or
   scenario output was created.
+
+## 26 August 2026 -- Run-11C evidence incorporated
+
+- The completed Run-11C reports matched 324,043 persons and 540,468 main trips,
+  including all 137,540 resident trips. They found 8,764 physical main-mode
+  differences overall and 1,376 among Munich residents.
+- Every difference is input PT to realized physical walk while the official
+  MATSim routing mode remains PT (`PHYSICAL_CHANGED_CHOICE_PRESERVED`). There
+  are zero true choice changes, missing routing modes, inconsistent routing
+  modes and changed main-trip structures.
+- Run 11B now reuses the tested Run-11C classifier. It accepts only this exact
+  PT/walk/PT router transformation, reports observed counts and fails closed on
+  every other transition. Stuck-event acceptance remains unchanged.
+- Productive Run-12 analysis continues to compare realized physical resident
+  trip shares and physical Pkm shares with the Schröder targets. Choice shares,
+  physical-versus-choice transitions and walk-only PT requests are additional
+  diagnostics without empirical target comparison.
+- Local work used offline compilation, focused tests and read-only Run 10 only.
+  Runs 11, 11B and 11C were not invoked; the existing server output and Run-11C
+  reports were not rewritten. Run 12 remains blocked pending corrected Run-11B
+  acceptance and review of any nonzero stuck events.

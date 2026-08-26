@@ -74,9 +74,13 @@ public final class ResidentModeChoiceCalibrationAnalysisWriter {
                     primary.validPersons(), "persons", null, null);
             row(out, result.iteration(), "resident_main_trips", "all",
                     primary.mainTrips(), "trips", null, null);
+            row(out, result.iteration(), "resident_physical_main_trips", "all",
+                    primary.mainTrips(), "trips", null, null);
             for (String mode : ResidentModeChoiceCalibrationTargets.MODES) {
                 long trips = primary.mainTripsByMode().getOrDefault(mode, 0L);
+                long choiceTrips = primary.choiceMainTripsByMode().getOrDefault(mode, 0L);
                 double tripShare = primary.modalSharePercent(mode);
+                double choiceShare = primary.choiceModalSharePercent(mode);
                 double rawPkm = primary.mainModePkm(mode);
                 double pkmShare = pkmShare(primary, mode);
                 double tripTarget = ResidentModeChoiceCalibrationTargets
@@ -87,6 +91,14 @@ public final class ResidentModeChoiceCalibrationAnalysisWriter {
                         trips, "trips", null, null);
                 row(out, result.iteration(), "resident_trip_share", mode,
                         tripShare, "percent", tripTarget, tripShare - tripTarget);
+                row(out, result.iteration(), "resident_physical_main_trips", mode,
+                        trips, "trips", null, null);
+                row(out, result.iteration(), "resident_physical_trip_share", mode,
+                        tripShare, "percent", tripTarget, tripShare - tripTarget);
+                row(out, result.iteration(), "resident_choice_main_trips", mode,
+                        choiceTrips, "trips", null, null);
+                row(out, result.iteration(), "resident_choice_trip_share", mode,
+                        choiceShare, "percent", null, null);
                 row(out, result.iteration(), "raw_simulated_daily_sample_pkm", mode,
                         rawPkm, "person_km_per_simulated_day", null, null);
                 row(out, result.iteration(),
@@ -96,6 +108,15 @@ public final class ResidentModeChoiceCalibrationAnalysisWriter {
                 row(out, result.iteration(), "resident_pkm_share", mode,
                         pkmShare, "percent", pkmTarget, pkmShare - pkmTarget);
             }
+            for (var transition : primary.physicalChoiceTransitions().entrySet()) {
+                row(out, result.iteration(), "resident_physical_choice_transition",
+                        transition.getKey().physicalMode() + "->"
+                                + transition.getKey().choiceMode(),
+                        transition.getValue(), "trips", null, null);
+            }
+            row(out, result.iteration(), "resident_pt_request_walk_only_physical_route",
+                    "physical_walk_choice_pt",
+                    primary.ptRequestsWithWalkOnlyPhysicalRoute(), "trips", null, null);
             for (SpatialScope scope : SPATIAL_CATEGORIES) {
                 long trips = metrics(result, scope).mainTrips();
                 row(out, result.iteration(), "resident_spatial_main_trips", scope.name(),
@@ -172,8 +193,9 @@ public final class ResidentModeChoiceCalibrationAnalysisWriter {
         StringBuilder out = new StringBuilder("# Resident mode-choice calibration analysis\n\n")
                 .append("Iteration ").append(result.iteration())
                 .append(" uses the complete selected scenario-plan snapshot at `AfterMobsim`, before the next replanning step. It does not use `ExperiencedPlansService`. Only persons labelled `munich_resident` enter the target metrics; regional and unresolved background persons are explicitly excluded.\n\n")
-                .append("## Primary trip-share and secondary Pkm-share metrics\n\n")
-                .append("| Mode | Resident trips | Trip share | Trip target | Difference | Raw daily 5% Pkm | Annualised diagnostic | Pkm share | Pkm target | Difference |\n")
+                .append("## Primary physical trip-share and secondary physical Pkm-share metrics\n\n")
+                .append("The empirical targets are compared only with realized physical main modes. Choice/routing modes are reported separately below and are not target metrics.\n\n")
+                .append("| Mode | Physical resident trips | Physical trip share | Trip target | Difference | Raw daily 5% physical Pkm | Annualised diagnostic | Physical Pkm share | Pkm target | Difference |\n")
                 .append("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|\n");
         for (String mode : ResidentModeChoiceCalibrationTargets.MODES) {
             double tripShare = primary.modalSharePercent(mode);
@@ -191,7 +213,27 @@ public final class ResidentModeChoiceCalibrationAnalysisWriter {
                     .append(number(pkmTarget)).append("% | ")
                     .append(number(pkmShare - pkmTarget)).append(" pp |\n");
         }
-        out.append("\nTrip shares are the primary calibration targets. Exact normalized passenger-kilometre shares are secondary plausibility targets. Constants are never adjusted automatically. Raw Pkm are route-distance passenger-kilometres in the simulated 5% sample day. The annualised diagnostic multiplies by 20 and 365 and divides by one million; comparison with Schröder's absolute totals is limited because the model population universe is not the full observed population total.\n\n")
+        out.append("\nPhysical trip shares are the primary calibration targets. Exact normalized physical passenger-kilometre shares are secondary plausibility targets. Constants are never adjusted automatically. Raw Pkm are route-distance passenger-kilometres in the simulated 5% sample day. The annualised diagnostic multiplies by 20 and 365 and divides by one million; comparison with Schröder's absolute totals is limited because the model population universe is not the full observed population total.\n\n")
+                .append("## Choice/routing-mode diagnostics\n\n")
+                .append("| Choice mode | Resident trips | Share |\n")
+                .append("|---|---:|---:|\n");
+        for (String mode : ResidentModeChoiceCalibrationTargets.MODES) {
+            out.append("| ").append(mode).append(" | ")
+                    .append(primary.choiceMainTripsByMode().getOrDefault(mode, 0L))
+                    .append(" | ").append(number(primary.choiceModalSharePercent(mode)))
+                    .append("% |\n");
+        }
+        out.append("\nPhysical-versus-choice transitions:\n\n")
+                .append("| Physical mode | Choice mode | Resident trips |\n")
+                .append("|---|---|---:|\n");
+        for (var transition : primary.physicalChoiceTransitions().entrySet()) {
+            out.append("| ").append(transition.getKey().physicalMode()).append(" | ")
+                    .append(transition.getKey().choiceMode()).append(" | ")
+                    .append(transition.getValue()).append(" |\n");
+        }
+        out.append("\nPT routing requests with a walk-only realized physical route: ")
+                .append(primary.ptRequestsWithWalkOnlyPhysicalRoute())
+                .append(". This is a routing outcome, not by itself an endogenous mode-choice change. Choice-mode shares are diagnostic and are not compared with the empirical targets.\n\n")
                 .append("## Secondary territorial breakdown\n\n")
                 .append("| Category | Resident trips |\n|---|---:|\n");
         long spatialSum = 0;

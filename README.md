@@ -47,9 +47,11 @@ Future shared IntelliJ run configurations should use stable number groups:
 productive configurations are not broadly renamed. Resident calibration uses
 10 for read-only config validation, 11 for the protected server-side
 iteration-zero validation, 11B for read-only revalidation of an existing
-Run-11 output, 12 for the later productive run and 13 for standalone output
-analysis. Run 11 changes only run ID, output directory and last iteration in
-memory; Run 11B never starts a controller or QSim.
+Run-11 output, 11C for physical-versus-routing-mode diagnosis, 12 for the later
+productive run and 13 for standalone output analysis. Run 11 changes only run
+ID, output directory and last iteration in memory; runs 11B and 11C never start
+a controller or QSim. Run 12 remains blocked pending review of the Run-11C
+diagnostic.
 
 ## Current status
 

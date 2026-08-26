@@ -22,9 +22,10 @@ be interpreted as the historical reference year.
 The GTFS subset, MATSim transit inputs, reference checks, temporal checks and
 representative SwissRailRaptor connections are structurally validated. The
 resident Run-11 Controller/QSim execution completed with normal shutdown on the
-Uni server; final technical acceptance remains conditional on read-only Run-11B
-output validation. No mode-choice strategy is active in the separate GTFS
-input-validation configuration.
+Uni server. Run 11B accepts its config and technical artifacts but stops on
+8,764 apparent physical main-mode differences. Read-only Run 11C diagnoses
+those cases before any mode-definition decision. No mode-choice strategy is
+active in the separate GTFS input-validation configuration.
 
 ## Required server input
 
@@ -187,9 +188,12 @@ Use the new run configurations in this order:
 3. **11B Validate Existing 2019 Resident Mode Choice Iteration-0 Output**
    performs only the same read-only output validation against the fixed,
    already existing Run-11 directory. It starts no controller or QSim.
-4. **12 Run Initial 2019 Resident Mode Choice Calibration** is the only new
+4. **11C Diagnose Existing 2019 Resident Iteration-0 Main Modes** compares
+   physical output leg modes with official MATSim routing/choice modes in the
+   preserved output. It starts no controller or QSim and changes no plan.
+5. **12 Run Initial 2019 Resident Mode Choice Calibration** is the only new
    entry point that starts the controller. Do not invoke it before Step 4.
-5. **13 Analyze Initial 2019 Resident Mode Choice Output** starts no QSim and
+6. **13 Analyze Initial 2019 Resident Mode Choice Output** starts no QSim and
    is used only after a completed protected run.
 
 The productive protected output is `output/resident-mode-choice-initial`; the
@@ -228,6 +232,15 @@ strictly compares all values, including the runtime SwissRailRaptor defaults;
 missing, duplicate, unsupported or unexpected sets fail with detailed keys.
 Only after that validation passes are the five intended `analysis/` reports
 written.
+
+Run 11B now reaches the stage-aware input/output mode comparison and reports
+8,764 differences under the current physical-leg definition. Preserve the
+output and do not repeat Run 11. After pulling the Run-11C change, run **10**
+and then **11C** with no arguments and `-Xms2g -Xmx8g`. It creates four new
+diagnostic reports under the existing `analysis/` directory and refuses to
+overwrite them. A physical walk result with `routingMode=pt` is kept distinct
+from a genuine choice-mode change. No current difference is accepted as
+harmless until these reports are reviewed, and Run 12 remains blocked.
 
 Iteration zero tests execution, routing, transit, runtime cohorts and analysis;
 it is not evidence of calibration or convergence. Main modes must match the

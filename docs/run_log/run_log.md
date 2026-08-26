@@ -547,3 +547,21 @@ Scenario outputs are excluded from Git.
   repeating Controller/QSim. Local work used only offline compilation, focused
   tests, the copied output config for diagnosis and the read-only Run-10
   validator; no simulation or protected output directory was created.
+
+## 26 August 2026 -- iteration-zero main-mode diagnostic prepared
+
+- Server Run 11B accepted the corrected semantic output-config comparison,
+  normal shutdown, readable plans and events, then stopped fail-closed on 8,764
+  apparent input-to-output main-mode differences. The preserved simulation is
+  not to be repeated.
+- Added read-only Run 11C. It matches every input and output main trip by person
+  and ordered main-trip index, keeps physical `DefaultAnalysisMainModeIdentifier`
+  results separate from official MATSim leg `routingMode` values, and reports
+  missing, inconsistent, structural and genuine choice-mode cases explicitly.
+- The diagnostic writes only four new reports under the existing Run-11
+  `analysis/` directory and refuses to overwrite them. The current validator,
+  calibration analyzer, mode targets, constants and strategies remain
+  unchanged pending review.
+- Local preparation compiled offline and ran only focused synthetic tests and
+  Run 10. Runs 11, 11B and 11C were not invoked locally; no controller, QSim or
+  scenario output was created.

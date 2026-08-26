@@ -8,8 +8,10 @@ locally compiled and structurally validated. Step 4 did not start a controller,
 MATSim mobility simulation or QSim; the iteration-zero execution was reserved
 for a deliberate manual server run before iterations 0--20 are authorized.
 That Run-11 server execution has since completed Controller/QSim and normal
-shutdown. Its retained output still requires Run 11B because the original
-automatic post-validator stopped afterward on the output-config comparison.
+shutdown. Corrected Run 11B now accepts its output config and confirms normal
+shutdown, readable events and plans, but stops fail-closed on 8,764 apparent
+input-to-output physical main-mode differences. Run 11C diagnoses those cases;
+Run 12 remains blocked.
 
 The calibration estimates a common behavioral baseline for later BAU and Fast
 Track comparisons. It does not filter the regional demand and does not modify
@@ -138,6 +140,30 @@ MATSim's stage-activity handling. PT interaction and access/egress legs therefor
 cannot be mistaken for a main-mode change. Iteration 0 is expected to preserve
 all input main modes; any unexplained change fails validation.
 
+### Preserved-output main-mode diagnostic
+
+Run 11C reads only the authoritative input population, the preserved Run-11
+final plans and the unchanged municipal boundary. It neither starts nor alters
+MATSim and creates only four new diagnostic files in the existing `analysis/`
+directory. It fails before writing if persons, per-person main-trip counts,
+runtime cohorts or the 137,540 resident trips cannot be matched exactly.
+
+The diagnostic deliberately keeps two mode concepts separate. The physical or
+analysis main mode is obtained from the actual output leg modes with MATSim's
+`DefaultAnalysisMainModeIdentifier`; this is also the definition currently used
+by the calibration analyzer and iteration-zero validator. The choice mode is
+obtained independently from each leg's official MATSim `routingMode`. Thus an
+input PT trip routed as walk-only legs with `routingMode=pt` is reported as
+`PHYSICAL_CHANGED_CHOICE_PRESERVED`, while a PT trip with `routingMode=walk`
+remains a visible `CHOICE_MODE_CHANGED`. Missing, inconsistent and structurally
+changed cases receive separate fail-closed diagnostic statuses.
+
+Run 11C writes transition and routing summaries, deterministic examples capped
+at 200 per transition/status, and an English interpretation report. These
+outputs are evidence for a later decision, not approval to redefine a mode.
+The existing validator, targets, strategies and productive analyzer remain
+unchanged until the report is reviewed.
+
 Stuck events are descriptive rather than assigned an arbitrary threshold. They
 are counted by runtime cohort, current routing main mode and hour, including
 unique-person and population shares. Zero events yields `PASS`; a consistent
@@ -241,10 +267,13 @@ The shared IntelliJ configurations are:
    read-only recovery validator for an already completed Run-11 directory. It
    starts no controller or QSim and writes the five analysis reports only after
    all validation checks pass.
-4. `12 Run Initial 2019 Resident Mode Choice Calibration` -- the only entry
+4. `11C Diagnose Existing 2019 Resident Iteration-0 Main Modes` -- read-only
+   diagnosis of physical leg modes versus routing/choice modes in the preserved
+   output; starts no controller or QSim.
+5. `12 Run Initial 2019 Resident Mode Choice Calibration` -- the only entry
    point that will start the iterations 0--20 controller; do not run before
    Step 4 approval.
-5. `13 Analyze Initial 2019 Resident Mode Choice Output` -- read-only
+6. `13 Analyze Initial 2019 Resident Mode Choice Output` -- read-only
    standalone selected-plan analysis after a completed protected run.
 
 For a new iteration-zero execution, update the repository, run 10, then run 11
@@ -255,7 +284,12 @@ directory, performs no simulation, and writes the five `analysis/` products
 only after the complete validation passes. Read its final console status and
 all reports. A review-required result must be examined and documented before
 Run 12; a failure blocks Run 12. Never delete or overwrite the existing output
-merely to repeat QSim.
+merely to repeat QSim. Because Run 11B now stops on 8,764 apparent physical
+main-mode differences, pull the Run-11C diagnostic change, run 10, and then run
+11C with `-Xms2g -Xmx8g`. Do not rerun Run 11, and do not interpret Run 11C as
+acceptance of those differences. Review all four diagnostic products before
+any validator or mode-definition correction is considered. Run 12 remains
+blocked.
 
 Local Step-4 preparation created neither protected output directory and ran no
 simulation.

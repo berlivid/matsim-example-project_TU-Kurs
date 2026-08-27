@@ -174,6 +174,22 @@ to remain <= 1.0%. Stability alone is not target agreement. Normalized Pkm
 shares, choice modes and stuck sensitivity remain diagnostics rather than
 automatic parameter-update rules.
 
+Productive resident Round 3 uses the Round-2 physical late means from
+iterations 51--60, rather than iteration 10 or another transient single
+iteration. Its cumulative update is
+`C3_m = C2_m + 0.5 * ln[(target_m / target_car) / (late_mean_m / late_mean_car)]`.
+The resulting constants are car 0.000000000, PT 0.724680779, bike 0.267435138
+and walk 2.803360913. The complete calculation and provenance are versioned in
+`docs/calibration/resident_mode_choice_calibration_round_3.csv`.
+
+Round 3 repeats the Round-2 0--60 design, innovation switch after iteration 48
+and late window 51--60. This controls the iteration design when comparing the
+two parameter vectors. Calibration is still judged from stable late physical
+resident trip shares, not from a momentary target crossing. A controlled walk
+sensitivity run was considered but omitted because of the available thesis
+timeframe. This does not resolve or validate the weak realized walk response;
+it remains a limitation requiring cautious interpretation of Round 3.
+
 The legacy target CSV at
 `original-input-data/calibration/mode_choice_targets_2019.csv` preserves the
 preliminary `BOTH_INSIDE` workflow. The productive resident pipeline validates

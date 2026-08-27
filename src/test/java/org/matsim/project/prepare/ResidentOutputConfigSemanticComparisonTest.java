@@ -130,7 +130,7 @@ class ResidentOutputConfigSemanticComparisonTest {
     private static Config expected() throws Exception {
         return RunMatsim2019ResidentModeChoiceIteration0Validation
                 .applyApprovedOverrides(ValidateResidentModeChoiceCalibrationConfig
-                        .loadAndValidateStructure(true));
+                        .loadAndValidateStructure(false));
     }
 
     private static Config actualOutput() throws Exception {

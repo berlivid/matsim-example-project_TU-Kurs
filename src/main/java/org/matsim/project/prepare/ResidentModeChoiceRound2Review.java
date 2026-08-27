@@ -6,11 +6,13 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
-/** Fail-closed convergence, target-fit and stuck-trip review for productive Round 2. */
+/** Shared fail-closed convergence, target-fit and stuck-trip review for rounds 2 and 3. */
 final class ResidentModeChoiceRound2Review {
     static final int FIRST_LATE_ITERATION = 51;
     static final int LAST_LATE_ITERATION = 60;
@@ -18,7 +20,19 @@ final class ResidentModeChoiceRound2Review {
     private ResidentModeChoiceRound2Review() { }
 
     static Result validateAndWrite(Path output) throws IOException {
+        return validateAndWrite(output, 2);
+    }
+
+    static Result validateAndWriteRound3(Path output, Path round2Analysis)
+            throws IOException {
+        Result result = validateAndWrite(output, 3);
+        writeRound2Comparison(output.resolve("analysis"), round2Analysis, result);
+        return result;
+    }
+
+    private static Result validateAndWrite(Path output, int round) throws IOException {
         Path analysis = output.resolve("analysis");
+        validateIterationHistory(analysis);
         Csv late = Csv.read(analysis.resolve(
                 "resident_mode_choice_late_iteration_statistics.csv"));
         Csv stuck = Csv.read(analysis.resolve(
@@ -55,11 +69,11 @@ final class ResidentModeChoiceRound2Review {
             require(Math.abs(review.tripTarget()
                             - ResidentModeChoiceCalibrationTargets
                             .TRIP_SHARE_PERCENT.get(mode)) < 1e-9,
-                    "Round-2 trip target changed for " + mode);
+                    "Resident calibration trip target changed for " + mode);
             require(Math.abs(review.pkmTarget()
                             - ResidentModeChoiceCalibrationTargets
                             .NORMALIZED_PKM_SHARE_PERCENT.get(mode)) < 1e-9,
-                    "Round-2 Pkm target changed for " + mode);
+                    "Resident calibration Pkm target changed for " + mode);
             allConverged &= "CONVERGED".equals(convergenceStatus);
             allWithinTarget &= "WITHIN_TARGET_TOLERANCE".equals(targetFitStatus);
             modes.put(mode, review);
@@ -73,7 +87,7 @@ final class ResidentModeChoiceRound2Review {
                             && iteration <= LAST_LATE_ITERATION;
                 }).toList();
         require(lateStuck.size() == 10,
-                "Round-2 stuck history must contain exactly iterations 51..60");
+                "Resident calibration stuck history must contain exactly iterations 51..60");
         double maximumStuckTripShare = lateStuck.stream()
                 .mapToDouble(row -> number(row, "resident_main_trip_share_percent"))
                 .max().orElseThrow();
@@ -85,11 +99,13 @@ final class ResidentModeChoiceRound2Review {
                 stuckWithinThreshold ? "WITHIN_STUCK_THRESHOLD"
                         : "OUTSIDE_STUCK_THRESHOLD", overall);
         Files.writeString(analysis.resolve(
-                        "resident_mode_choice_round_2_calibration_review.csv"),
+                        "resident_mode_choice_round_" + round
+                                + "_calibration_review.csv"),
                 csv(result), StandardCharsets.UTF_8);
         Files.writeString(analysis.resolve(
-                        "resident_mode_choice_round_2_calibration_report.md"),
-                report(result), StandardCharsets.UTF_8);
+                        "resident_mode_choice_round_" + round
+                                + "_calibration_report.md"),
+                report(result, round), StandardCharsets.UTF_8);
         return result;
     }
 
@@ -117,9 +133,9 @@ final class ResidentModeChoiceRound2Review {
         return out.toString();
     }
 
-    private static String report(Result result) {
+    private static String report(Result result, int round) {
         StringBuilder out = new StringBuilder(
-                "# Resident mode-choice calibration Round 2 review\n\n")
+                "# Resident mode-choice calibration Round " + round + " review\n\n")
                 .append("Late evaluation uses exactly iterations 51--60. Physical trip shares are the primary calibration metric. Normalized physical Pkm shares remain secondary plausibility indicators; choice/routing modes and StuckEvent sensitivity are reported by the shared analysis outputs.\n\n")
                 .append("| Mode | Late mean trip share | Final trip share | Target | Final difference | Range | Trend/iteration | Convergence | Target fit | Late mean Pkm share | Final Pkm share | Pkm target |\n")
                 .append("|---|---:|---:|---:|---:|---:|---:|---|---|---:|---:|---:|\n");
@@ -146,6 +162,115 @@ final class ResidentModeChoiceRound2Review {
         return out.toString();
     }
 
+    private static void validateIterationHistory(Path analysis) throws IOException {
+        Csv history = Csv.read(analysis.resolve(
+                "resident_mode_choice_iteration_metrics.csv"));
+        Map<Integer, Set<String>> keysByIteration = new LinkedHashMap<>();
+        for (Map<String, String> row : history.rows()) {
+            int iteration = Integer.parseInt(row.get("iteration"));
+            String key = row.get("metric") + "/" + row.get("dimension");
+            require(keysByIteration.computeIfAbsent(iteration,
+                            ignored -> new LinkedHashSet<>()).add(key),
+                    "Duplicate resident round history row at iteration "
+                            + iteration + ": " + key);
+        }
+        require(keysByIteration.size() == 61
+                        && keysByIteration.keySet().stream().mapToInt(Integer::intValue)
+                        .min().orElseThrow() == 0
+                        && keysByIteration.keySet().stream().mapToInt(Integer::intValue)
+                        .max().orElseThrow() == 60,
+                "Resident round history must contain exactly iterations 0..60");
+        for (int iteration = 0; iteration <= 60; iteration++) {
+            Set<String> keys = keysByIteration.get(iteration);
+            require(keys != null, "Missing resident history iteration " + iteration);
+            require(keys.contains("resident_persons/all")
+                            && keys.contains("resident_main_trips/all")
+                            && keys.contains("resident_physical_main_trips/all")
+                            && keys.contains("resident_pt_request_walk_only_physical_route/"
+                            + "physical_walk_choice_pt")
+                            && keys.contains("background_persons_excluded_from_targets/"
+                            + "regional_background")
+                            && keys.contains("background_persons_excluded_from_targets/"
+                            + "unresolved_background"),
+                    "Resident round history is missing required shared metrics at "
+                            + "iteration " + iteration);
+            for (String mode : ResidentModeChoiceCalibrationTargets.MODES) {
+                for (String metric : List.of("resident_main_trips",
+                        "resident_trip_share", "resident_physical_main_trips",
+                        "resident_physical_trip_share", "resident_choice_main_trips",
+                        "resident_choice_trip_share", "raw_simulated_daily_sample_pkm",
+                        "five_percent_annualised_pkm_diagnostic",
+                        "resident_pkm_share")) {
+                    require(keys.contains(metric + "/" + mode),
+                            "Resident round history is missing " + metric + "/"
+                                    + mode + " at iteration " + iteration);
+                }
+            }
+            for (String spatial : List.of("BOTH_INSIDE", "ORIGIN_ONLY",
+                    "DESTINATION_ONLY", "BOTH_OUTSIDE",
+                    "INVALID_OR_MISSING_COORDINATE")) {
+                require(keys.contains("resident_spatial_main_trips/" + spatial)
+                                && keys.contains("resident_spatial_trip_share/" + spatial),
+                        "Resident round history is missing spatial category "
+                                + spatial + " at iteration " + iteration);
+            }
+        }
+    }
+
+    private static void writeRound2Comparison(Path analysis, Path round2Analysis,
+                                              Result round3) throws IOException {
+        Csv round2 = Csv.read(round2Analysis.resolve(
+                "resident_mode_choice_round_2_calibration_review.csv"));
+        StringBuilder csv = new StringBuilder(
+                "mode,round_2_constant,round_3_constant,round_2_late_mean_trip_share_percent,round_3_late_mean_trip_share_percent,late_mean_difference_pp,round_2_final_trip_share_percent,round_3_final_trip_share_percent,final_difference_pp,round_2_convergence_status,round_3_convergence_status,round_2_target_fit_status,round_3_target_fit_status\n");
+        StringBuilder report = new StringBuilder(
+                "# Resident mode-choice calibration Round 2 versus Round 3\n\n")
+                .append("Both runs use iterations 0--60, the unchanged original population, seed 4711 and innovation switch-off after iteration 48. Their only behavioral differences are the three non-reference mode constants. Physical resident trip shares are compared over the common late window 51--60.\n\n")
+                .append("| Mode | R2 constant | R3 constant | R2 late mean | R3 late mean | Difference | R2 final | R3 final | Difference | R2 convergence | R3 convergence | R2 target fit | R3 target fit |\n")
+                .append("|---|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|---|\n");
+        for (String mode : ResidentModeChoiceCalibrationTargets.MODES) {
+            Map<String, String> old = uniqueMode(round2, mode);
+            ModeReview current = round3.modes().get(mode);
+            double oldLate = number(old, "late_mean_trip_share_percent");
+            double oldFinal = number(old, "final_trip_share_percent");
+            double oldConstant = ResidentModeChoiceRound3Specification
+                    .ROUND_2_CONSTANTS.get(mode);
+            double newConstant = ResidentModeChoiceRound3Specification
+                    .ROUND_3_CONSTANTS.get(mode);
+            csv.append(mode).append(',').append(number(oldConstant)).append(',')
+                    .append(number(newConstant)).append(',').append(number(oldLate))
+                    .append(',').append(number(current.lateMeanTripShare())).append(',')
+                    .append(number(current.lateMeanTripShare() - oldLate)).append(',')
+                    .append(number(oldFinal)).append(',')
+                    .append(number(current.finalTripShare())).append(',')
+                    .append(number(current.finalTripShare() - oldFinal)).append(',')
+                    .append(old.get("convergence_status")).append(',')
+                    .append(current.convergenceStatus()).append(',')
+                    .append(old.get("target_fit_status")).append(',')
+                    .append(current.targetFitStatus()).append('\n');
+            report.append("| ").append(mode).append(" | ")
+                    .append(number(oldConstant)).append(" | ")
+                    .append(number(newConstant)).append(" | ")
+                    .append(number(oldLate)).append("% | ")
+                    .append(number(current.lateMeanTripShare())).append("% | ")
+                    .append(number(current.lateMeanTripShare() - oldLate)).append(" pp | ")
+                    .append(number(oldFinal)).append("% | ")
+                    .append(number(current.finalTripShare())).append("% | ")
+                    .append(number(current.finalTripShare() - oldFinal)).append(" pp | ")
+                    .append(old.get("convergence_status")).append(" | ")
+                    .append(current.convergenceStatus()).append(" | ")
+                    .append(old.get("target_fit_status")).append(" | ")
+                    .append(current.targetFitStatus()).append(" |\n");
+        }
+        report.append("\nRound 3 is not declared calibrated because a single iteration is close to a target. The shared convergence, target-fit and stuck-trip criteria apply to the complete late window.\n");
+        Files.writeString(analysis.resolve(
+                        "resident_mode_choice_round_2_vs_round_3.csv"),
+                csv, StandardCharsets.UTF_8);
+        Files.writeString(analysis.resolve(
+                        "resident_mode_choice_round_2_vs_round_3.md"),
+                report, StandardCharsets.UTF_8);
+    }
+
     private static void validateLateIdentity(Map<String, String> row) {
         require(Integer.parseInt(row.get("first_iteration")) == FIRST_LATE_ITERATION
                         && Integer.parseInt(row.get("last_iteration"))
@@ -160,6 +285,15 @@ final class ResidentModeChoiceRound2Review {
                         && mode.equals(row.get("mode"))).toList();
         require(matches.size() == 1,
                 "Expected one late-statistics row for " + metric + "/" + mode
+                        + ", found " + matches.size());
+        return matches.getFirst();
+    }
+
+    private static Map<String, String> uniqueMode(Csv csv, String mode) {
+        List<Map<String, String>> matches = csv.rows().stream()
+                .filter(row -> mode.equals(row.get("mode"))).toList();
+        require(matches.size() == 1,
+                "Expected one Round-2 comparison row for " + mode
                         + ", found " + matches.size());
         return matches.getFirst();
     }
@@ -191,16 +325,16 @@ final class ResidentModeChoiceRound2Review {
 
     private record Csv(List<Map<String, String>> rows) {
         static Csv read(Path path) throws IOException {
-            require(Files.isRegularFile(path), "Missing Round-2 analysis file: " + path);
+            require(Files.isRegularFile(path), "Missing calibration analysis file: " + path);
             List<String> lines = Files.readAllLines(path);
-            require(!lines.isEmpty(), "Empty Round-2 analysis file: " + path);
+            require(!lines.isEmpty(), "Empty calibration analysis file: " + path);
             List<String> header = List.of(lines.getFirst().split(",", -1));
             List<Map<String, String>> rows = new ArrayList<>();
             for (int line = 1; line < lines.size(); line++) {
                 if (lines.get(line).isBlank()) continue;
                 String[] fields = lines.get(line).split(",", -1);
                 require(fields.length == header.size(),
-                        "Malformed Round-2 CSV row " + (line + 1) + " in " + path);
+                        "Malformed calibration CSV row " + (line + 1) + " in " + path);
                 LinkedHashMap<String, String> row = new LinkedHashMap<>();
                 for (int column = 0; column < fields.length; column++) {
                     row.put(header.get(column), fields[column]);

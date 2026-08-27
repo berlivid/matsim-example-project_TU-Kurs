@@ -385,6 +385,32 @@ four modes and a maximum late resident stuck-trip share no greater than 1.0%.
 The shared reports continue to contain physical and choice-mode metrics,
 normalized Pkm diagnostics and StuckEvent sensitivity.
 
+## Productive resident parameter Round 3
+
+Round 3 is derived from the Round-2 physical late means over iterations
+51--60: 44.306529010% car, 40.490111967% PT, 11.347971499% bike and
+3.855387524% walk. The unchanged damped car-reference log-ratio formula gives
+constants car 0.000000000, PT 0.724680779, bike 0.267435138 and walk
+2.803360913. The calculation is preserved in
+`docs/calibration/resident_mode_choice_calibration_round_3.csv`.
+
+`config_resident_mode_choice_calibration_round_3.xml` loads the same original
+population and retains iterations 0--60, seed 4711, the 48-hour horizon,
+strategy weights, innovation fraction, capacity, routing and all other scoring
+parameters. Relative to Round 2, only run ID, protected output directory and
+the PT, bike and walk constants may differ. Innovation remains active through
+iteration 48, and evaluation again uses iterations 51--60. Output is protected
+at `output/resident-mode-choice-round-3`.
+
+Use **R3A** for read-only preflight, **R3B** exactly once on the server, and
+**R3C** only after normal completion. R3C validates and summarizes the shared
+analysis and adds a Round-2-versus-Round-3 comparison. Iteration 10 is not used
+as calibration evidence because it is a transient point; stable late physical
+resident shares determine convergence and target fit. The controlled walk
+sensitivity test was omitted because of the available thesis timeframe. This
+is a methodological limitation, not proof that the weak walk response is
+explained, and it requires cautious interpretation of the Round-3 result.
+
 ## Isolated open-tour test
 
 The separate five-iteration experiment tested

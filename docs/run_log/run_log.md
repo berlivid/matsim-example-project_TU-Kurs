@@ -745,3 +745,27 @@ Scenario outputs are excluded from Git.
   final sensitivity pipeline. Added R2A, R2B and R2C run configurations. Local
   preparation did not start Controller, QSim, R2B or R2C and did not change
   Initial or Round-1 output evidence.
+
+## 27 August 2026 -- productive resident parameter Round 3 preparation
+
+- Validated the preserved Round-2 analysis for 68,770 residents, 137,540
+  resident main trips, iterations 0--60 and the physical late means over
+  iterations 51--60: 44.306529010% car, 40.490111967% PT, 11.347971499% bike
+  and 3.855387524% walk.
+- Recalculated the cumulative damped car-reference constants as car
+  0.000000000, PT 0.724680779, bike 0.267435138 and walk 2.803360913 and
+  versioned the inputs, formula and provenance.
+- Added a protected Round-3 config with the same original population,
+  iterations 0--60, seed 4711, 48-hour horizon, innovation fraction 0.8 and
+  shared resident strategy and analysis pipeline. Only run ID, output
+  directory and the PT, bike and walk constants differ from Round 2.
+- Added read-only R3A, server-only R3B and read-only R3C configurations. R3C
+  validates normal completion, reuses the common reports and adds an explicit
+  Round-2-versus-Round-3 comparison over the same late window 51--60.
+- Round 3 uses the stable Round-2 late mean rather than the transient
+  iteration-10 target crossing. The controlled walk sensitivity run was
+  omitted because of the available thesis timeframe; the weak realized walk
+  response remains an explicit limitation and is not treated as explained.
+- Local preparation compiled and tested the pipeline without starting
+  Controller, QSim, R3B or R3C and without modifying prior output evidence or
+  protected model inputs.

@@ -49,7 +49,7 @@ class ResidentModeChoiceCalibrationRound2Test {
         Config round1 = ValidateResidentModeChoiceCalibrationRound1Config
                 .loadAndValidateStructure(false);
         Config round2 = ValidateResidentModeChoiceCalibrationRound2Config
-                .loadAndValidateStructure(true);
+                .loadAndValidateStructure(false);
         Set<String> differences = RunMatsim2019ResidentModeChoiceIteration0Validation
                 .differences(
                         RunMatsim2019ResidentModeChoiceIteration0Validation.snapshot(round1),
@@ -65,8 +65,6 @@ class ResidentModeChoiceCalibrationRound2Test {
         assertEquals(round1.plans().getInputFile(), round2.plans().getInputFile());
         assertEquals(ResidentModeChoiceRound2Specification.ROUND_2_CONSTANTS,
                 ValidateResidentModeChoiceCalibrationRound2Config.constants(round2));
-        assertFalse(Files.exists(ValidateResidentModeChoiceCalibrationRound2Config.OUTPUT));
-
         round2.qsim().setFlowCapFactor(0.06);
         Set<String> unsafe = RunMatsim2019ResidentModeChoiceIteration0Validation.differences(
                 RunMatsim2019ResidentModeChoiceIteration0Validation.snapshot(round1),

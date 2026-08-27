@@ -502,13 +502,55 @@ Normalized physical Pkm shares remain secondary; physical-versus-choice
 transitions, choice-mode shares and stuck-trip sensitivity continue in the
 shared reports.
 
+## Productive resident calibration Round 3
+
+Round 3 uses the stable late evidence from Round 2 rather than a transient
+single iteration. The physical resident trip-share means over iterations
+51--60 are 44.306529010% car, 40.490111967% PT, 11.347971499% bike and
+3.855387524% walk. For every non-reference mode (m), the cumulative update is:
+
+`C3_m = C2_m + 0.5 * ln[(target_m / target_car) / (R2_late_mean_m / R2_late_mean_car)]`
+
+Car remains the reference at zero. The resulting constants are car
+0.000000000, PT 0.724680779, bike 0.267435138 and walk 2.803360913. The source
+means, targets, relative updates, damping and cumulative constants are
+versioned in `docs/calibration/resident_mode_choice_calibration_round_3.csv`.
+The pre-run validator independently reproduces these values from the preserved
+Round-2 iteration metrics.
+
+Round 3 deliberately retains the Round-2 design of iterations 0--60. It again
+loads the original population, retains seed 4711 and the 48-hour QSim horizon,
+and differs from Round 2 only in run ID, protected output directory and the
+three non-reference constants. The unchanged innovation-disable fraction 0.8
+keeps innovation active through iteration 48 and disables it from iteration
+49. Evaluation therefore again uses iterations 51--60, making the two rounds
+directly comparable while leaving time for post-innovation plan selection to
+settle.
+
+The Round-2 scoring and convergence audit showed that iteration 10 was only a
+transient passage near some targets, not stable calibration evidence. Stable
+late-iteration physical trip shares, ranges and trends are the decision basis.
+The separate `CONVERGED` and `WITHIN_TARGET_TOLERANCE` statuses and the resident
+StuckEvent criterion remain unchanged; one close iteration cannot produce a
+`CALIBRATED` status.
+
+Because of the available thesis timeframe, Round 3 proceeds without the
+previously considered controlled walk-constant sensitivity run. This is an
+explicit methodological limitation, not evidence that the weak walk response
+has been fully explained. The high walk constant and low realized walk share
+must therefore be interpreted cautiously, and the physical-versus-choice
+diagnostics must remain visible in the Round-3 report. Physical resident trip
+shares remain the primary empirical calibration measure; physical Pkm shares
+remain secondary.
+
 ## Relationship to legacy experiments
 
 Round 1 and Round 2 calibrated `BOTH_INSIDE` as a technical preliminary scope.
 Their documentation, configs, Java classes and ignored outputs remain as
 historical evidence; their parameter vectors are not productive resident
-settings. The new pipeline is one reusable architecture and does not create
-additional round-specific runner or validator families.
+settings. The productive rounds reuse one shared runtime and analysis
+architecture. Round-specific entry points are limited to thin validation,
+execution and postprocessing wrappers around that shared implementation.
 
 The Open-Tour experiment remains rejected because it relaxed chain-resource
 end-of-day consistency and its `ExperiencedPlansService` cohort representation
@@ -556,6 +598,13 @@ The shared IntelliJ configurations are:
     iterations 0--60 using the protected Round-2 config.
 15. `R2C Analyze 2019 Resident Mode Choice Calibration Round 2` -- read-only
     final, sensitivity and iterations-51--60 calibration-status reporting.
+16. `R3A Validate 2019 Resident Mode Choice Calibration Round 3` -- read-only
+    Round-2 evidence, formula, protected-difference, input and cohort validation.
+17. `R3B Run 2019 Resident Mode Choice Calibration Round 3` -- server-only
+    iterations 0--60 using the protected Round-3 config.
+18. `R3C Validate and Summarize 2019 Resident Mode Choice Calibration Round 3`
+    -- read-only normal-completion validation, shared analysis, iterations-51--60
+    calibration review and Round-2-versus-Round-3 comparison.
 
 For a new iteration-zero execution, update the repository, run 10, then run 11
 manually through IntelliJ with `-Xms4g -Xmx16g`. For the existing university-
@@ -603,6 +652,16 @@ R2B once, and run R2C only after normal completion. A `REVIEW_REQUIRED` result
 is substantive calibration evidence and must not trigger an automatic constant
 change. Copy the complete Round-2 `analysis/` directory, final plans,
 iteration-60 events, output config and controller log back locally.
+
+For Round 3, preserve all earlier outputs, verify that
+`output/resident-mode-choice-round-3` is absent, run R3A and require PASS, run
+R3B exactly once, and run R3C only after normal controller completion. R3C
+validates the output config and log before reusing the shared selected-plan,
+physical/choice, Pkm and StuckEvent analysis. Copy the complete Round-3
+`analysis/` directory, final plans, iteration-60 events, output config and
+controller log back locally. A non-calibrated or review-required result is
+evidence for a documented next decision, not authorization for an automatic
+parameter change.
 
 Local Step-4 preparation created neither protected output directory and ran no
 simulation.

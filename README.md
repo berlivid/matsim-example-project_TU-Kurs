@@ -63,6 +63,9 @@ and validated before the server-only R1B run; R1A and R1C are read-only.
 The completed Round-1 evidence now supplies a cumulative Round-2 config for
 iterations 0--60. R2A validates it read-only, R2B is server-only, and R2C keeps
 convergence, target fit and stuck-trip acceptance as separate review concepts.
+The preserved Round-2 late means now supply an otherwise identical 0--60
+Round-3 design. R3A validates it read-only, R3B is server-only, and R3C validates
+normal completion and compares the two rounds using the shared analysis.
 
 ## Current status
 

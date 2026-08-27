@@ -16,6 +16,20 @@ import java.util.Set;
 final class ResidentModeChoiceRound2Review {
     static final int FIRST_LATE_ITERATION = 51;
     static final int LAST_LATE_ITERATION = 60;
+    static final List<String> FINAL_CANDIDATE_ANALYSIS_FILES = List.of(
+            "resident_mode_choice_iteration_metrics.csv",
+            "resident_mode_choice_late_iteration_statistics.csv",
+            "resident_mode_choice_final_summary.csv",
+            "resident_mode_choice_report.md",
+            "resident_stuck_events_by_iteration_and_mode.csv",
+            "resident_mode_choice_final_primary.csv",
+            "resident_mode_choice_final_stuck_sensitivity.csv",
+            "resident_mode_choice_final_sensitivity_comparison.csv",
+            "resident_mode_choice_final_sensitivity_report.md",
+            "resident_mode_choice_final_candidate_calibration_review.csv",
+            "resident_mode_choice_final_candidate_calibration_report.md",
+            "resident_mode_choice_final_candidate_comparison.csv",
+            "resident_mode_choice_final_candidate_comparison.md");
 
     private ResidentModeChoiceRound2Review() { }
 
@@ -45,7 +59,21 @@ final class ResidentModeChoiceRound2Review {
         return result;
     }
 
+    static Result validateAndWriteFinalCandidate(Path output, Path legacyComparison)
+            throws IOException {
+        Result result = validateAndWrite(output, "final_candidate",
+                "Final Legacy-R1 resident candidate");
+        writeFinalCandidateComparison(output.resolve("analysis"), legacyComparison, result);
+        requireFinalCandidateAnalysisFiles(output.resolve("analysis"));
+        return result;
+    }
+
     private static Result validateAndWrite(Path output, int round) throws IOException {
+        return validateAndWrite(output, "round_" + round, "Round " + round);
+    }
+
+    private static Result validateAndWrite(Path output, String fileLabel,
+                                           String reportLabel) throws IOException {
         Path analysis = output.resolve("analysis");
         validateIterationHistory(analysis);
         Csv late = Csv.read(analysis.resolve(
@@ -114,13 +142,13 @@ final class ResidentModeChoiceRound2Review {
                 stuckWithinThreshold ? "WITHIN_STUCK_THRESHOLD"
                         : "OUTSIDE_STUCK_THRESHOLD", overall);
         Files.writeString(analysis.resolve(
-                        "resident_mode_choice_round_" + round
+                        "resident_mode_choice_" + fileLabel
                                 + "_calibration_review.csv"),
                 csv(result), StandardCharsets.UTF_8);
         Files.writeString(analysis.resolve(
-                        "resident_mode_choice_round_" + round
+                        "resident_mode_choice_" + fileLabel
                                 + "_calibration_report.md"),
-                report(result, round), StandardCharsets.UTF_8);
+                report(result, reportLabel), StandardCharsets.UTF_8);
         return result;
     }
 
@@ -148,9 +176,9 @@ final class ResidentModeChoiceRound2Review {
         return out.toString();
     }
 
-    private static String report(Result result, int round) {
+    private static String report(Result result, String label) {
         StringBuilder out = new StringBuilder(
-                "# Resident mode-choice calibration Round " + round + " review\n\n")
+                "# Resident mode-choice calibration " + label + " review\n\n")
                 .append("Late evaluation uses exactly iterations 51--60. Physical trip shares are the primary calibration metric. Normalized physical Pkm shares remain secondary plausibility indicators; choice/routing modes and StuckEvent sensitivity are reported by the shared analysis outputs.\n\n")
                 .append("| Mode | Late mean trip share | Final trip share | Target | Final difference | Range | Trend/iteration | Convergence | Target fit | Late mean Pkm share | Final Pkm share | Pkm target |\n")
                 .append("|---|---:|---:|---:|---:|---:|---:|---|---|---:|---:|---:|\n");
@@ -386,6 +414,129 @@ final class ResidentModeChoiceRound2Review {
                 .append(number(values.finalTripDifference())).append(" pp | ")
                 .append(values.convergenceStatus()).append(" | ")
                 .append(values.targetFitStatus()).append(" |\n");
+    }
+
+    private static void writeFinalCandidateComparison(Path analysis,
+                                                       Path legacyComparison,
+                                                       Result candidate)
+            throws IOException {
+        ValidateFinalLegacyR1ResidentModeChoiceCandidateConfig
+                .validateLegacyEvidence();
+        Csv previous = Csv.read(legacyComparison);
+        List<String> expectedRuns = List.of("LEGACY_ROUND_1", "LEGACY_ROUND_2",
+                "RESIDENT_INITIAL", "RESIDENT_ROUND_2", "RESIDENT_ROUND_3",
+                "RESIDENT_ROUND_4");
+        List<String> actualRuns = previous.rows().stream()
+                .map(row -> row.get("calibration_run")).toList();
+        require(actualRuns.equals(expectedRuns),
+                "Legacy resident comparison run set or order changed: " + actualRuns);
+
+        StringBuilder csv = new StringBuilder(
+                "calibration_run,configuration_basis,car_constant,pt_constant,"
+                        + "bike_constant,walk_constant,final_iteration,qsim_horizon,"
+                        + "original_calibration_cohort,resident_car_share_percent,"
+                        + "resident_pt_share_percent,resident_bike_share_percent,"
+                        + "resident_walk_share_percent,car_absolute_deviation_pp,"
+                        + "pt_absolute_deviation_pp,bike_absolute_deviation_pp,"
+                        + "walk_absolute_deviation_pp,sum_absolute_trip_share_deviation_pp,"
+                        + "status_or_role\n");
+        StringBuilder report = new StringBuilder(
+                "# Final Legacy-R1 resident candidate comparison\n\n")
+                .append("Physical trip shares of all Munich-resident main trips are the ")
+                .append("primary comparison metric. Legacy outputs remain 43-hour ")
+                .append("candidate evidence; the new row is the only 48-hour, 0--60 final ")
+                .append("candidate using the fixed Legacy-R1 constants.\n\n")
+                .append("| Run | Car | PT | Bike | Walk | Sum absolute deviation | Role/status |\n")
+                .append("|---|---:|---:|---:|---:|---:|---|\n");
+        for (Map<String, String> row : previous.rows()) {
+            String run = row.get("calibration_run");
+            csv.append(run).append(",preserved_comparison,")
+                    .append(row.get("car_constant")).append(',')
+                    .append(row.get("pt_constant")).append(',')
+                    .append(row.get("bike_constant")).append(',')
+                    .append(row.get("walk_constant")).append(',')
+                    .append(row.get("final_iteration")).append(',')
+                    .append(row.get("qsim_horizon")).append(',')
+                    .append(row.get("original_calibration_cohort"));
+            for (String mode : ResidentModeChoiceCalibrationTargets.MODES) {
+                csv.append(',').append(row.get("resident_" + mode + "_share"));
+            }
+            for (String mode : ResidentModeChoiceCalibrationTargets.MODES) {
+                csv.append(',').append(row.get(mode + "_absolute_deviation_pp"));
+            }
+            csv.append(',').append(row.get(
+                            "sum_absolute_modal_share_deviation_pp"))
+                    .append(',').append(row.get(
+                            "candidate_for_one_final_48h_resident_validation"))
+                    .append('\n');
+            appendCandidateReportRow(report, run,
+                    modeValue(row, "resident_car_share"),
+                    modeValue(row, "resident_pt_share"),
+                    modeValue(row, "resident_bike_share"),
+                    modeValue(row, "resident_walk_share"),
+                    number(row, "sum_absolute_modal_share_deviation_pp"),
+                    row.get("candidate_for_one_final_48h_resident_validation"));
+        }
+
+        LinkedHashMap<String, Double> candidateShares = new LinkedHashMap<>();
+        double sum = 0.0;
+        for (String mode : ResidentModeChoiceCalibrationTargets.MODES) {
+            double share = candidate.modes().get(mode).finalTripShare();
+            candidateShares.put(mode, share);
+            sum += Math.abs(share - ResidentModeChoiceCalibrationTargets
+                    .TRIP_SHARE_PERCENT.get(mode));
+        }
+        Map<String, Double> constants =
+                ValidateFinalLegacyR1ResidentModeChoiceCandidateConfig.FIXED_CONSTANTS;
+        csv.append("FINAL_LEGACY_R1_RESIDENT_CANDIDATE,fixed_legacy_r1_constants,")
+                .append(number(constants.get("car"))).append(',')
+                .append(number(constants.get("pt"))).append(',')
+                .append(number(constants.get("bike"))).append(',')
+                .append(number(constants.get("walk"))).append(",60,48:00:00,")
+                .append("MUNICH_RESIDENT_ALL_TRIPS");
+        for (String mode : ResidentModeChoiceCalibrationTargets.MODES) {
+            csv.append(',').append(number(candidateShares.get(mode)));
+        }
+        for (String mode : ResidentModeChoiceCalibrationTargets.MODES) {
+            csv.append(',').append(number(Math.abs(candidateShares.get(mode)
+                    - ResidentModeChoiceCalibrationTargets.TRIP_SHARE_PERCENT.get(mode))));
+        }
+        csv.append(',').append(number(sum)).append(',')
+                .append(candidate.overallStatus()).append('\n');
+        appendCandidateReportRow(report, "FINAL_LEGACY_R1_RESIDENT_CANDIDATE",
+                candidateShares.get("car"), candidateShares.get("pt"),
+                candidateShares.get("bike"), candidateShares.get("walk"), sum,
+                candidate.overallStatus());
+        report.append("\nFinal status: `").append(candidate.overallStatus())
+                .append("`. `REVIEW_REQUIRED` denotes a technically valid run that does not ")
+                .append("satisfy every convergence, target-fit and stuck-trip criterion. It ")
+                .append("does not authorize another automatic constant update.\n");
+        Files.writeString(analysis.resolve(
+                        "resident_mode_choice_final_candidate_comparison.csv"),
+                csv, StandardCharsets.UTF_8);
+        Files.writeString(analysis.resolve(
+                        "resident_mode_choice_final_candidate_comparison.md"),
+                report, StandardCharsets.UTF_8);
+    }
+
+    private static double modeValue(Map<String, String> row, String field) {
+        return number(row, field);
+    }
+
+    private static void appendCandidateReportRow(StringBuilder report, String run,
+                                                 double car, double pt, double bike,
+                                                 double walk, double sum, String status) {
+        report.append("| ").append(run).append(" | ")
+                .append(number(car)).append("% | ").append(number(pt)).append("% | ")
+                .append(number(bike)).append("% | ").append(number(walk)).append("% | ")
+                .append(number(sum)).append(" pp | ").append(status).append(" |\n");
+    }
+
+    static void requireFinalCandidateAnalysisFiles(Path analysis) {
+        List<String> missing = FINAL_CANDIDATE_ANALYSIS_FILES.stream()
+                .filter(name -> !Files.isRegularFile(analysis.resolve(name))).toList();
+        require(missing.isEmpty(),
+                "Final candidate analysis package is incomplete: " + missing);
     }
 
     private static void validateLateIdentity(Map<String, String> row) {

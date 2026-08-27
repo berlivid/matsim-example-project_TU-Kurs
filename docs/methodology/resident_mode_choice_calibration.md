@@ -622,6 +622,44 @@ absolute four-mode target deviations may be considered for one final rerun,
 but its constants must still be tested once with the final 48-hour resident
 configuration before thesis use.
 
+## Final fixed Legacy-R1 resident candidate
+
+The completed resident reanalysis selected Legacy Round 1 by the predefined
+primary criterion: its physical trip shares for all Munich-resident trips were
+43.026028792% car, 21.752217537% PT, 24.924385633% bike and 10.297368038%
+walk, giving the smaller legacy sum of absolute target deviations at
+31.900828850 percentage points. The original legacy result is not the final
+calibration: it used a `BOTH_INSIDE` calibration cohort, a 43-hour horizon and
+iterations 0--20.
+
+The final candidate transfers only the preserved Legacy-R1 constants—car
+0.000000000, PT 0.890000000, bike -0.210000000 and walk 0.780000000—into the
+final resident design. No logarithmic update or newly estimated constant is
+used. The candidate reloads the unchanged original 2019 population, assigns
+the runtime resident/background cohorts, runs iterations 0--60 with the
+48-hour horizon and seed 4711, disables innovation after iteration 48, and
+evaluates iterations 51--60. Relative to the current Round-4 resident design,
+only run ID, protected output directory and the three non-reference constants
+that actually differ are permitted to change.
+
+The synthetic population contains exactly two main trips for every one of the
+68,770 classified residents, totalling 137,540 resident main trips. This
+simplified daily trip structure constrains the formation of subtours and is a
+plausible reason why the model may not reproduce the observed 24% Walk share.
+It is treated as a structural limitation, not corrected through arbitrary
+retuning in this final step.
+
+F1A validates the fixed evidence, protected hashes, exact cohort and trip
+structure, configuration semantics and unused output. F1B is the one
+server-only simulation. F1C reuses the shared physical/choice, Pkm,
+late-window and StuckEvent-sensitivity analysis and adds candidate-specific
+review and comparison files covering both legacy results and the available
+resident Initial and Rounds 2--4. A technically valid result that misses any
+formal criterion is `REVIEW_REQUIRED`; technical incompleteness is
+`TECHNICAL_FAILURE`. No further automatic log-ratio round is planned. Failure
+to meet every empirical target will be reported as a model limitation rather
+than hidden through another automatic constant adjustment.
+
 ## Reproduction sequence
 
 The shared IntelliJ configurations are:
@@ -681,6 +719,12 @@ The shared IntelliJ configurations are:
 22. `L1 Reanalyze Legacy 2019 Mode Choice Outputs for Residents` -- server-only
     read-only reanalysis of the two preserved legacy final plans; no Controller
     or QSim is installed or started.
+23. `F1A Validate Final Legacy-R1 Resident Mode Choice Candidate` -- read-only
+    evidence, hash, cohort, fixed-constant and configuration preflight.
+24. `F1B Run Final Legacy-R1 Resident Mode Choice Candidate` -- the single
+    server-only 48-hour, iterations-0--60 final-candidate simulation.
+25. `F1C Validate and Summarize Final Legacy-R1 Resident Mode Choice Candidate`
+    -- read-only normal-completion validation and complete final comparison.
 
 For a new iteration-zero execution, update the repository, run 10, then run 11
 manually through IntelliJ with `-Xms4g -Xmx16g`. For the existing university-

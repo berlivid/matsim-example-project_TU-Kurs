@@ -819,3 +819,30 @@ Scenario outputs are excluded from Git.
   no local Round-2 output, so the real reanalysis was deliberately not started.
   Local work is limited to compilation, focused fixture tests and run-config
   validation; no simulation or output rewrite is performed.
+
+## 28 August 2026 -- final fixed Legacy-R1 resident candidate prepared
+
+- Validated the completed legacy resident reanalysis: Legacy Round 1 contains
+  68,770 residents and 137,540 resident main trips, with physical shares
+  43.026028792% car, 21.752217537% PT, 24.924385633% bike and 10.297368038%
+  walk. Its 31.900828850-percentage-point sum of absolute deviations is smaller
+  than Legacy Round 2 under the predefined primary criterion.
+- Added one protected final-candidate config using the unchanged fixed constants
+  car 0.000000000, PT 0.890000000, bike -0.210000000 and walk 0.780000000.
+  No logarithmic update was calculated.
+- The candidate is a semantic derivation of the 48-hour Round-4 design. Only
+  run ID, output directory and the three non-reference constants that actually
+  differ may change. The original population, seed, iterations 0--60,
+  innovation timing, strategies, routing, capacity and scoring remain fixed.
+- F1A validates protected hashes, evidence, exact resident counts and the fact
+  that every classified resident has exactly two main trips. F1B reuses the
+  common server runner. F1C reuses the common selected-plan and StuckEvent
+  analysis and requires four additional candidate-specific review/comparison
+  files.
+- The two-trip synthetic daily structure is documented as a likely limitation
+  on reproduction of the observed Walk share. No further automatic log-ratio
+  round is planned; a technically valid mismatch will be `REVIEW_REQUIRED` and
+  reported as a model limitation.
+- Local work compiled and ran focused read-only tests only. F1B, F1C,
+  Controller and QSim were not started, and no previous output or protected
+  input was modified.

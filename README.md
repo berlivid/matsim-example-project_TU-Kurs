@@ -70,6 +70,13 @@ Because Round 3 was not fully converged, Round 4 is a time-constrained,
 otherwise identical 0--60 update that must be reviewed before any calibrated
 2040 production run. R4A is read-only, R4B is server-only, and R4C adds the
 Round-3/4 comparison and compact Round-2--4 history.
+The completed resident reanalysis now identifies the preserved Legacy-R1
+constants as the final fixed candidate under the predefined physical
+trip-share criterion. F1A validates the evidence and unchanged 48-hour
+resident design, F1B is the single server-only candidate run, and F1C produces
+the final shared and candidate-specific review package. No additional
+automatic log-ratio round is planned; any residual mismatch is documented as
+a model limitation.
 
 ## Current status
 

@@ -504,3 +504,39 @@ resident `StuckEvent` metric; missing events are marked unavailable. Because
 the legacy simulations used a 43-hour horizon and a different original target
 cohort, even the numerically closest legacy result remains only a candidate for
 one final 48-hour resident validation run.
+
+## Final Legacy-R1 resident candidate
+
+The resident reanalysis found Legacy Round 1 to be the better of the two
+legacy parameter vectors under the predefined primary criterion. Its resident
+physical shares were 43.026028792% car, 21.752217537% PT, 24.924385633% bike
+and 10.297368038% walk; the sum of absolute target deviations was
+31.900828850 percentage points. The old 43-hour, `BOTH_INSIDE`, iterations
+0--20 result is evidence for parameter selection, not the final result.
+
+`config_resident_mode_choice_legacy_r1_final_candidate.xml` uses the fixed
+constants car 0.000000000, PT 0.890000000, bike -0.210000000 and walk
+0.780000000. It starts again from the unchanged original population and keeps
+the complete final resident design: 48 hours, iterations 0--60, seed 4711,
+innovation inactive from iteration 49, the complete regional population and
+all 137,540 main trips made by 68,770 Munich residents. The original
+population has exactly two main trips per classified resident. This simplified
+trip structure likely limits the attainable Walk share and must be discussed
+if the final candidate remains outside target tolerance.
+
+Use **F1A** first and require PASS. Then run **F1B** exactly once on the server
+after confirming that
+`output/resident-mode-choice-legacy-r1-final-candidate` is absent. Run **F1C**
+only after normal completion. F1C writes the shared analysis plus these four
+mandatory candidate-specific files:
+
+- `resident_mode_choice_final_candidate_calibration_review.csv`
+- `resident_mode_choice_final_candidate_calibration_report.md`
+- `resident_mode_choice_final_candidate_comparison.csv`
+- `resident_mode_choice_final_candidate_comparison.md`
+
+The comparison covers Legacy Rounds 1 and 2, Resident Initial and Resident
+Rounds 2--4. `REVIEW_REQUIRED` is a completed technical result requiring
+methodological interpretation, not a failed run. No further automatic
+log-ratio calibration round is planned; residual mismatch will be reported as
+a model limitation rather than concealed through arbitrary retuning.

@@ -794,3 +794,28 @@ Scenario outputs are excluded from Git.
   2040 production run.
 - Local preparation started no Controller or QSim and did not modify any
   previous round or protected model input.
+
+## 28 August 2026 -- legacy outputs prepared for resident-cohort reanalysis
+
+- Added one read-only L1 orchestration that requires complete final plans,
+  output configs and normal-shutdown evidence for both preserved legacy
+  `BOTH_INSIDE` rounds before writing anything.
+- The comparison reconstructs the approved Munich-resident cohort from the
+  unchanged original population and canonical municipal boundary, then reuses
+  the shared selected-plan physical/choice-mode, Pkm and territorial analysis
+  for all resident main trips. It does not use the former territorial cohort.
+- The protected output directory is
+  `output/legacy-mode-choice-resident-reanalysis`; an existing directory causes
+  a fail-closed stop. Source-output file size and modification-time snapshots
+  are checked after analysis.
+- Final-iteration resident `StuckEvents` are reported only where an event file
+  exists. Missing events remain explicitly unavailable rather than being
+  interpreted as zero.
+- The comparison includes the available resident Initial, Round-2, Round-3 and
+  Round-4 results. Legacy constants remain candidate evidence because the old
+  runs used a 43-hour horizon and `BOTH_INSIDE`; a selected candidate still
+  requires one final 48-hour resident rerun.
+- The local checkout contains only the Round-1 legacy `analysis/` directory and
+  no local Round-2 output, so the real reanalysis was deliberately not started.
+  Local work is limited to compilation, focused fixture tests and run-config
+  validation; no simulation or output rewrite is performed.

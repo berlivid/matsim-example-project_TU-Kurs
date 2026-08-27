@@ -477,3 +477,30 @@ validators and tests remain historical reproducibility evidence. Obsolete
 IntelliJ configurations 15--17 have been removed, and no existing output is
 deleted. Round details and authoritative trip/pkm targets are preserved in the
 [legacy preliminary-round note](../../docs/methodology/legacy/both_inside_calibration_preliminary.md).
+
+## Resident-cohort reanalysis of the legacy outputs
+
+Run configuration **L1 Reanalyze Legacy 2019 Mode Choice Outputs for
+Residents** reads the preserved final plans from `output/mode-choice-round-1`
+and `output/mode-choice-round-2` without modifying either directory. It first
+requires both output configs, final plans and normal-shutdown logs. Residence
+is reconstructed from the unchanged original plan and current municipal
+boundary; all main trips of the 68,770 residents are then evaluated with the
+shared physical/choice-mode, Pkm and territorial analysis. The old
+`BOTH_INSIDE` cohort is not reused.
+
+L1 refuses to run if
+`output/legacy-mode-choice-resident-reanalysis` already exists. On the server,
+pull the reviewed code, verify that both legacy outputs are complete, run L1
+once, and copy back these four files:
+
+- `legacy_resident_mode_choice_comparison.csv`
+- `legacy_round_1_resident_summary.csv`
+- `legacy_round_2_resident_summary.csv`
+- `legacy_resident_reanalysis_report.md`
+
+No Controller or QSim is started. Events are optional only for the descriptive
+resident `StuckEvent` metric; missing events are marked unavailable. Because
+the legacy simulations used a 43-hour horizon and a different original target
+cohort, even the numerically closest legacy result remains only a candidate for
+one final 48-hour resident validation run.

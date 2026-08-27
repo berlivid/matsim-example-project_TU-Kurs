@@ -593,6 +593,35 @@ The Open-Tour experiment remains rejected because it relaxed chain-resource
 end-of-day consistency and its `ExperiencedPlansService` cohort representation
 was incomplete. None of its behavior or entry points is reactivated.
 
+### Read-only resident reanalysis of the preserved legacy outputs
+
+`L1 Reanalyze Legacy 2019 Mode Choice Outputs for Residents` provides a
+strictly read-only comparison of the final selected plans in the two preserved
+legacy outputs. It does not repeat the former `BOTH_INSIDE` analysis. Instead,
+it classifies residence from the exact `home` main activity in the unchanged
+original population, using the approved Munich boundary and canonical
+UTF-8/LF boundary hash, and includes every main trip made by each classified
+resident. MATSim stage activities are excluded by the shared trip logic.
+Regional and unresolved persons do not enter the comparison metrics.
+
+The tool reuses the productive physical-versus-choice mode classifier and Pkm
+measurement. Physical mode remains the empirical comparison basis; routing
+mode, physical/choice transitions and PT requests realized as walk-only routes
+are separate diagnostics. Final-iteration resident `StuckEvents` are reported
+when an events file exists and are explicitly marked unavailable otherwise;
+absence of an events file is never interpreted as zero events.
+
+Before analysis, L1 requires a final plans file, an output config semantically
+equal to the versioned source config, and an unambiguous regular-shutdown marker
+for each legacy run. It writes only to the fail-if-present directory
+`output/legacy-mode-choice-resident-reanalysis`. The legacy runs retain their
+original 43-hour horizon and `BOTH_INSIDE` calibration history. Their new
+resident results are therefore comparative candidate evidence, not final
+resident-calibration results. The legacy result with the smaller sum of
+absolute four-mode target deviations may be considered for one final rerun,
+but its constants must still be tested once with the final 48-hour resident
+configuration before thesis use.
+
 ## Reproduction sequence
 
 The shared IntelliJ configurations are:
@@ -649,6 +678,9 @@ The shared IntelliJ configurations are:
 21. `R4C Validate and Summarize 2019 Resident Mode Choice Calibration Round 4`
     -- read-only normal-completion validation, shared analysis, Round-3-versus-
     Round-4 comparison and compact Round-2--4 history.
+22. `L1 Reanalyze Legacy 2019 Mode Choice Outputs for Residents` -- server-only
+    read-only reanalysis of the two preserved legacy final plans; no Controller
+    or QSim is installed or started.
 
 For a new iteration-zero execution, update the repository, run 10, then run 11
 manually through IntelliJ with `-Xms4g -Xmx16g`. For the existing university-

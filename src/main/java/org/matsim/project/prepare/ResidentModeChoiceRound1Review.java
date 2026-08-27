@@ -30,14 +30,21 @@ final class ResidentModeChoiceRound1Review {
             Map<String, String> pkm = unique(late, "resident_pkm_share", mode);
             validateLateIdentity(trip);
             validateLateIdentity(pkm);
+            double range = number(trip, "range");
+            double trend = number(trip, "linear_trend_per_iteration");
+            String convergenceStatus = Math.abs(trend)
+                    <= ResidentModeChoiceCalibrationAnalysisWriter
+                    .LATE_TREND_REVIEW_THRESHOLD_PP_PER_ITERATION
+                    && range <= ResidentModeChoiceCalibrationAnalysisWriter
+                    .LATE_RANGE_REVIEW_THRESHOLD_PP
+                    ? "CONVERGED" : "NOT_CONVERGED";
             ModeReview review = new ModeReview(mode,
                     number(trip, "mean"), number(trip, "minimum"),
-                    number(trip, "maximum"), number(trip, "range"),
-                    number(trip, "linear_trend_per_iteration"),
+                    number(trip, "maximum"), range, trend,
                     number(trip, "final_value"), number(trip, "target_value"),
                     number(trip, "difference_to_target"),
                     number(pkm, "final_value"), number(pkm, "target_value"),
-                    number(pkm, "difference_to_target"), trip.get("review_status"));
+                    number(pkm, "difference_to_target"), convergenceStatus);
             require(Math.abs(review.tripTarget()
                             - ResidentModeChoiceCalibrationTargets.TRIP_SHARE_PERCENT.get(mode))
                             < 1e-9,
@@ -46,7 +53,7 @@ final class ResidentModeChoiceRound1Review {
                             - ResidentModeChoiceCalibrationTargets
                             .NORMALIZED_PKM_SHARE_PERCENT.get(mode)) < 1e-9,
                     "Round-1 Pkm target changed for " + mode);
-            reviewRequired |= "REVIEW_REQUIRED".equals(review.convergenceStatus());
+            reviewRequired |= "NOT_CONVERGED".equals(review.convergenceStatus());
             modes.put(mode, review);
         }
 

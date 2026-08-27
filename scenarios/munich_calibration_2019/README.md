@@ -361,6 +361,30 @@ study-specific review criteria of 0.10 pp/iteration trend, 1.0 pp range and
 `output/resident-mode-choice-round-1`; the initial output must not be removed,
 renamed or overwritten.
 
+## Productive resident parameter Round 2
+
+Round 1 ended at 53.544423440% car, 15.002908245% PT, 27.834811691%
+bike and 3.617856624% walk, with seven resident main trips affected by
+StuckEvents in iteration 40. Round 2 applies the unchanged damped log-share
+method cumulatively. Its constants are car 0.000000, PT 0.853797, bike
+-0.095617 and walk 1.756684.
+
+`config_resident_mode_choice_calibration_round_2.xml` again uses the original
+population. Relative to Round 1 it changes only run ID, output directory,
+`lastIteration=60`, and PT, bike and walk constants. The 48-hour horizon and
+innovation-disable fraction 0.8 remain unchanged; the expected disable
+iteration is 48 (innovation remains active through 48 and is disabled from
+iteration 49). Output is protected at
+`output/resident-mode-choice-round-2`.
+
+Use **R2A** locally or on the server for read-only validation, **R2B** exactly
+once on the server, and **R2C** only after normal completion. R2C evaluates
+iterations 51--60 and reports `CONVERGED` separately from
+`WITHIN_TARGET_TOLERANCE`. Overall `CALIBRATED` requires both statuses for all
+four modes and a maximum late resident stuck-trip share no greater than 1.0%.
+The shared reports continue to contain physical and choice-mode metrics,
+normalized Pkm diagnostics and StuckEvent sensitivity.
+
 ## Isolated open-tour test
 
 The separate five-iteration experiment tested

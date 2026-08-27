@@ -464,6 +464,44 @@ stuck-trip share above 1.0%. Violations produce `REVIEW_REQUIRED`; they never
 trigger an automatic parameter change. Absolute annual Pkm anchoring for the
 external-cost calculation is a later and separate methodological step.
 
+## Productive resident calibration Round 2
+
+Round 1 completed with 68,770 resident persons and 137,540 resident main trips
+in every iteration from 0 through 40. Its final physical shares were
+53.544423440% car, 15.002908245% PT, 27.834811691% bike and 3.617856624% walk.
+Seven resident main trips were affected by StuckEvents in iteration 40. The
+complete Round-1 output remains protected and is used only as calibration
+evidence; Round 2 again loads the unchanged original input population rather
+than Round-1 output plans.
+
+The same damped car-reference log-share-ratio rule produces cumulative Round-2
+constants of car 0.000000, PT 0.853797, bike -0.095617 and walk 1.756684. The
+Round-1 constants, final physical shares, targets, undamped and damped updates,
+and cumulative values are versioned in
+`docs/calibration/resident_mode_choice_calibration_round_2.csv`. Absolute Pkm
+remain outside this parameter adjustment.
+
+`config_resident_mode_choice_calibration_round_2.xml` differs from the Round-1
+config only in run ID, protected output directory, `lastIteration=60`, and the
+PT, bike and walk constants. Car remains the zero reference. The original
+population path, seed, 48-hour horizon, strategies, routing, capacity factors,
+cohorts and every other scoring value are unchanged. The innovation-disable
+fraction remains 0.8, giving the expected disable iteration 48 in the 0--60
+run. In MATSim 2025.0 terminology innovation switches off *after* iteration
+48, so innovative-strategy weights become zero from iteration 49.
+
+Late evaluation uses exactly iterations 51--60. Stability and target fit are
+reported separately. `CONVERGED` requires an absolute physical trip-share
+trend no greater than 0.10 percentage points per iteration and a late range no
+greater than 1.0 percentage point. `WITHIN_TARGET_TOLERANCE` requires the final
+physical trip-share difference to be within 1.0 percentage point. A mode that
+is stable but far from its target is therefore never labelled simply as a
+pass. Overall status is `CALIBRATED` only if all four modes satisfy both rules
+and the maximum late resident stuck-trip share is no greater than 1.0%.
+Normalized physical Pkm shares remain secondary; physical-versus-choice
+transitions, choice-mode shares and stuck-trip sensitivity continue in the
+shared reports.
+
 ## Relationship to legacy experiments
 
 Round 1 and Round 2 calibrated `BOTH_INSIDE` as a technical preliminary scope.
@@ -511,6 +549,13 @@ The shared IntelliJ configurations are:
     iterations 0--40 using the protected Round-1 config.
 12. `R1C Analyze 2019 Resident Mode Choice Calibration Round 1` -- read-only
     final, sensitivity and iterations-31--40 convergence reporting.
+13. `R2A Validate 2019 Resident Mode Choice Calibration Round 2` -- read-only
+    Round-1 evidence, cumulative formula, config-difference, input and cohort
+    validation.
+14. `R2B Run 2019 Resident Mode Choice Calibration Round 2` -- server-only
+    iterations 0--60 using the protected Round-2 config.
+15. `R2C Analyze 2019 Resident Mode Choice Calibration Round 2` -- read-only
+    final, sensitivity and iterations-51--60 calibration-status reporting.
 
 For a new iteration-zero execution, update the repository, run 10, then run 11
 manually through IntelliJ with `-Xms4g -Xmx16g`. For the existing university-
@@ -551,6 +596,13 @@ verify that `output/resident-mode-choice-round-1` is absent, run R1A and require
 PASS, run R1B once, then run R1C only after normal completion. Copy the complete
 Round-1 `analysis/` directory plus final plans, final-iteration events, output
 config and controller log back to the local evidence store.
+
+For Round 2, preserve both earlier outputs, verify that
+`output/resident-mode-choice-round-2` is absent, run R2A and require PASS, run
+R2B once, and run R2C only after normal completion. A `REVIEW_REQUIRED` result
+is substantive calibration evidence and must not trigger an automatic constant
+change. Copy the complete Round-2 `analysis/` directory, final plans,
+iteration-60 events, output config and controller log back locally.
 
 Local Step-4 preparation created neither protected output directory and ran no
 simulation.

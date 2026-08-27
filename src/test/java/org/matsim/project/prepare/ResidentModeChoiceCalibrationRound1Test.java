@@ -43,7 +43,7 @@ class ResidentModeChoiceCalibrationRound1Test {
         Config production = ValidateResidentModeChoiceCalibrationConfig
                 .loadAndValidateStructure(false);
         Config round = ValidateResidentModeChoiceCalibrationRound1Config
-                .loadAndValidateStructure(true);
+                .loadAndValidateStructure(false);
         Set<String> differences = RunMatsim2019ResidentModeChoiceIteration0Validation
                 .differences(
                         RunMatsim2019ResidentModeChoiceIteration0Validation.snapshot(production),
@@ -54,8 +54,6 @@ class ResidentModeChoiceCalibrationRound1Test {
         assertEquals(48 * 3600.0, round.qsim().getEndTime().seconds(), 1e-12);
         assertEquals(ResidentModeChoiceRound1Specification.APPLIED_CONSTANTS,
                 ValidateResidentModeChoiceCalibrationRound1Config.constants(round));
-        assertFalse(Files.exists(ValidateResidentModeChoiceCalibrationRound1Config.OUTPUT));
-
         round.global().setRandomSeed(12);
         Set<String> unsafe = RunMatsim2019ResidentModeChoiceIteration0Validation.differences(
                 RunMatsim2019ResidentModeChoiceIteration0Validation.snapshot(production),
@@ -150,7 +148,7 @@ class ResidentModeChoiceCalibrationRound1Test {
         Files.writeString(stuck, csv);
         var review = ResidentModeChoiceRound1Review.validateAndWrite(temp);
         assertEquals("REVIEW_REQUIRED", review.status());
-        assertEquals("REVIEW_REQUIRED",
+        assertEquals("NOT_CONVERGED",
                 review.modes().get("car").convergenceStatus());
     }
 

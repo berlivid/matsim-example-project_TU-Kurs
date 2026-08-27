@@ -719,3 +719,29 @@ Scenario outputs are excluded from Git.
 - Added read-only R1A, server-only R1B and read-only R1C run configurations.
   Local preparation did not start Controller, QSim, R1B or R1C and did not
   modify the complete initial output.
+
+## 27 August 2026 -- productive resident parameter Round 2 preparation
+
+- Validated the complete protected Round-1 analysis for iterations 0--40:
+  68,770 residents, 137,540 resident main trips in every iteration, final
+  physical shares of 53.544423440% car, 15.002908245% PT, 27.834811691% bike
+  and 3.617856624% walk, and seven stuck-affected resident trips in iteration
+  40.
+- Recalculated the damped cumulative constants from the versioned formula:
+  car 0.000000, PT 0.853797, bike -0.095617 and walk 1.756684. Absolute Pkm
+  remain outside this task.
+- Added a separate fail-if-exists Round-2 config for iterations 0--60 and
+  output `resident-mode-choice-round-2`. Its validator permits only run ID,
+  output directory, last iteration, and the PT, bike and walk constants to
+  differ from Round 1. The original population is loaded again.
+- Preserved the strategy-disable fraction 0.8, producing expected innovation
+  switch-off after iteration 48 and zero innovative-strategy weight from
+  iteration 49. Late evaluation uses iterations 51--60.
+- Separated `CONVERGED` from `WITHIN_TARGET_TOLERANCE`; stable modes outside
+  the one-percentage-point target band are not labelled as passing. Overall
+  status is `CALIBRATED` only if all four modes meet both rules and the maximum
+  late resident stuck-trip share remains at or below 1.0%.
+- Reused the shared resident selected-plan, physical/choice, StuckEvent and
+  final sensitivity pipeline. Added R2A, R2B and R2C run configurations. Local
+  preparation did not start Controller, QSim, R2B or R2C and did not change
+  Initial or Round-1 output evidence.

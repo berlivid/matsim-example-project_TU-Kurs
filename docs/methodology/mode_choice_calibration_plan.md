@@ -156,6 +156,24 @@ criteria. A violation is `REVIEW_REQUIRED`, not a technical failure and never
 an automatic instruction to change constants. The older territorial Round 1
 and Round 2 below are retained only as legacy preliminary experiments.
 
+Productive resident Round 2 applies the same formula cumulatively to the
+Round-1 constants and final physical shares. Its versioned constants are car
+0.000000, PT 0.853797, bike -0.095617 and walk 1.756684. It reloads the original
+population and changes only run control plus these constants. With
+`lastIteration=60` and the unchanged innovation-disable fraction 0.8, the
+expected disable iteration is 48. MATSim therefore retains innovation through
+iteration 48 and applies zero innovative-strategy weight from iteration 49.
+Evaluation uses iterations 51--60.
+
+Round 2 separates convergence from target fit. `CONVERGED` means |late trend|
+<= 0.10 percentage points per iteration and late range <= 1.0 percentage point.
+`WITHIN_TARGET_TOLERANCE` means the absolute final physical share difference is
+<= 1.0 percentage point. Overall `CALIBRATED` additionally requires all four
+modes to meet both conditions and the maximum late resident stuck-trip share
+to remain <= 1.0%. Stability alone is not target agreement. Normalized Pkm
+shares, choice modes and stuck sensitivity remain diagnostics rather than
+automatic parameter-update rules.
+
 The legacy target CSV at
 `original-input-data/calibration/mode_choice_targets_2019.csv` preserves the
 preliminary `BOTH_INSIDE` workflow. The productive resident pipeline validates

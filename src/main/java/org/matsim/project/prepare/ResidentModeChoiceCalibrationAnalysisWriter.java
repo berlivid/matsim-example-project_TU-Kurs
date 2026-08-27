@@ -24,6 +24,7 @@ public final class ResidentModeChoiceCalibrationAnalysisWriter {
     public static final int LATE_ITERATION_WINDOW = 10;
     public static final double LATE_TREND_REVIEW_THRESHOLD_PP_PER_ITERATION = 0.10;
     public static final double LATE_RANGE_REVIEW_THRESHOLD_PP = 1.0;
+    public static final double TARGET_FIT_TOLERANCE_PP = 1.0;
     private static final List<SpatialScope> SPATIAL_CATEGORIES = List.of(
             SpatialScope.BOTH_INSIDE,
             SpatialScope.ORIGIN_ONLY,
@@ -148,7 +149,7 @@ public final class ResidentModeChoiceCalibrationAnalysisWriter {
         int start = Math.max(0, ordered.size() - LATE_ITERATION_WINDOW);
         List<AnalysisResult> late = ordered.subList(start, ordered.size());
         StringBuilder out = new StringBuilder(
-                "metric,mode,first_iteration,last_iteration,iterations,mean,minimum,maximum,range,linear_trend_per_iteration,final_value,target_value,difference_to_target,trend_review_threshold,range_review_threshold,review_status,unit\n");
+                "metric,mode,first_iteration,last_iteration,iterations,mean,minimum,maximum,range,linear_trend_per_iteration,final_value,target_value,difference_to_target,trend_review_threshold,range_review_threshold,target_fit_tolerance,convergence_status,target_fit_status,unit\n");
         for (String mode : ResidentModeChoiceCalibrationTargets.MODES) {
             statistics(out, "resident_trip_share", mode, late,
                     result -> primary(result).modalSharePercent(mode),
@@ -179,10 +180,15 @@ public final class ResidentModeChoiceCalibrationAnalysisWriter {
         double range = max - min;
         double trend = linearTrend(points);
         double finalValue = points.getLast().value();
-        String status = applyConvergenceCriteria
-                && (Math.abs(trend) > LATE_TREND_REVIEW_THRESHOLD_PP_PER_ITERATION
-                || range > LATE_RANGE_REVIEW_THRESHOLD_PP)
-                ? "REVIEW_REQUIRED" : applyConvergenceCriteria ? "PASS" : "SECONDARY_ONLY";
+        String convergenceStatus = applyConvergenceCriteria
+                ? Math.abs(trend) <= LATE_TREND_REVIEW_THRESHOLD_PP_PER_ITERATION
+                && range <= LATE_RANGE_REVIEW_THRESHOLD_PP
+                ? "CONVERGED" : "NOT_CONVERGED"
+                : "SECONDARY_ONLY";
+        String targetFitStatus = applyConvergenceCriteria
+                ? Math.abs(finalValue - target) <= TARGET_FIT_TOLERANCE_PP
+                ? "WITHIN_TARGET_TOLERANCE" : "OUTSIDE_TARGET_TOLERANCE"
+                : "SECONDARY_ONLY";
         out.append(metric).append(',').append(mode).append(',')
                 .append(points.getFirst().iteration()).append(',')
                 .append(points.getLast().iteration()).append(',').append(points.size())
@@ -194,7 +200,10 @@ public final class ResidentModeChoiceCalibrationAnalysisWriter {
                         ? number(LATE_TREND_REVIEW_THRESHOLD_PP_PER_ITERATION) : "")
                 .append(',').append(applyConvergenceCriteria
                         ? number(LATE_RANGE_REVIEW_THRESHOLD_PP) : "")
-                .append(',').append(status).append(',').append(unit).append('\n');
+                .append(',').append(applyConvergenceCriteria
+                        ? number(TARGET_FIT_TOLERANCE_PP) : "")
+                .append(',').append(convergenceStatus).append(',')
+                .append(targetFitStatus).append(',').append(unit).append('\n');
     }
 
     private static double linearTrend(List<Point> points) {

@@ -190,6 +190,25 @@ sensitivity run was considered but omitted because of the available thesis
 timeframe. This does not resolve or validate the weak realized walk response;
 it remains a limitation requiring cautious interpretation of Round 3.
 
+Round 3 subsequently produced late physical means of 27.950996074% car,
+58.556565363% PT, 8.107023411% bike and 5.385415152% walk. Car, PT and bike did
+not satisfy the late trend and range criteria; walk was stable but outside the
+target tolerance. Round 3 was therefore not calibrated and not fully
+converged.
+
+Productive resident Round 4 applies the same damped relative log-ratio formula
+to these Round-3 late means. Its constants are car 0.000000000, PT 0.180757242,
+bike 0.568301786 and walk 3.452586783, versioned in
+`docs/calibration/resident_mode_choice_calibration_round_4.csv`. It retains the
+same 0--60 design and evaluates iterations 51--60.
+
+Proceeding from a non-converged late mean is a pragmatic, time-constrained
+decision rather than a methodological preference. Nonlinear and path-dependent
+plan generation and selection make the response uncertain, especially because
+the controlled walk sensitivity test remains omitted. Round 4 must therefore
+be evaluated with the formal late-window rules before this calibration may be
+used for any BAU or Fast Track 2040 production interpretation.
+
 The legacy target CSV at
 `original-input-data/calibration/mode_choice_targets_2019.csv` preserves the
 preliminary `BOTH_INSIDE` workflow. The productive resident pipeline validates

@@ -543,6 +543,43 @@ diagnostics must remain visible in the Round-3 report. Physical resident trip
 shares remain the primary empirical calibration measure; physical Pkm shares
 remain secondary.
 
+## Productive resident calibration Round 4
+
+Round 3 did not satisfy the formal overall calibration criteria. Its physical
+resident trip-share means over iterations 51--60 were 27.950996074% car,
+58.556565363% PT, 8.107023411% bike and 5.385415152% walk. Car, PT and bike
+were `NOT_CONVERGED`, with late ranges above 1.0 percentage point and absolute
+trends above 0.10 percentage points per iteration. Walk was `CONVERGED` but
+remained `OUTSIDE_TARGET_TOLERANCE`; all four modes were outside the target
+band. Round 3 therefore cannot be treated as a calibrated result.
+
+Round 4 nevertheless uses these late means in the same cumulative update:
+
+`C4_m = C3_m + 0.5 * ln[(target_m / target_car) / (R3_late_mean_m / R3_late_mean_car)]`
+
+The resulting constants are car 0.000000000, PT 0.180757242, bike 0.568301786
+and walk 3.452586783. Inputs, relative updates, damping, cumulative constants
+and provenance are versioned in
+`docs/calibration/resident_mode_choice_calibration_round_4.csv`. The R4A
+validator recalculates the values directly from the preserved Round-3 CSV and
+also verifies the recorded lack of convergence.
+
+Using a non-converged late mean is a pragmatic decision under the available
+thesis timeframe. It introduces uncertainty because the response to mode
+constants is nonlinear and path-dependent through plan generation, plan
+memory, scoring and selection. The omitted controlled walk sensitivity test
+remains a methodological limitation; proceeding to Round 4 does not establish
+that the weak realized walk response has been explained.
+
+Round 4 retains the complete Round-3 design: the unchanged original regional
+population, resident cohort, seed 4711, 48-hour QSim horizon, iterations 0--60,
+innovation through iteration 48, plan memory four, strategies, capacities,
+routing and all non-constant scoring parameters. Only run ID, protected output
+directory and the PT, bike and walk constants differ. Late evaluation again
+uses iterations 51--60 and preserves the existing convergence, target-fit and
+StuckEvent thresholds. Round 4 must be completed and reviewed before any 2040
+BAU or Fast Track production run is interpreted with this calibration.
+
 ## Relationship to legacy experiments
 
 Round 1 and Round 2 calibrated `BOTH_INSIDE` as a technical preliminary scope.
@@ -605,6 +642,13 @@ The shared IntelliJ configurations are:
 18. `R3C Validate and Summarize 2019 Resident Mode Choice Calibration Round 3`
     -- read-only normal-completion validation, shared analysis, iterations-51--60
     calibration review and Round-2-versus-Round-3 comparison.
+19. `R4A Validate 2019 Resident Mode Choice Calibration Round 4` -- read-only
+    Round-3 evidence, formula, protected-difference, input and cohort validation.
+20. `R4B Run 2019 Resident Mode Choice Calibration Round 4` -- server-only
+    iterations 0--60 using the protected Round-4 config.
+21. `R4C Validate and Summarize 2019 Resident Mode Choice Calibration Round 4`
+    -- read-only normal-completion validation, shared analysis, Round-3-versus-
+    Round-4 comparison and compact Round-2--4 history.
 
 For a new iteration-zero execution, update the repository, run 10, then run 11
 manually through IntelliJ with `-Xms4g -Xmx16g`. For the existing university-
@@ -662,6 +706,14 @@ physical/choice, Pkm and StuckEvent analysis. Copy the complete Round-3
 controller log back locally. A non-calibrated or review-required result is
 evidence for a documented next decision, not authorization for an automatic
 parameter change.
+
+For Round 4, preserve all earlier outputs, verify that
+`output/resident-mode-choice-round-4` is absent, run R4A and require PASS, run
+R4B exactly once, and run R4C only after normal controller completion. R4C
+reuses the established analysis and adds the Round-3/4 comparison and compact
+Round-2--4 history. Copy the complete Round-4 `analysis/` directory, final
+plans, iteration-60 events, output config and controller log back locally.
+Review the formal status before authorizing any 2040 production run.
 
 Local Step-4 preparation created neither protected output directory and ran no
 simulation.

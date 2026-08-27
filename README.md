@@ -66,6 +66,10 @@ convergence, target fit and stuck-trip acceptance as separate review concepts.
 The preserved Round-2 late means now supply an otherwise identical 0--60
 Round-3 design. R3A validates it read-only, R3B is server-only, and R3C validates
 normal completion and compares the two rounds using the shared analysis.
+Because Round 3 was not fully converged, Round 4 is a time-constrained,
+otherwise identical 0--60 update that must be reviewed before any calibrated
+2040 production run. R4A is read-only, R4B is server-only, and R4C adds the
+Round-3/4 comparison and compact Round-2--4 history.
 
 ## Current status
 

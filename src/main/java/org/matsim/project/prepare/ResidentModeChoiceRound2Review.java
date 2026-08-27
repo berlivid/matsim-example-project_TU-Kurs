@@ -26,7 +26,22 @@ final class ResidentModeChoiceRound2Review {
     static Result validateAndWriteRound3(Path output, Path round2Analysis)
             throws IOException {
         Result result = validateAndWrite(output, 3);
-        writeRound2Comparison(output.resolve("analysis"), round2Analysis, result);
+        writeComparison(output.resolve("analysis"), round2Analysis, 2, 3,
+                ResidentModeChoiceRound3Specification.ROUND_2_CONSTANTS,
+                ResidentModeChoiceRound3Specification.ROUND_3_CONSTANTS, result);
+        return result;
+    }
+
+    static Result validateAndWriteRound4(Path output, Path round3Analysis)
+            throws IOException {
+        Result result = validateAndWrite(output, 4);
+        Path analysis = output.resolve("analysis");
+        writeComparison(analysis, round3Analysis, 3, 4,
+                ResidentModeChoiceRound4Specification.ROUND_3_CONSTANTS,
+                ResidentModeChoiceRound4Specification.ROUND_4_CONSTANTS, result);
+        writeCalibrationHistory(analysis,
+                ResidentModeChoiceRound3Specification.ROUND_2_ANALYSIS,
+                round3Analysis, result);
         return result;
     }
 
@@ -217,58 +232,160 @@ final class ResidentModeChoiceRound2Review {
         }
     }
 
-    private static void writeRound2Comparison(Path analysis, Path round2Analysis,
-                                              Result round3) throws IOException {
-        Csv round2 = Csv.read(round2Analysis.resolve(
-                "resident_mode_choice_round_2_calibration_review.csv"));
+    private static void writeComparison(Path analysis, Path previousAnalysis,
+                                        int previousRound, int currentRound,
+                                        Map<String, Double> previousConstants,
+                                        Map<String, Double> currentConstants,
+                                        Result current) throws IOException {
+        Csv previous = Csv.read(previousAnalysis.resolve(
+                "resident_mode_choice_round_" + previousRound
+                        + "_calibration_review.csv"));
         StringBuilder csv = new StringBuilder(
-                "mode,round_2_constant,round_3_constant,round_2_late_mean_trip_share_percent,round_3_late_mean_trip_share_percent,late_mean_difference_pp,round_2_final_trip_share_percent,round_3_final_trip_share_percent,final_difference_pp,round_2_convergence_status,round_3_convergence_status,round_2_target_fit_status,round_3_target_fit_status\n");
+                "mode,round_" + previousRound + "_constant,round_" + currentRound
+                        + "_constant,round_" + previousRound
+                        + "_late_mean_trip_share_percent,round_" + currentRound
+                        + "_late_mean_trip_share_percent,late_mean_difference_pp,round_"
+                        + previousRound + "_final_trip_share_percent,round_" + currentRound
+                        + "_final_trip_share_percent,final_difference_pp,round_"
+                        + previousRound + "_convergence_status,round_" + currentRound
+                        + "_convergence_status,round_" + previousRound
+                        + "_target_fit_status,round_" + currentRound
+                        + "_target_fit_status\n");
         StringBuilder report = new StringBuilder(
-                "# Resident mode-choice calibration Round 2 versus Round 3\n\n")
+                "# Resident mode-choice calibration Round " + previousRound
+                        + " versus Round " + currentRound + "\n\n")
                 .append("Both runs use iterations 0--60, the unchanged original population, seed 4711 and innovation switch-off after iteration 48. Their only behavioral differences are the three non-reference mode constants. Physical resident trip shares are compared over the common late window 51--60.\n\n")
-                .append("| Mode | R2 constant | R3 constant | R2 late mean | R3 late mean | Difference | R2 final | R3 final | Difference | R2 convergence | R3 convergence | R2 target fit | R3 target fit |\n")
+                .append("| Mode | R").append(previousRound).append(" constant | R")
+                .append(currentRound).append(" constant | R").append(previousRound)
+                .append(" late mean | R").append(currentRound)
+                .append(" late mean | Difference | R").append(previousRound)
+                .append(" final | R").append(currentRound)
+                .append(" final | Difference | R").append(previousRound)
+                .append(" convergence | R").append(currentRound)
+                .append(" convergence | R").append(previousRound)
+                .append(" target fit | R").append(currentRound).append(" target fit |\n")
                 .append("|---|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|---|\n");
         for (String mode : ResidentModeChoiceCalibrationTargets.MODES) {
-            Map<String, String> old = uniqueMode(round2, mode);
-            ModeReview current = round3.modes().get(mode);
+            Map<String, String> old = uniqueMode(previous, mode);
+            ModeReview currentMode = current.modes().get(mode);
             double oldLate = number(old, "late_mean_trip_share_percent");
             double oldFinal = number(old, "final_trip_share_percent");
-            double oldConstant = ResidentModeChoiceRound3Specification
-                    .ROUND_2_CONSTANTS.get(mode);
-            double newConstant = ResidentModeChoiceRound3Specification
-                    .ROUND_3_CONSTANTS.get(mode);
+            double oldConstant = previousConstants.get(mode);
+            double newConstant = currentConstants.get(mode);
             csv.append(mode).append(',').append(number(oldConstant)).append(',')
                     .append(number(newConstant)).append(',').append(number(oldLate))
-                    .append(',').append(number(current.lateMeanTripShare())).append(',')
-                    .append(number(current.lateMeanTripShare() - oldLate)).append(',')
+                    .append(',').append(number(currentMode.lateMeanTripShare())).append(',')
+                    .append(number(currentMode.lateMeanTripShare() - oldLate)).append(',')
                     .append(number(oldFinal)).append(',')
-                    .append(number(current.finalTripShare())).append(',')
-                    .append(number(current.finalTripShare() - oldFinal)).append(',')
+                    .append(number(currentMode.finalTripShare())).append(',')
+                    .append(number(currentMode.finalTripShare() - oldFinal)).append(',')
                     .append(old.get("convergence_status")).append(',')
-                    .append(current.convergenceStatus()).append(',')
+                    .append(currentMode.convergenceStatus()).append(',')
                     .append(old.get("target_fit_status")).append(',')
-                    .append(current.targetFitStatus()).append('\n');
+                    .append(currentMode.targetFitStatus()).append('\n');
             report.append("| ").append(mode).append(" | ")
                     .append(number(oldConstant)).append(" | ")
                     .append(number(newConstant)).append(" | ")
                     .append(number(oldLate)).append("% | ")
-                    .append(number(current.lateMeanTripShare())).append("% | ")
-                    .append(number(current.lateMeanTripShare() - oldLate)).append(" pp | ")
+                    .append(number(currentMode.lateMeanTripShare())).append("% | ")
+                    .append(number(currentMode.lateMeanTripShare() - oldLate)).append(" pp | ")
                     .append(number(oldFinal)).append("% | ")
-                    .append(number(current.finalTripShare())).append("% | ")
-                    .append(number(current.finalTripShare() - oldFinal)).append(" pp | ")
+                    .append(number(currentMode.finalTripShare())).append("% | ")
+                    .append(number(currentMode.finalTripShare() - oldFinal)).append(" pp | ")
                     .append(old.get("convergence_status")).append(" | ")
-                    .append(current.convergenceStatus()).append(" | ")
+                    .append(currentMode.convergenceStatus()).append(" | ")
                     .append(old.get("target_fit_status")).append(" | ")
-                    .append(current.targetFitStatus()).append(" |\n");
+                    .append(currentMode.targetFitStatus()).append(" |\n");
         }
-        report.append("\nRound 3 is not declared calibrated because a single iteration is close to a target. The shared convergence, target-fit and stuck-trip criteria apply to the complete late window.\n");
+        report.append("\nRound ").append(currentRound)
+                .append(" is not declared calibrated because a single iteration is close to a target. The shared convergence, target-fit and stuck-trip criteria apply to the complete late window.\n");
         Files.writeString(analysis.resolve(
-                        "resident_mode_choice_round_2_vs_round_3.csv"),
+                        "resident_mode_choice_round_" + previousRound
+                                + "_vs_round_" + currentRound + ".csv"),
                 csv, StandardCharsets.UTF_8);
         Files.writeString(analysis.resolve(
-                        "resident_mode_choice_round_2_vs_round_3.md"),
+                        "resident_mode_choice_round_" + previousRound
+                                + "_vs_round_" + currentRound + ".md"),
                 report, StandardCharsets.UTF_8);
+    }
+
+    private static void writeCalibrationHistory(Path analysis, Path round2Analysis,
+                                                Path round3Analysis, Result round4)
+            throws IOException {
+        Csv round2 = Csv.read(round2Analysis.resolve(
+                "resident_mode_choice_round_2_calibration_review.csv"));
+        Csv round3 = Csv.read(round3Analysis.resolve(
+                "resident_mode_choice_round_3_calibration_review.csv"));
+        StringBuilder csv = new StringBuilder(
+                "round,mode,constant,late_mean_trip_share_percent,final_trip_share_percent,trip_target_percent,late_mean_difference_pp,final_difference_pp,convergence_status,target_fit_status\n");
+        StringBuilder report = new StringBuilder(
+                "# Resident mode-choice calibration history, Rounds 2--4\n\n")
+                .append("All three rounds use the unchanged original population, iterations 0--60 and the common late window 51--60. Physical resident trip shares are the primary metric.\n\n")
+                .append("| Round | Mode | Constant | Late mean | Final | Target | Late difference | Final difference | Convergence | Target fit |\n")
+                .append("|---:|---|---:|---:|---:|---:|---:|---:|---|---|\n");
+        appendHistoryRound(csv, report, 2, round2,
+                ResidentModeChoiceRound3Specification.ROUND_2_CONSTANTS);
+        appendHistoryRound(csv, report, 3, round3,
+                ResidentModeChoiceRound4Specification.ROUND_3_CONSTANTS);
+        for (String mode : ResidentModeChoiceCalibrationTargets.MODES) {
+            appendHistoryRow(csv, report, 4, mode,
+                    ResidentModeChoiceRound4Specification.ROUND_4_CONSTANTS.get(mode),
+                    round4.modes().get(mode));
+        }
+        report.append("\nA round is calibrated only when every mode satisfies the shared late-window convergence and target-fit rules and the resident stuck-trip criterion.\n");
+        Files.writeString(analysis.resolve(
+                        "resident_mode_choice_round_2_to_4_history.csv"),
+                csv, StandardCharsets.UTF_8);
+        Files.writeString(analysis.resolve(
+                        "resident_mode_choice_round_2_to_4_history.md"),
+                report, StandardCharsets.UTF_8);
+    }
+
+    private static void appendHistoryRound(StringBuilder csv, StringBuilder report,
+                                           int round, Csv review,
+                                           Map<String, Double> constants) {
+        for (String mode : ResidentModeChoiceCalibrationTargets.MODES) {
+            Map<String, String> row = uniqueMode(review, mode);
+            ModeReview values = new ModeReview(mode,
+                    number(row, "late_mean_trip_share_percent"),
+                    number(row, "late_minimum_trip_share_percent"),
+                    number(row, "late_maximum_trip_share_percent"),
+                    number(row, "late_range_pp"),
+                    number(row, "late_trend_pp_per_iteration"),
+                    number(row, "final_trip_share_percent"),
+                    number(row, "trip_target_percent"),
+                    number(row, "late_mean_trip_difference_pp"),
+                    number(row, "final_trip_difference_pp"),
+                    number(row, "late_mean_pkm_share_percent"),
+                    number(row, "final_pkm_share_percent"),
+                    number(row, "pkm_target_percent"),
+                    number(row, "final_pkm_difference_pp"),
+                    row.get("convergence_status"), row.get("target_fit_status"));
+            appendHistoryRow(csv, report, round, mode, constants.get(mode), values);
+        }
+    }
+
+    private static void appendHistoryRow(StringBuilder csv, StringBuilder report,
+                                         int round, String mode, double constant,
+                                         ModeReview values) {
+        csv.append(round).append(',').append(mode).append(',')
+                .append(number(constant)).append(',')
+                .append(number(values.lateMeanTripShare())).append(',')
+                .append(number(values.finalTripShare())).append(',')
+                .append(number(values.tripTarget())).append(',')
+                .append(number(values.lateMeanTripDifference())).append(',')
+                .append(number(values.finalTripDifference())).append(',')
+                .append(values.convergenceStatus()).append(',')
+                .append(values.targetFitStatus()).append('\n');
+        report.append("| ").append(round).append(" | ").append(mode).append(" | ")
+                .append(number(constant)).append(" | ")
+                .append(number(values.lateMeanTripShare())).append("% | ")
+                .append(number(values.finalTripShare())).append("% | ")
+                .append(number(values.tripTarget())).append("% | ")
+                .append(number(values.lateMeanTripDifference())).append(" pp | ")
+                .append(number(values.finalTripDifference())).append(" pp | ")
+                .append(values.convergenceStatus()).append(" | ")
+                .append(values.targetFitStatus()).append(" |\n");
     }
 
     private static void validateLateIdentity(Map<String, String> row) {

@@ -411,6 +411,29 @@ sensitivity test was omitted because of the available thesis timeframe. This
 is a methodological limitation, not proof that the weak walk response is
 explained, and it requires cautious interpretation of the Round-3 result.
 
+## Productive resident parameter Round 4
+
+Round 3 was not fully converged. Its late physical means were 27.950996074%
+car, 58.556565363% PT, 8.107023411% bike and 5.385415152% walk. Car, PT and
+bike failed the shared late trend/range rules; walk was stable but remained
+outside target tolerance. Round 4 pragmatically uses these late means because
+of the available thesis timeframe.
+
+The unchanged damped car-reference formula gives constants car 0.000000000,
+PT 0.180757242, bike 0.568301786 and walk 3.452586783. The versioned
+specification is `docs/calibration/resident_mode_choice_calibration_round_4.csv`.
+`config_resident_mode_choice_calibration_round_4.xml` differs from Round 3 only
+in run ID, protected output directory and these three non-reference constants.
+Output is protected at `output/resident-mode-choice-round-4`.
+
+Use **R4A** for read-only validation, **R4B** exactly once on the server, and
+**R4C** only after normal completion. R4C retains the shared physical/choice,
+Pkm, late-window and StuckEvent reports, adds a Round-3-versus-Round-4
+comparison, and writes a compact Round-2--4 history. The omitted controlled
+walk sensitivity test and the nonlinear, path-dependent response remain
+explicit uncertainties. Round 4 must be reviewed before any 2040 BAU or Fast
+Track production run uses this calibration.
+
 ## Isolated open-tour test
 
 The separate five-iteration experiment tested

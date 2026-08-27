@@ -769,3 +769,28 @@ Scenario outputs are excluded from Git.
 - Local preparation compiled and tested the pipeline without starting
   Controller, QSim, R3B or R3C and without modifying prior output evidence or
   protected model inputs.
+
+## 27 August 2026 -- productive resident parameter Round 4 preparation
+
+- Verified the preserved Round-3 analysis for 68,770 residents, 137,540
+  resident main trips and iterations 0--60. Late physical means were
+  27.950996074% car, 58.556565363% PT, 8.107023411% bike and 5.385415152%
+  walk.
+- Recorded that Round 3 was not fully converged: car, PT and bike failed the
+  shared trend/range criteria, while walk was converged but outside target
+  tolerance. All modes remained outside target tolerance.
+- Recalculated the cumulative constants as car 0.000000000, PT 0.180757242,
+  bike 0.568301786 and walk 3.452586783 directly from the preserved Round-3
+  late-statistics CSV.
+- Added a protected Round-4 config differing from Round 3 only in run ID,
+  output directory and the PT, bike and walk constants. The shared runner,
+  resident cohort, iterations 0--60, seed, 48-hour horizon, innovation timing,
+  plan memory, strategies and model inputs remain unchanged.
+- Added R4A, R4B and R4C. R4C reuses the shared analysis and adds a Round-3/4
+  comparison and compact Round-2--4 calibration history.
+- Proceeding from a non-converged late mean and without the controlled walk
+  sensitivity test is documented as a pragmatic thesis-time decision with
+  nonlinear and path-dependent uncertainty. Round 4 requires review before a
+  2040 production run.
+- Local preparation started no Controller or QSim and did not modify any
+  previous round or protected model input.

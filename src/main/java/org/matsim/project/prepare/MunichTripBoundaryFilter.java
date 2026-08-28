@@ -50,7 +50,7 @@ public final class MunichTripBoundaryFilter {
         return SpatialCategory.BOTH_OUTSIDE;
     }
 
-    private static String identifyInputMainMode(TripStructureUtils.Trip trip) {
+    static String identifyInputMainMode(TripStructureUtils.Trip trip) {
         try {
             String mode = MAIN_MODE_IDENTIFIER.identifyMainMode(trip.getTripElements());
             return mode == null || mode.isBlank() ? "unknown" : mode.toLowerCase(Locale.ROOT);

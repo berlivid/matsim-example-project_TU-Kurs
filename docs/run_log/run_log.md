@@ -397,3 +397,18 @@ Scenario outputs are excluded from Git.
 - The large final plans were unavailable locally, so only compilation and
   focused synthetic tests were run. The real audit remains a server-side
   read-only step and no Controller or QSim was started.
+
+## 28 August 2026 — literature-based scoring calibration Round 1 prepared
+
+- Confirmed 160,603 diagnostic `BOTH_INSIDE` trips and final shares of car
+  30.435919628%, PT 16.714507201%, bike 21.801585275% and walk 31.047987896%.
+- Applied the full walk-referenced log-ratio formula, producing ASCs car
+  0.368217221, PT 0.619256967, bike 0.065869246 and walk 0.000000000.
+- Added the protected iterations-0--40 Round-1 config, fail-closed Run 09,
+  server Run 10 and recovery-only Run 10B. Structural scoring, inputs and
+  strategies remain unchanged.
+- Added exact iteration-end `BOTH_INSIDE` mode histories, late-window statistics
+  for iterations 31--40, final distance/Pkm indicators, active-mode distance
+  checks, StuckEvent reporting and a damped non-executing Round-2 recommendation.
+- Local preparation compiled and tested the implementation and ran only the
+  read-only validator. No Controller or QSim was started locally.

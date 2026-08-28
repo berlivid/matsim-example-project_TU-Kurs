@@ -141,3 +141,21 @@ comparison; route distance is a secondary, coverage-reported measure. The
 behavioural limits. Run 08 fails on an existing
 `output/literature-based-scoring-diagnostic/analysis/distance-audit` directory
 and never overwrites the simulation output.
+
+## Literature-based scoring calibration Round 1
+
+`config_literature_based_scoring_calibration_round_1.xml` is a strict
+derivation of the diagnostic configuration. It uses the full walk-referenced
+log-ratio update and ASCs car `0.368217221`, PT `0.619256967`, bike
+`0.065869246`, walk `0.000000000`. All structural scoring and protected inputs
+remain unchanged. The output is protected at
+`output/literature-based-scoring-calibration-round-1`.
+
+Run `09 Validate Literature-Based Scoring Calibration Round 1` locally and on
+the server first. Then execute `10 Run Literature-Based Scoring Calibration
+Round 1` once on the server. Run 10 covers iterations 0--40, records exact
+`BOTH_INSIDE` selected-plan mode shares and StuckEvents for every iteration,
+and automatically creates the analysis after normal shutdown. If only the
+automatic postprocessing fails after a complete simulation, use recovery-only
+`10B Validate and Summarize Existing Literature-Based Scoring Round 1`; it does
+not start Controller or QSim.

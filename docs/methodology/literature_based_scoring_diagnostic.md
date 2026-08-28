@@ -229,3 +229,50 @@ investigation; predominantly generated cases require review of mode-specific
 time/distance scoring and the unrestricted choice set. A maximum-distance rule
 would add a behavioural assumption and is not justified by the audit thresholds
 alone.
+
+## Literature-based calibration Round 1
+
+The completed diagnostic contains 160,603 `BOTH_INSIDE` main trips. Its final
+physical shares are car 30.435919628%, PT 16.714507201%, bike 21.801585275% and
+walk 31.047987896%, compared with targets of 34%, 24%, 18% and 24%. Round 1 is
+the first actual calibration step. It changes only three alternative-specific
+constants, the run identity, protected output directory and last iteration;
+the complete structural scoring specification remains frozen.
+
+Walk remains the zero reference. For each other mode (i), the update is:
+
+`ASC_i = ln[(target_i / diagnostic_i) / (target_walk / diagnostic_walk)]`
+
+Using the versioned diagnostic shares gives car `0.368217221`, PT
+`0.619256967`, bike `0.065869246` and walk exactly `0.000000000`. These are
+transparent calibration adjustments, not empirically estimated behavioural
+coefficients. Bike receives a small positive constant despite exceeding its
+absolute target because constants are relative to walk, which is even more
+overrepresented against its target.
+
+Round 1 retains the original population and all technical inputs, seed 4711,
+48-hour QSim horizon, 5% capacity factors, SwissRailRaptor, mode speeds, car
+operating cost, activity scoring, choice set, chain-based modes and strategy
+weights. The missing car-availability and ownership attributes remain a
+limitation; `considerCarAvailability=false` is unchanged. Neither maximum
+active-mode distances nor mode-specific distance penalties are introduced.
+The distance audit showed that most long final walk and bike trips were
+inherited, while ten iterations were insufficient to establish whether the
+tails persist after adequate mode-choice exposure.
+
+Iterations 31--40 form the late assessment window. A result is acceptable only
+when every late mean is within +/-2 percentage points of its target, every
+absolute trend is below 0.10 percentage points per iteration, every late range
+is no greater than 2 percentage points, the project-specific stuck incidence
+remains no greater than 0.10%, no unexpected mode appears and the active-mode
+distance tails do not materially worsen under the existing audit rule. These
+are thesis-specific review criteria rather than universal MATSim standards.
+A stable miss leads to `ONE_MORE_ASC_ROUND_REQUIRED`; instability or structural
+warning evidence leads to `STRUCTURAL_REVIEW_REQUIRED`.
+
+Run 10 records exact selected-plan `BOTH_INSIDE` shares and StuckEvents for all
+iterations 0--40, then automatically publishes the final analysis. Run 10B is
+recovery-only: it summarizes an already completed output and never starts QSim.
+Its Round-2 constants are a non-executing recommendation using a damping factor
+of 0.5. Pkm, travelled distances and distance distributions remain validation
+outcomes and are not direct ASC targets.

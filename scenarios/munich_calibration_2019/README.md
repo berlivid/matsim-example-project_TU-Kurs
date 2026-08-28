@@ -97,3 +97,27 @@ of this workflow and must not be rebuilt by these configurations.
 For provenance, selection counts, conversion assumptions and methodological
 limitations, see
 [`docs/methodology/gtfs_2019_calibration_input.md`](../../docs/methodology/gtfs_2019_calibration_input.md).
+
+## Literature-based scoring diagnostic
+
+`config_literature_based_scoring_diagnostic.xml` is a separate iterations-0--10
+diagnostic. It starts from the unchanged validated 2019 population, network,
+schedule and vehicles, retains SwissRailRaptor and the five-percent capacity
+factors, and uses the technically established 48-hour horizon. It does not
+contain modal-share targets or an automatic ASC update.
+
+The choice set is exactly car, PT, walk and bike; car and bike remain chain
+based. All four ASCs start at zero and walk is permanently fixed as the
+reference. Direct mode-specific travel-time utilities are zero, while the
+positive activity-performing utility preserves the opportunity cost of time.
+Car has a transferred EUR 0.20/km operating-cost assumption. Walk and bike use
+the Munich empirical speeds 4.8 and 13.7 km/h. Car availability is not checked
+because the population contains no defensible licence, ownership or
+availability attributes; this is a documented limitation.
+
+Run `05 Validate Literature-Based 2019 Scoring Diagnostic` first. Only after
+PASS, and only on the university server, run
+`06 Run Literature-Based 2019 Scoring Diagnostic`. The protected output is
+`output/literature-based-scoring-diagnostic` and must not already exist. See
+[`literature_based_scoring_diagnostic.md`](../../docs/methodology/literature_based_scoring_diagnostic.md)
+for parameter provenance and interpretation.

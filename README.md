@@ -14,6 +14,7 @@ The project uses MATSim 2025.0 and Java 21, the existing Munich model, a project
 Authoritative methods:
 
 - [Population 2040](docs/methodology/population_2040.md)
+- [Literature-based 2019 scoring diagnostic](docs/methodology/literature_based_scoring_diagnostic.md)
 - [GTFS filtering](docs/gtfs2040/gtfs2037_munich_filter_method.md)
 - [BAU and Fast Track public transport](docs/gtfs2040/gtfs2037_fast_track_method.md)
 - [MATSim transit inputs](docs/gtfs2040/matsim_2040_transit_inputs.md)
@@ -22,6 +23,13 @@ Authoritative methods:
 ## Current status
 
 The BAU and Fast Track GTFS feeds and their activated MATSim transit inputs have been rebuilt and revalidated with the common Poccistraße and Berduxstraße measures. Fast Track additionally contains the Olympic Village and Media Village population relocation and a 13-link pedestrian-zone car restriction: 12 spatially selected links plus one technical boundary connector required for car-network consistency. The connector is not an extension of the planned pedestrian area. The Sendlinger Spange is documented as an indirect normal-day representation without added GTFS rows. Focused readback and routing tests pass; no calibrated or full BAU/Fast Track simulation has been run.
+
+An isolated literature-based 2019 scoring diagnostic is prepared on a separate
+branch. It resets the four choice-mode constants, keeps walk as the permanent
+zero reference, introduces an explicit car operating cost and uses observed
+Munich walk/bike speeds. It is a short diagnostic rather than a calibrated
+result; no later BAU or Fast Track run may proceed with different scoring
+specifications.
 
 ## Reproduction
 

@@ -324,3 +324,21 @@ Scenario outputs are excluded from Git.
 - The complete regional population and every scenario input remain unchanged.
   No modal split, passenger-kilometre or vehicle-kilometre result was produced,
   and no mode choice or simulation was started.
+
+## 28 August 2026 — literature-based scoring diagnostic prepared
+
+- Created the alternative branch from `f8b0210`, the verified first parent of
+  the commit that introduced the former mode-choice calibration setup.
+- Added a protected iterations-0--10 diagnostic using the unchanged synthetic
+  2019 inputs, seed 4711, five-percent capacity factors, SwissRailRaptor and the
+  technical 48-hour QSim horizon.
+- Reset car, PT, walk and bike ASCs to zero; fixed walk as the permanent
+  reference; set direct travel-time and distance utilities to zero; introduced
+  EUR 0.20/km for car; and used observed Munich speeds of 4.8 km/h for walk and
+  13.7 km/h for bike.
+- Retained `ChangeExpBeta=0.8`, `ReRoute=0.1`,
+  `SubtourModeChoice=0.1` and `BrainExpBeta=1.0`. Car availability remains
+  disabled because no defensible attributes exist.
+- Added a read-only fail-closed validator, thin server runner, focused tests and
+  IntelliJ run configurations 05 and 06. Local work did not start Controller or
+  QSim and created no diagnostic output.

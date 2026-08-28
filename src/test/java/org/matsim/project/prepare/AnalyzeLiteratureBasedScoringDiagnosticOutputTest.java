@@ -73,13 +73,62 @@ class AnalyzeLiteratureBasedScoringDiagnosticOutputTest {
         var reports = AnalyzeLiteratureBasedScoringDiagnosticOutput.buildReports(
                 new AnalyzeLiteratureBasedScoringDiagnosticOutput.OutputFiles(
                         Path.of("config"), trips, null, Path.of("events"), null),
-                result, List.of(), new AnalyzeLiteratureBasedScoringDiagnosticOutput.StuckSummary(
+                result, result, List.of(),
+                new AnalyzeLiteratureBasedScoringDiagnosticOutput.StuckSummary(
                         0, 0, Map.of(), Map.of(), Map.of(), 0, 0, 0));
         String csv = reports.get("literature_based_scoring_final_mode_summary.csv");
         assertTrue(csv.contains("car,2,50.000000000,34.000000000,16.000000000,"
-                + "30.000000000,48.387096774,600.000000000,15.000000000,15.000000000"));
+                + "2,100.000000000,0,30.000000000,48.387096774,600.000000000,"
+                + "15.000000000,15.000000000"));
         assertTrue(csv.contains("pt,1,25.000000000,24.000000000,1.000000000,"
-                + "30.000000000,48.387096774,600.000000000,30.000000000,30.000000000"));
+                + "1,100.000000000,0,30.000000000,48.387096774,600.000000000,"
+                + "30.000000000,30.000000000"));
+    }
+
+    @Test
+    void completePlansPassWithLowerMeasurementCoverageAndMissingPlansStillFail() {
+        var plans = structuralAnalysis(540_468, 160_603,
+                Map.of("car", 80_000L, "pt", 40_000L,
+                        "bike", 20_603L, "walk", 20_000L));
+        var measurements = measurementAnalysis();
+
+        AnalyzeLiteratureBasedScoringDiagnosticOutput.validateStructuralTotals(plans);
+        var reports = AnalyzeLiteratureBasedScoringDiagnosticOutput.buildReports(
+                new AnalyzeLiteratureBasedScoringDiagnosticOutput.OutputFiles(
+                        Path.of("config"), Path.of("trips"), Path.of("plans"),
+                        Path.of("events"), null),
+                plans, measurements, List.of(),
+                new AnalyzeLiteratureBasedScoringDiagnosticOutput.StuckSummary(
+                        0, 0, Map.of(), Map.of(), Map.of(), 0, 0, 0));
+
+        String scope = reports.get("literature_based_scoring_scope_summary.csv");
+        assertTrue(scope.contains("ALL,540468,100.000000000,540211,"
+                + "99.952448619"),
+                "Overall measurement coverage must remain explicit");
+        String mode = reports.get("literature_based_scoring_final_mode_summary.csv");
+        String car = mode.lines().filter(line -> line.startsWith("car,")).findFirst()
+                .orElseThrow();
+        String[] carFields = car.split(",", -1);
+        assertEquals(80_000, Long.parseLong(carFields[1]));
+        assertEquals(80_000.0 / 160_603.0 * 100.0,
+                Double.parseDouble(carFields[2]), 1e-9,
+                "Modal-share denominator must use all plan trips");
+        assertEquals(79_950, Long.parseLong(carFields[5]));
+        assertEquals(50, Long.parseLong(carFields[7]));
+        assertEquals(10.0, Double.parseDouble(carFields[11]), 1e-9,
+                "Mean distance must use only measured rows");
+        assertEquals(1000.0 / 60.0, Double.parseDouble(carFields[12]), 1e-9,
+                "Mean travel time must use only measured rows");
+        String report = reports.get("literature_based_scoring_diagnostic_report.md");
+        assertTrue(report.contains("257 fewer than the selected plans"));
+        assertTrue(report.contains("0.048% when rounded to three decimal places"));
+
+        var missingPlanTrip = structuralAnalysis(540_467, 160_602,
+                Map.of("car", 79_999L, "pt", 40_000L,
+                        "bike", 20_603L, "walk", 20_000L));
+        assertThrows(IllegalStateException.class,
+                () -> AnalyzeLiteratureBasedScoringDiagnosticOutput
+                        .validateStructuralTotals(missingPlanTrip));
     }
 
     @Test
@@ -177,6 +226,47 @@ class AnalyzeLiteratureBasedScoringDiagnosticOutputTest {
         rows.forEach(row -> csv.append(row).append('\n'));
         gzip(file, csv.toString());
         return file;
+    }
+
+    private static AnalyzeLiteratureBasedScoringDiagnosticOutput.TripAnalysis
+            structuralAnalysis(long total, long bothInside, Map<String, Long> modes) {
+        Map<MunichTripBoundaryFilter.SpatialCategory, Long> scopes = Map.of(
+                MunichTripBoundaryFilter.SpatialCategory.BOTH_INSIDE, bothInside,
+                MunichTripBoundaryFilter.SpatialCategory.ORIGIN_ONLY, 0L,
+                MunichTripBoundaryFilter.SpatialCategory.DESTINATION_ONLY, 0L,
+                MunichTripBoundaryFilter.SpatialCategory.BOTH_OUTSIDE,
+                total - bothInside,
+                MunichTripBoundaryFilter.SpatialCategory.INVALID_OR_MISSING_COORDINATE, 0L);
+        Map<String, AnalyzeLiteratureBasedScoringDiagnosticOutput.ModeMetric> metrics =
+                new java.util.TreeMap<>();
+        modes.forEach((mode, count) -> metrics.put(mode,
+                new AnalyzeLiteratureBasedScoringDiagnosticOutput.ModeMetric(
+                        count, 0, 0)));
+        return new AnalyzeLiteratureBasedScoringDiagnosticOutput.TripAnalysis(
+                324_043, total, scopes, Map.copyOf(metrics), Map.of(), Set.of(),
+                "FINAL_SELECTED_PLAN_STRUCTURE");
+    }
+
+    private static AnalyzeLiteratureBasedScoringDiagnosticOutput.TripAnalysis
+            measurementAnalysis() {
+        Map<MunichTripBoundaryFilter.SpatialCategory, Long> scopes = Map.of(
+                MunichTripBoundaryFilter.SpatialCategory.BOTH_INSIDE, 160_500L,
+                MunichTripBoundaryFilter.SpatialCategory.ORIGIN_ONLY, 0L,
+                MunichTripBoundaryFilter.SpatialCategory.DESTINATION_ONLY, 0L,
+                MunichTripBoundaryFilter.SpatialCategory.BOTH_OUTSIDE, 379_711L,
+                MunichTripBoundaryFilter.SpatialCategory.INVALID_OR_MISSING_COORDINATE, 0L);
+        Map<String, AnalyzeLiteratureBasedScoringDiagnosticOutput.ModeMetric> modes = Map.of(
+                "car", new AnalyzeLiteratureBasedScoringDiagnosticOutput.ModeMetric(
+                        79_950, 799_500_000, 79_950_000),
+                "pt", new AnalyzeLiteratureBasedScoringDiagnosticOutput.ModeMetric(
+                        39_980, 599_700_000, 59_970_000),
+                "bike", new AnalyzeLiteratureBasedScoringDiagnosticOutput.ModeMetric(
+                        20_590, 102_950_000, 20_590_000),
+                "walk", new AnalyzeLiteratureBasedScoringDiagnosticOutput.ModeMetric(
+                        19_980, 39_960_000, 19_980_000));
+        return new AnalyzeLiteratureBasedScoringDiagnosticOutput.TripAnalysis(
+                323_900, 540_211, scopes, modes, Map.of(), Set.of(),
+                "STANDARD_OUTPUT_TRIPS_TRAVELED_DISTANCE");
     }
 
     private static String row(String person, String mode, Coord from, Coord to,

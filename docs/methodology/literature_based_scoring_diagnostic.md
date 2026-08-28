@@ -163,11 +163,14 @@ are reported separately. This diagnostic deliberately predates the later
 resident-cohort architecture and must not be described as a residence-based
 calibration.
 
-The analyzer prefers MATSim's standard `output_trips.csv.gz`, uses its analysis
-main mode, travelled distance and travel time, and reads it as a stream. If
-that standard file is unavailable, the documented fallback reads only selected
-final plans and sums their stage-aware routed leg distances and times. It never
-mixes these definitions silently: the report records the source used.
+The analyzer uses the complete final selected plans as the authoritative source
+for persons, stage-aware main trips, spatial categories and the trip-based
+modal split. MATSim's standard `output_trips.csv.gz` is streamed separately as
+the measurement source for travelled distance, passenger-kilometres and travel
+time. The completed diagnostic contains all 324,043 persons and 540,468 plan
+trips, while the standard writer contains 540,211 records. The 257-record gap
+(0.048%) is reported as measurement coverage and is not treated as population
+or selected-plan loss. Missing distance and time values are not imputed.
 
 For each of car, PT, bike and walk, the analyzer reports final trip shares,
 sample passenger-kilometres, Pkm shares, factor-20 daily sample expansion, mean

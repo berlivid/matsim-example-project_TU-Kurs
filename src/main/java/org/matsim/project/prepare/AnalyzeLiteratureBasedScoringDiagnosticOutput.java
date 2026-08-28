@@ -27,7 +27,6 @@ import ch.sbb.matsim.config.SwissRailRaptorConfigGroup;
 import org.matsim.api.core.v01.Coord;
 import org.matsim.api.core.v01.events.PersonStuckEvent;
 import org.matsim.api.core.v01.events.handler.PersonStuckEventHandler;
-import org.matsim.api.core.v01.population.Leg;
 import org.matsim.api.core.v01.population.Plan;
 import org.matsim.core.config.Config;
 import org.matsim.core.config.ConfigGroup;
@@ -65,24 +64,21 @@ public final class AnalyzeLiteratureBasedScoringDiagnosticOutput {
         MunichTripBoundaryFilter filter = new MunichTripBoundaryFilter(
                 MunichMunicipalBoundary.loadDefault());
 
-        TripAnalysis trips = files.trips() != null
-                ? analyzeTripsCsv(files.trips(), filter)
-                : analyzePlans(files.plans(), filter);
-        if (files.trips() != null && files.plans() != null) {
-            trips = withPersonCount(trips, countPersons(files.plans()));
-        }
-        validateStructuralTotals(trips);
+        TripAnalysis plans = analyzePlans(files.plans(), filter);
+        validateStructuralTotals(plans);
+        TripAnalysis measurements = analyzeTripsCsv(files.trips(), filter);
         List<IterationShare> iterations = readIterationShares(files.modeStats());
-        StuckSummary stuck = readStuckEvents(files.events(), trips.bothInsidePersons());
+        StuckSummary stuck = readStuckEvents(files.events(), plans.bothInsidePersons());
 
-        Map<String, String> reports = buildReports(files, trips, iterations, stuck);
+        Map<String, String> reports = buildReports(files, plans, measurements,
+                iterations, stuck);
         publishAtomically(OUTPUT, reports);
         System.out.printf(Locale.ROOT,
                 "LITERATURE-BASED SCORING DIAGNOSTIC ANALYSIS PASS%n"
                         + "persons=%d trips=%d BOTH_INSIDE=%d%n"
                         + "analysis=%s%nNo Controller or QSim was started.%n",
-                trips.personCount(), trips.totalTrips(),
-                trips.scopeCounts().get(MunichTripBoundaryFilter.SpatialCategory.BOTH_INSIDE),
+                plans.personCount(), plans.totalTrips(),
+                plans.scopeCounts().get(MunichTripBoundaryFilter.SpatialCategory.BOTH_INSIDE),
                 ANALYSIS);
     }
 
@@ -109,10 +105,10 @@ public final class AnalyzeLiteratureBasedScoringDiagnosticOutput {
         require(differences.isEmpty(), "Output config differs semantically from the versioned "
                 + "diagnostic config:\n- " + String.join("\n- ", differences));
 
-        Path trips = optional(output.resolve(RUN_ID + ".output_trips.csv.gz"));
-        Path plans = optional(output.resolve(RUN_ID + ".output_plans.xml.gz"));
-        require(trips != null || plans != null,
-                "Neither final output trips nor final output plans exists in " + output);
+        Path trips = required(output.resolve(RUN_ID + ".output_trips.csv.gz"),
+                "standard output trips");
+        Path plans = required(output.resolve(RUN_ID + ".output_plans.xml.gz"),
+                "final output plans");
         Path events = optional(output.resolve(RUN_ID + ".output_events.xml.gz"));
         if (events == null) {
             events = optional(output.resolve("ITERS/it.10/" + RUN_ID + ".10.events.xml.gz"));
@@ -208,7 +204,7 @@ public final class AnalyzeLiteratureBasedScoringDiagnosticOutput {
     static TripAnalysis analyzePlans(Path file, MunichTripBoundaryFilter filter) {
         require(file != null && Files.isRegularFile(file),
                 "Missing final output plans for fallback analysis: " + file);
-        MutableTripAnalysis result = new MutableTripAnalysis("FINAL_SELECTED_PLAN_ROUTE_DISTANCE");
+        MutableTripAnalysis result = new MutableTripAnalysis("FINAL_SELECTED_PLAN_STRUCTURE");
         var scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig());
         StreamingPopulationReader reader = new StreamingPopulationReader(scenario);
         reader.addAlgorithm(person -> {
@@ -220,46 +216,13 @@ public final class AnalyzeLiteratureBasedScoringDiagnosticOutput {
             require(mainTrips.size() == classified.size(),
                     "Stage-aware trip mismatch for person " + person.getId());
             for (int index = 0; index < mainTrips.size(); index++) {
-                double distance = 0;
-                double travelTime = 0;
-                for (var element : mainTrips.get(index).getTripElements()) {
-                    if (!(element instanceof Leg leg)) continue;
-                    require(leg.getRoute() != null
-                                    && Double.isFinite(leg.getRoute().getDistance())
-                                    && leg.getRoute().getDistance() >= 0,
-                            "Missing route distance for person " + person.getId());
-                    distance += leg.getRoute().getDistance();
-                    if (leg.getTravelTime().isDefined()) {
-                        travelTime += leg.getTravelTime().seconds();
-                    } else if (leg.getRoute().getTravelTime().isDefined()) {
-                        travelTime += leg.getRoute().getTravelTime().seconds();
-                    } else {
-                        throw new IllegalStateException("Missing routed travel time for person "
-                                + person.getId());
-                    }
-                }
                 var trip = classified.get(index);
                 result.add(person.getId().toString(), trip.category(), trip.inputMainMode(),
-                        distance, travelTime);
+                        0, 0);
             }
         });
         reader.readFile(file.toString());
         return result.freeze();
-    }
-
-    private static int countPersons(Path file) {
-        int[] count = {0};
-        var scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig());
-        StreamingPopulationReader reader = new StreamingPopulationReader(scenario);
-        reader.addAlgorithm(person -> count[0]++);
-        reader.readFile(file.toString());
-        return count[0];
-    }
-
-    private static TripAnalysis withPersonCount(TripAnalysis analysis, int personCount) {
-        return new TripAnalysis(personCount, analysis.totalTrips(), analysis.scopeCounts(),
-                analysis.modeMetrics(), analysis.unexpectedModes(),
-                analysis.bothInsidePersons(), analysis.distanceSource());
     }
 
     static void validateStructuralTotals(TripAnalysis trips) {
@@ -324,16 +287,19 @@ public final class AnalyzeLiteratureBasedScoringDiagnosticOutput {
         return summary.freeze();
     }
 
-    static Map<String, String> buildReports(OutputFiles files, TripAnalysis trips,
-            List<IterationShare> iterations, StuckSummary stuck) {
+    static Map<String, String> buildReports(OutputFiles files, TripAnalysis plans,
+            TripAnalysis measurements, List<IterationShare> iterations,
+            StuckSummary stuck) {
         Map<String, String> result = new LinkedHashMap<>();
-        result.put("literature_based_scoring_scope_summary.csv", scopeCsv(trips));
-        result.put("literature_based_scoring_final_mode_summary.csv", modeCsv(trips));
+        result.put("literature_based_scoring_scope_summary.csv",
+                scopeCsv(plans, measurements));
+        result.put("literature_based_scoring_final_mode_summary.csv",
+                modeCsv(plans, measurements));
         result.put("literature_based_scoring_iteration_mode_shares.csv",
                 iterationCsv(iterations));
         result.put("literature_based_scoring_stuck_events.csv", stuckCsv(stuck));
         result.put("literature_based_scoring_diagnostic_report.md",
-                report(files, trips, iterations, stuck));
+                report(files, plans, measurements, iterations, stuck));
         return result;
     }
 
@@ -362,42 +328,65 @@ public final class AnalyzeLiteratureBasedScoringDiagnosticOutput {
         }
     }
 
-    private static String scopeCsv(TripAnalysis trips) {
-        StringBuilder csv = new StringBuilder("spatial_category,trip_count,share_of_all_trips_percent\n");
+    private static String scopeCsv(TripAnalysis plans, TripAnalysis measurements) {
+        StringBuilder csv = new StringBuilder("spatial_category,plan_trip_count,"
+                + "share_of_all_plan_trips_percent,measurement_record_count,"
+                + "measurement_coverage_percent,measurement_gap_records\n");
         for (var category : MunichTripBoundaryFilter.SpatialCategory.values()) {
-            long count = trips.scopeCounts().get(category);
-            csv.append(category).append(',').append(count).append(',')
-                    .append(number(percent(count, trips.totalTrips()))).append('\n');
+            long planCount = plans.scopeCounts().get(category);
+            long measuredCount = measurements.scopeCounts().get(category);
+            csv.append(category).append(',').append(planCount).append(',')
+                    .append(number(percent(planCount, plans.totalTrips()))).append(',')
+                    .append(measuredCount).append(',')
+                    .append(number(percent(measuredCount, planCount))).append(',')
+                    .append(planCount - measuredCount).append('\n');
         }
-        csv.append("ALL,").append(trips.totalTrips()).append(",100.000000000\n");
+        csv.append("ALL,").append(plans.totalTrips()).append(",100.000000000,")
+                .append(measurements.totalTrips()).append(',')
+                .append(number(percent(measurements.totalTrips(), plans.totalTrips())))
+                .append(',').append(plans.totalTrips() - measurements.totalTrips())
+                .append('\n');
         return csv.toString();
     }
 
-    private static String modeCsv(TripAnalysis trips) {
-        long scopeTrips = trips.scopeCounts().get(MunichTripBoundaryFilter.SpatialCategory.BOTH_INSIDE);
-        double scopeMetres = trips.modeMetrics().values().stream()
+    private static String modeCsv(TripAnalysis plans, TripAnalysis measurements) {
+        long scopeTrips = plans.scopeCounts().get(
+                MunichTripBoundaryFilter.SpatialCategory.BOTH_INSIDE);
+        double scopeMetres = measurements.modeMetrics().values().stream()
                 .mapToDouble(ModeMetric::distanceMetres).sum();
-        StringBuilder csv = new StringBuilder("mode,trip_count,trip_share_percent,"
-                + "target_trip_share_percent,deviation_percentage_points,sample_pkm,"
-                + "pkm_share_percent,expanded_daily_pkm_factor_20,mean_trip_distance_km,"
+        StringBuilder csv = new StringBuilder("mode,plan_trip_count,trip_share_percent,"
+                + "target_trip_share_percent,deviation_percentage_points,"
+                + "measurement_record_count,measurement_coverage_percent,"
+                + "measurement_gap_records,sample_pkm,pkm_share_percent,"
+                + "expanded_daily_pkm_factor_20,mean_trip_distance_km,"
                 + "mean_travel_time_minutes\n");
         Set<String> rows = new java.util.LinkedHashSet<>(MODES);
-        rows.addAll(new java.util.TreeSet<>(trips.unexpectedModes().keySet()));
+        rows.addAll(new java.util.TreeSet<>(plans.unexpectedModes().keySet()));
+        rows.addAll(new java.util.TreeSet<>(measurements.unexpectedModes().keySet()));
         for (String mode : rows) {
-            ModeMetric metric = trips.modeMetrics().getOrDefault(mode, ModeMetric.ZERO);
+            ModeMetric planMetric = plans.modeMetrics().getOrDefault(mode, ModeMetric.ZERO);
+            ModeMetric measuredMetric = measurements.modeMetrics()
+                    .getOrDefault(mode, ModeMetric.ZERO);
             Double target = TARGETS.get(mode);
-            double tripShare = percent(metric.trips(), scopeTrips);
-            csv.append(mode).append(',').append(metric.trips()).append(',')
+            double tripShare = percent(planMetric.trips(), scopeTrips);
+            csv.append(mode).append(',').append(planMetric.trips()).append(',')
                     .append(number(tripShare)).append(',')
                     .append(target == null ? "" : number(target)).append(',')
                     .append(target == null ? "" : number(tripShare - target)).append(',')
-                    .append(number(metric.distanceMetres() / 1000.0)).append(',')
-                    .append(number(percent(metric.distanceMetres(), scopeMetres))).append(',')
-                    .append(number(metric.distanceMetres() / 1000.0 * EXPANSION_FACTOR)).append(',')
-                    .append(number(metric.trips() == 0 ? 0
-                            : metric.distanceMetres() / metric.trips() / 1000.0)).append(',')
-                    .append(number(metric.trips() == 0 ? 0
-                            : metric.travelTimeSeconds() / metric.trips() / 60.0)).append('\n');
+                    .append(measuredMetric.trips()).append(',')
+                    .append(number(percent(measuredMetric.trips(), planMetric.trips())))
+                    .append(',').append(planMetric.trips() - measuredMetric.trips())
+                    .append(',').append(number(measuredMetric.distanceMetres() / 1000.0))
+                    .append(',').append(number(percent(measuredMetric.distanceMetres(),
+                            scopeMetres))).append(',')
+                    .append(number(measuredMetric.distanceMetres() / 1000.0
+                            * EXPANSION_FACTOR)).append(',')
+                    .append(number(measuredMetric.trips() == 0 ? 0
+                            : measuredMetric.distanceMetres() / measuredMetric.trips()
+                            / 1000.0)).append(',')
+                    .append(number(measuredMetric.trips() == 0 ? 0
+                            : measuredMetric.travelTimeSeconds() / measuredMetric.trips()
+                            / 60.0)).append('\n');
         }
         return csv.toString();
     }
@@ -443,9 +432,15 @@ public final class AnalyzeLiteratureBasedScoringDiagnosticOutput {
                 .append(',').append(value).append(",\n"));
     }
 
-    private static String report(OutputFiles files, TripAnalysis trips,
-            List<IterationShare> iterations, StuckSummary stuck) {
-        long bothInside = trips.scopeCounts().get(MunichTripBoundaryFilter.SpatialCategory.BOTH_INSIDE);
+    private static String report(OutputFiles files, TripAnalysis plans,
+            TripAnalysis measurements, List<IterationShare> iterations,
+            StuckSummary stuck) {
+        long bothInside = plans.scopeCounts().get(
+                MunichTripBoundaryFilter.SpatialCategory.BOTH_INSIDE);
+        long measuredBothInside = measurements.scopeCounts().get(
+                MunichTripBoundaryFilter.SpatialCategory.BOTH_INSIDE);
+        long recordDifference = plans.totalTrips() - measurements.totalTrips();
+        double recordDifferencePercent = percent(recordDifference, plans.totalTrips());
         StringBuilder markdown = new StringBuilder("# Literature-based scoring diagnostic results\n\n")
                 .append("## Run and validation\n\n")
                 .append("The protected run `").append(RUN_ID)
@@ -459,35 +454,60 @@ public final class AnalyzeLiteratureBasedScoringDiagnosticOutput {
                         + "MATSim stage legs are represented by the standard analysis main mode and "
                         + "are not counted as separate trips. The regional population remains in "
                         + "the simulation but does not enter the primary summary.\n\n")
-                .append("Validated totals: ").append(trips.personCount()).append(" persons, ")
-                .append(trips.totalTrips()).append(" main trips and ").append(bothInside)
-                .append(" BOTH_INSIDE trips. Distance source: `").append(trips.distanceSource())
-                .append("`. Passenger-kilometres are sums of travelled route distance. The factor-20 "
+                .append("The authoritative final selected plans contain ")
+                .append(plans.personCount()).append(" persons, ")
+                .append(plans.totalTrips()).append(" main trips and ").append(bothInside)
+                .append(" BOTH_INSIDE trips. These complete plan counts define the spatial and "
+                        + "trip-based modal-split denominators. There is no evidence of population "
+                        + "loss or truncated selected plans.\n\n")
+                .append("The standard `output_trips` writer provides ")
+                .append(measurements.totalTrips()).append(" measurement records, ")
+                .append(recordDifference).append(" fewer than the selected plans. Overall distance-"
+                        + "and-time coverage is ")
+                .append(number(percent(measurements.totalTrips(), plans.totalTrips())))
+                .append("%; the retained difference is ").append(number(recordDifferencePercent))
+                .append("% (").append(String.format(Locale.ROOT, "%.3f", recordDifferencePercent))
+                .append("% when rounded to three decimal places). Within BOTH_INSIDE, ")
+                .append(measuredBothInside).append(" of ").append(bothInside)
+                .append(" plan trips have standard measurement records. No distance or travel time "
+                        + "is imputed for absent records. Passenger-kilometres are sums of travelled "
+                        + "distance across the available standard records only. The factor-20 "
                         + "value expands the five-percent sample to one model day; it is not an annual "
                         + "estimate. Car passenger-kilometres are not vehicle-kilometres. Reliable car "
                         + "Fkm require a separate event-based vehicle analysis.\n\n")
                 .append("## Final BOTH_INSIDE result\n\n")
-                .append("| Mode | Trips | Share | Target | Difference | Sample Pkm | Pkm share | "
-                        + "Mean km | Mean minutes |\n")
-                .append("|---|---:|---:|---:|---:|---:|---:|---:|---:|\n");
-        double totalMetres = trips.modeMetrics().values().stream()
+                .append("| Mode | Plan trips | Share | Target | Difference | Measured records | "
+                        + "Coverage | Record gap | Sample Pkm | Pkm share | Mean km | "
+                        + "Mean minutes |\n")
+                .append("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|\n");
+        double totalMetres = measurements.modeMetrics().values().stream()
                 .mapToDouble(ModeMetric::distanceMetres).sum();
         for (String mode : MODES) {
-            ModeMetric metric = trips.modeMetrics().getOrDefault(mode, ModeMetric.ZERO);
-            double share = percent(metric.trips(), bothInside);
-            markdown.append('|').append(mode).append('|').append(metric.trips()).append('|')
+            ModeMetric planMetric = plans.modeMetrics().getOrDefault(mode, ModeMetric.ZERO);
+            ModeMetric measuredMetric = measurements.modeMetrics()
+                    .getOrDefault(mode, ModeMetric.ZERO);
+            double share = percent(planMetric.trips(), bothInside);
+            markdown.append('|').append(mode).append('|').append(planMetric.trips()).append('|')
                     .append(number(share)).append("%|").append(number(TARGETS.get(mode)))
                     .append("%|").append(number(share - TARGETS.get(mode))).append(" pp|")
-                    .append(number(metric.distanceMetres() / 1000.0)).append('|')
-                    .append(number(percent(metric.distanceMetres(), totalMetres))).append("%|")
-                    .append(number(metric.trips() == 0 ? 0
-                            : metric.distanceMetres() / metric.trips() / 1000.0)).append('|')
-                    .append(number(metric.trips() == 0 ? 0
-                            : metric.travelTimeSeconds() / metric.trips() / 60.0)).append("|\n");
+                    .append(measuredMetric.trips()).append('|')
+                    .append(number(percent(measuredMetric.trips(), planMetric.trips())))
+                    .append("%|").append(planMetric.trips() - measuredMetric.trips())
+                    .append('|').append(number(measuredMetric.distanceMetres() / 1000.0))
+                    .append('|').append(number(percent(measuredMetric.distanceMetres(),
+                            totalMetres))).append("%|")
+                    .append(number(measuredMetric.trips() == 0 ? 0
+                            : measuredMetric.distanceMetres() / measuredMetric.trips()
+                            / 1000.0)).append('|')
+                    .append(number(measuredMetric.trips() == 0 ? 0
+                            : measuredMetric.travelTimeSeconds() / measuredMetric.trips()
+                            / 60.0)).append("|\n");
         }
         markdown.append("\nPkm shares are validation outcomes; alternative-specific constants "
-                        + "do not directly force them. Unexpected main modes: ")
-                .append(trips.unexpectedModes().isEmpty() ? "none" : trips.unexpectedModes())
+                        + "do not directly force them. Mode-specific record gaps are aggregate "
+                        + "plan-versus-writer differences, not imputed trip matches. Unexpected "
+                        + "main modes in final plans: ")
+                .append(plans.unexpectedModes().isEmpty() ? "none" : plans.unexpectedModes())
                 .append(".\n\n## Iteration evidence\n\n");
         if (iterations.isEmpty()) {
             markdown.append("No standard MATSim mode-share history was available. Exact Munich "
@@ -514,9 +534,12 @@ public final class AnalyzeLiteratureBasedScoringDiagnosticOutput {
                         + "split provides a defensible starting point for ASC calibration with Walk "
                         + "fixed as reference. Limitations include the five-percent synthetic sample, "
                         + "the territorial rather than residence-based scope, unavailable exact "
-                        + "BOTH_INSIDE iteration histories, and the lack of vehicle-kilometre analysis.\n\n")
+                        + "BOTH_INSIDE iteration histories, the ")
+                .append(recordDifference)
+                .append("-record standard-writer coverage difference, and the lack of "
+                        + "vehicle-kilometre analysis.\n\n")
                 .append("**Proceeding status:** ")
-                .append(trips.unexpectedModes().isEmpty() && stuck.totalEvents() == 0
+                .append(plans.unexpectedModes().isEmpty() && stuck.totalEvents() == 0
                         ? "SUITABLE_FOR_ASC_CALIBRATION_REVIEW"
                         : "REVIEW_REQUIRED_BEFORE_ASC_CALIBRATION")
                 .append(". The result must be inspected before the first ASC-calibration round.\n");

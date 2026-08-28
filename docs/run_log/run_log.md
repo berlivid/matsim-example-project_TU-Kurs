@@ -372,3 +372,13 @@ Scenario outputs are excluded from Git.
   structurally incomplete final plans without changing the simulation output.
   It writes only the protected `trip-count-diagnostic` folder and does not run
   Controller or QSim.
+
+## 28 August 2026 — scoring result coverage correction prepared
+
+- The person-level diagnostic confirmed 324,043 persons and 540,468 main trips
+  in both input and final selected plans; no person or selected-plan trip is
+  missing or additional.
+- Run 07 now derives spatial categories and modal shares from all final plan
+  trips. The 540,211 standard output-trip records are used only for distance,
+  Pkm and travel-time measurements, with the 257-record (0.048%) coverage gap
+  reported explicitly and without imputation.

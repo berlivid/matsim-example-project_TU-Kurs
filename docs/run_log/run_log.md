@@ -342,3 +342,24 @@ Scenario outputs are excluded from Git.
 - Added a read-only fail-closed validator, thin server runner, focused tests and
   IntelliJ run configurations 05 and 06. Local work did not start Controller or
   QSim and created no diagnostic output.
+
+## 28 August 2026 — literature-based scoring result analyzer prepared
+
+- Added Run 07 as a fixed-path, read-only analyzer for the completed university-
+  server diagnostic. It cannot select another scenario and does not start
+  Controller or QSim.
+- The analyzer validates normal shutdown, iterations 0–10, semantic output-
+  config identity, the five-percent setup and protected input hashes before
+  reading results. It fails on missing final trips/plans, events or the expected
+  structural totals of 324,043 persons, 540,468 main trips and 160,603
+  `BOTH_INSIDE` trips.
+- Final `BOTH_INSIDE` indicators include analysis-main-mode shares, sample and
+  factor-20 daily Pkm, mean distance, mean travel time and target deviations.
+  The other four territorial categories remain visible.
+- Standard iteration mode shares are explicitly labelled as whole-population
+  values. PersonStuckEvents are streamed and reported without automatic causal
+  interpretation. The five small files are published atomically only after all
+  checks pass; large output files remain ignored and server-local.
+- Local verification uses only synthetic fixtures. The real analyzer is to run
+  on the university server, after which only its generated `analysis` folder is
+  copied back for review before any ASC-calibration round.

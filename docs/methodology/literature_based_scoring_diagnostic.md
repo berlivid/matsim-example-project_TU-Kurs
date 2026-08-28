@@ -144,6 +144,45 @@ change in behavioural assumptions.
    does not exist.
 3. Run `06 Run Literature-Based 2019 Scoring Diagnostic` once on the university
    server.
+4. After normal completion, run
+   `07 Analyze Literature-Based 2019 Scoring Diagnostic` on the server. This
+   read-only process validates the output config and protected inputs, streams
+   the final standard trip and event files, and publishes only the small
+   generated `analysis` folder.
+5. Copy that `analysis` folder to the local project and review it before
+   preparing any ASC-calibration round. The large plans and events remain
+   ignored and server-local.
+
+## Read-only result analysis
+
+The primary final-result scope is the established territorial indicator
+`BOTH_INSIDE`: both trip endpoints are inside or on the Munich municipal
+boundary. The complete regional population remains simulated, while
+`ORIGIN_ONLY`, `DESTINATION_ONLY`, `BOTH_OUTSIDE` and invalid-coordinate trips
+are reported separately. This diagnostic deliberately predates the later
+resident-cohort architecture and must not be described as a residence-based
+calibration.
+
+The analyzer prefers MATSim's standard `output_trips.csv.gz`, uses its analysis
+main mode, travelled distance and travel time, and reads it as a stream. If
+that standard file is unavailable, the documented fallback reads only selected
+final plans and sums their stage-aware routed leg distances and times. It never
+mixes these definitions silently: the report records the source used.
+
+For each of car, PT, bike and walk, the analyzer reports final trip shares,
+sample passenger-kilometres, Pkm shares, factor-20 daily sample expansion, mean
+distance and mean travel time. No annualization is applied. Car
+passenger-kilometres must not be interpreted as vehicle-kilometres; reliable
+car Fkm require a separate event-based vehicle analysis. Standard MATSim
+iteration mode shares, when available, cover the whole simulated population
+and are labelled accordingly. They are not substituted for unavailable
+iteration-specific Munich `BOTH_INSIDE` shares.
+
+PersonStuckEvents are streamed and summarized by mode, hour and exact time,
+including observations at the 48-hour boundary. The analyzer reports affected
+persons with at least one `BOTH_INSIDE` trip but does not infer causes. All
+validation and large-file reads must succeed before the five reports are
+published atomically. Existing analysis is never overwritten.
 
 Local preparation compiles and validates the configuration only. It does not
 start Controller or QSim.

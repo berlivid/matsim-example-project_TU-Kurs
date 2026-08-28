@@ -121,3 +121,13 @@ PASS, and only on the university server, run
 `output/literature-based-scoring-diagnostic` and must not already exist. See
 [`literature_based_scoring_diagnostic.md`](../../docs/methodology/literature_based_scoring_diagnostic.md)
 for parameter provenance and interpretation.
+
+After the server run has shut down normally, execute
+`07 Analyze Literature-Based 2019 Scoring Diagnostic` on the server. Run 07 is
+strictly read-only: it checks the semantic output configuration, protected
+inputs and complete iterations 0--10, then streams the final trips and events.
+It writes five small reports below
+`output/literature-based-scoring-diagnostic/analysis`. Copy only this generated
+analysis folder back to the local project. The large plans and events remain
+ignored and server-local. Review the diagnostic before preparing the first ASC
+calibration round.

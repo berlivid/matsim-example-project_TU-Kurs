@@ -66,6 +66,15 @@ public final class ValidateLiteratureBasedScoringDiagnosticConfig {
     }
 
     public static Config loadAndValidate() throws Exception {
+        return loadAndValidate(true);
+    }
+
+    /**
+     * Validates the versioned diagnostic configuration. The analyzer uses the
+     * {@code false} variant after a protected server run already exists; every
+     * content and workspace check remains active.
+     */
+    static Config loadAndValidate(boolean requireOutputAbsent) throws Exception {
         require(Files.isRegularFile(CONFIG), "Missing diagnostic config: " + CONFIG);
         require(Files.isRegularFile(INPUT_VALIDATION_CONFIG),
                 "Missing validated synthetic-2019 input config: " + INPUT_VALIDATION_CONFIG);
@@ -87,7 +96,7 @@ public final class ValidateLiteratureBasedScoringDiagnosticConfig {
         validateModeChoice(config);
         validateScoring(config, technicalBasis);
         validateRouting(config);
-        validateRunControl(config);
+        validateRunControl(config, requireOutputAbsent);
         validateProtectedWorkspace();
         return config;
     }
@@ -226,7 +235,8 @@ public final class ValidateLiteratureBasedScoringDiagnosticConfig {
                 "Only car may remain a routed network mode");
     }
 
-    static void validateRunControl(Config config) throws IOException {
+    static void validateRunControl(Config config, boolean requireOutputAbsent)
+            throws IOException {
         require(config.controller().getFirstIteration() == 0
                         && config.controller().getLastIteration() == 10,
                 "The short diagnostic must run iterations 0..10");
@@ -246,7 +256,7 @@ public final class ValidateLiteratureBasedScoringDiagnosticConfig {
         require(config.controller().getOverwriteFileSetting()
                         == OutputDirectoryHierarchy.OverwriteFileSetting.failIfDirectoryExists,
                 "Output must use failIfDirectoryExists");
-        requireOutputAbsent(OUTPUT);
+        if (requireOutputAbsent) requireOutputAbsent(OUTPUT);
     }
 
     static void validateProtectedWorkspace() throws IOException, InterruptedException {

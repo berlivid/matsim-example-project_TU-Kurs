@@ -19,7 +19,7 @@ class LiteratureBasedScoringDiagnosticTest {
 
     @Test
     void configContainsExactLiteratureBasedStartingVector() throws Exception {
-        var config = ValidateLiteratureBasedScoringDiagnosticConfig.loadAndValidate();
+        var config = ValidateLiteratureBasedScoringDiagnosticConfig.loadAndValidate(false);
         assertEquals(6.0, config.scoring().getPerforming_utils_hr(), 1e-12);
         assertEquals(1.0, config.scoring().getMarginalUtilityOfMoney(), 1e-12);
         assertEquals(-6.0, config.scoring().getMarginalUtlOfWaitingPt_utils_hr(), 1e-12);
@@ -65,7 +65,7 @@ class LiteratureBasedScoringDiagnosticTest {
 
     @Test
     void runControlAndStrategiesAreExact() throws Exception {
-        var config = ValidateLiteratureBasedScoringDiagnosticConfig.loadAndValidate();
+        var config = ValidateLiteratureBasedScoringDiagnosticConfig.loadAndValidate(false);
         assertEquals(0, config.controller().getFirstIteration());
         assertEquals(10, config.controller().getLastIteration());
         assertEquals(48 * 3600.0, config.qsim().getEndTime().seconds(), 1e-12);
@@ -76,7 +76,8 @@ class LiteratureBasedScoringDiagnosticTest {
         assertEquals(Map.of("ChangeExpBeta", 0.8, "ReRoute", 0.1,
                         "SubtourModeChoice", 0.1),
                 ValidateLiteratureBasedScoringDiagnosticConfig.strategyMap(config));
-        assertFalse(Files.exists(ValidateLiteratureBasedScoringDiagnosticConfig.OUTPUT));
+        assertEquals(ValidateLiteratureBasedScoringDiagnosticConfig.OUTPUT.normalize(),
+                Path.of(config.controller().getOutputDirectory()).normalize());
     }
 
     @Test
@@ -119,7 +120,8 @@ class LiteratureBasedScoringDiagnosticTest {
                 .newDocumentBuilder();
         for (String name : List.of(
                 "05 Validate Literature-Based 2019 Scoring Diagnostic.run.xml",
-                "06 Run Literature-Based 2019 Scoring Diagnostic.run.xml")) {
+                "06 Run Literature-Based 2019 Scoring Diagnostic.run.xml",
+                "07 Analyze Literature-Based 2019 Scoring Diagnostic.run.xml")) {
             assertEquals("component", builder.parse(Path.of(".run", name).toFile())
                     .getDocumentElement().getTagName());
         }

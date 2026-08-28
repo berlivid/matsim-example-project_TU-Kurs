@@ -131,3 +131,13 @@ It writes five small reports below
 analysis folder back to the local project. The large plans and events remain
 ignored and server-local. Review the diagnostic before preparing the first ASC
 calibration round.
+
+Before any ASC round, run `08 Audit Literature-Based Scoring Trip Distances` on
+the server. This read-only audit matches the unchanged input selected-plan
+trips to the iteration-10 selected-plan trips and compares `BOTH_INSIDE` walk
+and bike distance distributions. Euclidean OD distance is the invariant primary
+comparison; route distance is a secondary, coverage-reported measure. The
+3/5/10 km walk and 5/10/20 km bike cut-offs are diagnostic thresholds, not
+behavioural limits. Run 08 fails on an existing
+`output/literature-based-scoring-diagnostic/analysis/distance-audit` directory
+and never overwrites the simulation output.

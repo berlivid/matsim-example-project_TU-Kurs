@@ -382,3 +382,18 @@ Scenario outputs are excluded from Git.
   trips. The 540,211 standard output-trip records are used only for distance,
   Pkm and travel-time measurements, with the 257-record (0.048%) coverage gap
   reported explicitly and without imputation.
+
+## 28 August 2026 — scoring trip-distance audit prepared
+
+- Added read-only Run 08 to compare the unchanged input selected plans with the
+  iteration-10 selected plans for the `BOTH_INSIDE` scope.
+- Trips are matched by person, main-trip index, main-activity types and endpoint
+  coordinates. The audit separates invariant Euclidean OD distance from
+  coverage-dependent travelled route distance and fails on duplicate,
+  unmatched or structurally changed trips.
+- Added distribution, distance-bin, active-mode threshold, mode-transition and
+  long-active-origin reports. The supplied walk and bike thresholds are
+  explicitly diagnostic rather than empirical behavioural limits.
+- The large final plans were unavailable locally, so only compilation and
+  focused synthetic tests were run. The real audit remains a server-side
+  read-only step and no Controller or QSim was started.

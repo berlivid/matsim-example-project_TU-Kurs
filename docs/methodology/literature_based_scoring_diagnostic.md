@@ -152,6 +152,10 @@ change in behavioural assumptions.
 5. Copy that `analysis` folder to the local project and review it before
    preparing any ASC-calibration round. The large plans and events remain
    ignored and server-local.
+6. Run `08 Audit Literature-Based Scoring Trip Distances` on the server before
+   deciding whether ASC calibration is appropriate. Run 08 reads the unchanged
+   input and iteration-10 selected plans and publishes only
+   `analysis/distance-audit`; it does not run MATSim.
 
 ## Read-only result analysis
 
@@ -189,3 +193,39 @@ published atomically. Existing analysis is never overwritten.
 
 Local preparation compiles and validates the configuration only. It does not
 start Controller or QSim.
+
+## Read-only trip-distance audit
+
+Run 08 addresses one narrow diagnostic question: were long final walk and bike
+trips inherited from the input population, or did they enter those modes during
+iterations 0--10? The scope remains the territorial `BOTH_INSIDE` indicator.
+MATSim `TripStructureUtils` removes stage activities, and the standard MATSim
+analysis main mode is used. Input and final trips are matched by person ID,
+main-trip index, main-activity types and exact EPSG:31468 endpoint coordinates.
+Missing, duplicate or structurally different trips cause a fail-closed result.
+
+Euclidean origin-destination distance is the primary comparison because the
+same matched trip retains its endpoints when its mode changes. Travelled route
+distance is secondary and mode dependent. It is summed from selected-plan leg
+routes only when every leg provides a finite distance; missing values are not
+imputed. The optional standard output-trips file is counted as a secondary
+coverage cross-check, not used to redefine the authoritative selected-plan
+denominator. OD distance, travelled distance and passenger-kilometres therefore
+remain explicitly distinct.
+
+The walk thresholds of 3, 5 and 10 km and bike thresholds of 5, 10 and 20 km
+are transparent diagnostic cut-offs, not observed behavioural limits. The
+audit evaluates full distributions, bins and input-to-final mode transitions,
+not just means. Its report treats a distribution shift as material only for a
+descriptive audit flag: a mean or p90 change of at least 10% together with a
+change of at least one percentage point at the first mode-specific threshold.
+This is not a behavioural parameter or an empirical threshold.
+
+The generated directory contains distributions, fixed distance bins, threshold
+comparisons, mode transitions, the input modes of long final active trips and
+an English interpretation report. ASC calibration may proceed only after the
+report is reviewed. Predominantly inherited long trips require input-plan
+investigation; predominantly generated cases require review of mode-specific
+time/distance scoring and the unrestricted choice set. A maximum-distance rule
+would add a behavioural assumption and is not justified by the audit thresholds
+alone.

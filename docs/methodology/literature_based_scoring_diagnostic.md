@@ -276,3 +276,40 @@ recovery-only: it summarizes an already completed output and never starts QSim.
 Its Round-2 constants are a non-executing recommendation using a damping factor
 of 0.5. Pkm, travelled distances and distance distributions remain validation
 outcomes and are not direct ASC targets.
+
+## Literature-based calibration Round 2
+
+Round 1 did not satisfy the modal-share targets. Over iterations 31--40 its
+late means were car 32.082277417%, PT 18.475869068%, bike 31.253899367% and
+walk 18.187954148%. Round 2 uses these late means, rather than the possibly
+transient final iteration, in the documented damped update:
+
+`new_ASC_i = current_ASC_i + 0.5 * ln[(target_i / lateMean_i) / (target_walk / lateMean_walk)]`
+
+The resulting fixed ASCs are car `0.258598439`, PT `0.611403971`, bike
+`-0.348664107` and walk `0.000000000`. Bike is reduced strongly because its
+late share substantially exceeded its target. Car falls slightly relative to
+walk, while PT changes very little because the PT-to-walk imbalance was already
+close to the corresponding target ratio. The factor 0.5 is a conservative,
+study-specific damping choice. The constants are calibration adjustments, not
+empirically estimated behavioural coefficients.
+
+Round 2 starts afresh from the unchanged original population; it is not warm
+started from Round-1 plans. Apart from its run identity, protected output,
+last iteration and ASCs, it is identical to Round 1. It covers iterations
+0--60, retains `fractionOfIterationsToDisableInnovation=0.8` (innovation is
+disabled after iteration 48), and evaluates iterations 51--60. This makes the
+rounds directly comparable while allowing a longer post-innovation assessment.
+
+StuckEvents are reported cumulatively and per iteration, but calibration
+decisions use only late-window and final-iteration incidence. Early temporary
+events therefore remain visible without automatically causing structural
+failure. The project-specific review threshold is at most 0.10% of the 160,603
+`BOTH_INSIDE` denominator per late or final iteration. Acceptance additionally
+requires every late mean within +/-2 percentage points, absolute trends below
+0.10 percentage points per iteration, ranges no greater than 2 percentage
+points, a constant denominator, no unexpected modes and no material worsening
+of active-mode distance tails. A stable target miss produces
+`ONE_FINAL_ASC_UPDATE_REQUIRED`; technical or late-run instability produces
+`STRUCTURAL_REVIEW_REQUIRED`. No distance limit, distance penalty, new
+car-availability assumption, Pkm target or warm start is introduced.

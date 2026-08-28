@@ -412,3 +412,20 @@ Scenario outputs are excluded from Git.
   checks, StuckEvent reporting and a damped non-executing Round-2 recommendation.
 - Local preparation compiled and tested the implementation and ran only the
   read-only validator. No Controller or QSim was started locally.
+
+## 28 August 2026 — literature-based scoring calibration Round 2 prepared
+
+- Verified the Round-1 late means for iterations 31--40 and reproduced the
+  damped walk-referenced recommendation: car 0.258598439, PT 0.611403971, bike
+  -0.348664107 and walk 0.000000000.
+- Added the protected fresh-start iterations-0--60 Round-2 configuration and
+  thin Run 11, Run 12 and recovery-only Run 12B entry points. The original
+  population and every structural scoring and technical setting remain fixed.
+- Generalized the existing Round-1 analyzer for the Round-2 late window
+  (iterations 51--60) and equivalent seven-file analysis package instead of
+  creating a second analysis implementation.
+- Corrected the decision interpretation prospectively: cumulative early
+  StuckEvents remain reported, while only late-window and final-iteration
+  incidence enter the calibration decision.
+- Local preparation was limited to compilation, focused tests and the read-only
+  configuration validator. No Controller or QSim was started.

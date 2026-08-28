@@ -64,8 +64,6 @@ class LiteratureBasedScoringCalibrationRound1Test {
         assertEquals(32, (int) Math.floor(config.controller().getLastIteration()
                 * config.replanning().getFractionOfIterationsToDisableInnovation()));
         assertEquals(0.0, config.scoring().getModes().get("walk").getConstant(), 0.0);
-        ValidateLiteratureBasedScoringCalibrationRound1Config
-                .requireOutputAbsent(ValidateLiteratureBasedScoringCalibrationRound1Config.OUTPUT);
     }
 
     @Test

@@ -33,8 +33,8 @@ import org.matsim.core.router.StageActivityTypeIdentifier;
 import org.matsim.core.router.TripStructureUtils;
 
 /**
- * Exact BOTH_INSIDE iteration observer and read-only postprocessor for Round 1.
- * Runtime CSVs make recovery possible without rerunning QSim.
+ * Shared exact BOTH_INSIDE iteration observer and read-only calibration
+ * postprocessor. Runtime CSVs make recovery possible without rerunning QSim.
  */
 public final class AnalyzeLiteratureBasedScoringCalibrationRound1
         implements IterationEndsListener, PersonStuckEventHandler {
@@ -53,6 +53,10 @@ public final class AnalyzeLiteratureBasedScoringCalibrationRound1
 
     private final Scenario scenario;
     private final Map<Id<Person>, ScopeSelection> scope;
+    private final RoundDefinition definition;
+    private final Path analysis;
+    private final Path iterationsFile;
+    private final Path stuckFile;
     private final List<IterationSnapshot> snapshots = new ArrayList<>();
     private final List<StuckIteration> stuckIterations = new ArrayList<>();
     private int currentIteration = -1;
@@ -60,7 +64,17 @@ public final class AnalyzeLiteratureBasedScoringCalibrationRound1
 
     AnalyzeLiteratureBasedScoringCalibrationRound1(Scenario scenario,
             MunichTripBoundaryFilter filter) {
+        this(scenario, filter, round1Definition());
+    }
+
+    AnalyzeLiteratureBasedScoringCalibrationRound1(Scenario scenario,
+            MunichTripBoundaryFilter filter, RoundDefinition definition) {
         this.scenario = scenario;
+        this.definition = definition;
+        this.analysis = definition.output().resolve("analysis");
+        this.iterationsFile = analysis.resolve(definition.prefix()
+                + "_iteration_mode_shares.csv");
+        this.stuckFile = analysis.resolve(definition.prefix() + "_stuck_events.csv");
         this.scope = buildScope(scenario, filter);
         long total = scope.values().stream().mapToLong(value -> value.bothInside().cardinality()).sum();
         require(total == ValidateLiteratureBasedScoringCalibrationRound1Config.EXPECTED_BOTH_INSIDE,
@@ -92,11 +106,12 @@ public final class AnalyzeLiteratureBasedScoringCalibrationRound1
         snapshots.add(snapshot);
         stuckIterations.add(currentStuck.freeze(event.getIteration()));
         try {
-            Files.createDirectories(ANALYSIS);
-            writeAtomically(ITERATIONS, iterationCsv(snapshots));
-            writeAtomically(STUCK, stuckCsv(stuckIterations));
+            Files.createDirectories(analysis);
+            writeAtomically(iterationsFile, iterationCsv(snapshots));
+            writeAtomically(stuckFile, stuckCsv(stuckIterations));
         } catch (IOException exception) {
-            throw new IllegalStateException("Could not preserve Round-1 runtime analysis", exception);
+            throw new IllegalStateException("Could not preserve Round-"
+                    + definition.roundNumber() + " runtime analysis", exception);
         }
     }
 
@@ -148,16 +163,28 @@ public final class AnalyzeLiteratureBasedScoringCalibrationRound1
     static void summarizeExistingOutput() throws Exception {
         Config expected = ValidateLiteratureBasedScoringCalibrationRound1Config
                 .loadAndValidate(false);
-        validateCompletedOutput(expected);
-        List<IterationSnapshot> iterations = readIterations(ITERATIONS);
-        List<StuckRow> stuck = readStuckRows(STUCK);
-        Map<String, LateStatistic> late = lateStatistics(iterations, LATE_FIRST, LATE_LAST);
+        summarizeExistingOutput(round1Definition(), expected);
+    }
+
+    static void summarizeExistingOutput(RoundDefinition definition, Config expected)
+            throws Exception {
+        Path output = definition.output();
+        Path analysis = output.resolve("analysis");
+        Path iterationsFile = analysis.resolve(definition.prefix()
+                + "_iteration_mode_shares.csv");
+        Path stuckFile = analysis.resolve(definition.prefix() + "_stuck_events.csv");
+        validateCompletedOutput(expected, definition, iterationsFile, stuckFile);
+        List<IterationSnapshot> iterations = readIterations(iterationsFile,
+                definition.lastIteration());
+        List<StuckRow> stuck = readStuckRows(stuckFile, definition.lastIteration());
+        Map<String, LateStatistic> late = lateStatistics(iterations,
+                definition.lateFirst(), definition.lateLast());
 
         MunichTripBoundaryFilter filter = new MunichTripBoundaryFilter(
                 MunichMunicipalBoundary.loadDefault());
-        Path plansFile = required(OUTPUT.resolve(RUN_ID + ".output_plans.xml.gz"),
+        Path plansFile = required(output.resolve(definition.runId() + ".output_plans.xml.gz"),
                 "final output plans");
-        Path tripsFile = required(OUTPUT.resolve(RUN_ID + ".output_trips.csv.gz"),
+        Path tripsFile = required(output.resolve(definition.runId() + ".output_trips.csv.gz"),
                 "standard output trips");
         var plans = AnalyzeLiteratureBasedScoringDiagnosticOutput.analyzePlans(plansFile, filter);
         AnalyzeLiteratureBasedScoringDiagnosticOutput.validateStructuralTotals(plans);
@@ -172,38 +199,56 @@ public final class AnalyzeLiteratureBasedScoringCalibrationRound1
                 "Final distance-audit denominator changed");
 
         Map<String, String> reports = new LinkedHashMap<>();
-        reports.put("round_1_late_iteration_statistics.csv", lateCsv(late));
-        reports.put("round_1_final_mode_summary.csv", finalModeCsv(plans, measurements));
-        reports.put("round_1_active_mode_distance_summary.csv", activeDistanceCsv(distances));
-        reports.put("round_1_recommended_next_constants.csv", recommendationCsv(late));
-        reports.put("round_1_report.md", report(iterations, late, stuck, plans, distances));
-        publishSummaries(reports);
+        reports.put(definition.prefix() + "_late_iteration_statistics.csv",
+                lateCsv(late, definition));
+        reports.put(definition.prefix() + "_final_mode_summary.csv",
+                finalModeCsv(plans, measurements));
+        reports.put(definition.prefix() + "_active_mode_distance_summary.csv",
+                activeDistanceCsv(distances));
+        reports.put(definition.prefix() + "_recommended_next_constants.csv",
+                recommendationCsv(late, definition));
+        reports.put(definition.prefix() + "_report.md",
+                report(iterations, late, stuck, plans, distances, definition));
+        publishSummaries(analysis, reports);
         System.out.printf(Locale.ROOT,
-                "LITERATURE-BASED SCORING CALIBRATION ROUND-1 ANALYSIS PASS%n"
-                        + "iterations=0..40 BOTH_INSIDE=%d analysis=%s%n"
+                "LITERATURE-BASED SCORING CALIBRATION ROUND-%d ANALYSIS PASS%n"
+                        + "iterations=0..%d BOTH_INSIDE=%d analysis=%s%n"
                         + "No Controller or QSim was started by the analyzer.%n",
+                definition.roundNumber(), definition.lastIteration(),
                 plans.scopeCounts().get(MunichTripBoundaryFilter.SpatialCategory.BOTH_INSIDE),
-                ANALYSIS);
+                analysis);
     }
 
-    static void validateCompletedOutput(Config expected) throws Exception {
-        require(Files.isDirectory(OUTPUT), "Missing completed Round-1 output: " + OUTPUT);
-        Path log = required(OUTPUT.resolve(RUN_ID + ".logfile.log"), "normal-shutdown log");
+    static void validateCompletedOutput(Config expected, RoundDefinition definition,
+            Path iterationsFile, Path stuckFile) throws Exception {
+        Path output = definition.output();
+        require(Files.isDirectory(output), "Missing completed Round-"
+                + definition.roundNumber() + " output: " + output);
+        Path log = required(output.resolve(definition.runId() + ".logfile.log"),
+                "normal-shutdown log");
         require(Files.readString(log, StandardCharsets.UTF_8).contains("shutdown completed."),
-                "Round-1 logfile contains no normal shutdown evidence");
-        Path outputConfig = required(OUTPUT.resolve(RUN_ID + ".output_config.xml"), "output config");
+                "Round-" + definition.roundNumber()
+                        + " logfile contains no normal shutdown evidence");
+        Path outputConfig = required(output.resolve(definition.runId()
+                + ".output_config.xml"), "output config");
         expected.addModule(new SwissRailRaptorConfigGroup());
         Config actual = ConfigUtils.loadConfig(outputConfig.toString());
         List<String> differences = AnalyzeLiteratureBasedScoringDiagnosticOutput
                 .semanticConfigDifferences(expected, actual);
-        require(differences.isEmpty(), "Round-1 output config differs semantically:\n- "
-                + String.join("\n- ", differences));
-        required(ITERATIONS, "exact BOTH_INSIDE iteration history");
-        required(STUCK, "runtime stuck-event history");
-        required(OUTPUT.resolve(RUN_ID + ".output_events.xml.gz"), "final events");
+        require(differences.isEmpty(), "Round-" + definition.roundNumber()
+                + " output config differs semantically:\n- " + String.join("\n- ", differences));
+        required(iterationsFile, "exact BOTH_INSIDE iteration history");
+        required(stuckFile, "runtime stuck-event history");
+        required(output.resolve(definition.runId() + ".output_events.xml.gz"),
+                "final events");
     }
 
     static List<IterationSnapshot> readIterations(Path file) throws IOException {
+        return readIterations(file, 40);
+    }
+
+    static List<IterationSnapshot> readIterations(Path file, int lastIteration)
+            throws IOException {
         List<IterationSnapshot> result = new ArrayList<>();
         try (BufferedReader reader = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
             String header = reader.readLine();
@@ -227,10 +272,11 @@ public final class AnalyzeLiteratureBasedScoringCalibrationRound1
                         Map.copyOf(modes), unexpected));
             }
         }
-        require(result.size() == 41, "Iteration history must contain exactly iterations 0..40");
-        for (int i = 0; i <= 40; i++) {
+        require(result.size() == lastIteration + 1,
+                "Iteration history must contain exactly iterations 0.." + lastIteration);
+        for (int i = 0; i <= lastIteration; i++) {
             IterationSnapshot row = result.get(i);
-            require(row.iteration() == i, "Missing or reordered Round-1 iteration " + i);
+            require(row.iteration() == i, "Missing or reordered calibration iteration " + i);
             require(row.bothInsideTrips()
                             == ValidateLiteratureBasedScoringCalibrationRound1Config.EXPECTED_BOTH_INSIDE,
                     "BOTH_INSIDE denominator changed in iteration " + i);
@@ -292,11 +338,13 @@ public final class AnalyzeLiteratureBasedScoringCalibrationRound1
         return csv.toString();
     }
 
-    private static String lateCsv(Map<String, LateStatistic> late) {
+    private static String lateCsv(Map<String, LateStatistic> late,
+            RoundDefinition definition) {
         StringBuilder csv = new StringBuilder("mode,window,mean_share_percent,minimum_share_percent,maximum_share_percent,range_percentage_points,linear_trend_pp_per_iteration,target_share_percent,difference_from_target_pp,trend_status,stability_status,target_fit_status\n");
         for (String mode : MODES) {
             LateStatistic s = late.get(mode);
-            csv.append(mode).append(",31-40,").append(number(s.mean())).append(',')
+            csv.append(mode).append(',').append(definition.lateFirst()).append('-')
+                    .append(definition.lateLast()).append(',').append(number(s.mean())).append(',')
                     .append(number(s.min())).append(',').append(number(s.max())).append(',')
                     .append(number(s.range())).append(',').append(number(s.trend())).append(',')
                     .append(number(target(mode))).append(',').append(number(s.targetDifference())).append(',')
@@ -359,21 +407,21 @@ public final class AnalyzeLiteratureBasedScoringCalibrationRound1
         return csv.toString();
     }
 
-    private static String recommendationCsv(Map<String, LateStatistic> late) {
+    private static String recommendationCsv(Map<String, LateStatistic> late,
+            RoundDefinition definition) {
         Map<String, Double> means = new LinkedHashMap<>();
         late.forEach((mode, statistic) -> means.put(mode, statistic.mean()));
         var recommended = ValidateLiteratureBasedScoringCalibrationRound1Config
-                .recommendNextAscs(
-                        ValidateLiteratureBasedScoringCalibrationRound1Config.EXPECTED_ASCS,
-                        means, 0.5);
-        StringBuilder csv = new StringBuilder("mode,current_asc,target_share_percent,late_mean_share_percent,undamped_reference_normalized_update,damping_factor,recommended_damped_update,recommended_round_2_asc\n");
+                .recommendNextAscs(definition.currentAscs(), means, 0.5);
+        StringBuilder csv = new StringBuilder("mode,current_asc,target_share_percent,late_mean_share_percent,undamped_reference_normalized_update,damping_factor,recommended_damped_update,recommended_round_")
+                .append(definition.roundNumber() + 1).append("_asc\n");
         double walkRatio = target("walk") / means.get("walk");
         for (String mode : MODES) {
             double undamped = mode.equals("walk") ? 0
                     : Math.log((target(mode) / means.get(mode)) / walkRatio);
             double damped = mode.equals("walk") ? 0 : 0.5 * undamped;
             csv.append(mode).append(',')
-                    .append(number(ValidateLiteratureBasedScoringCalibrationRound1Config.EXPECTED_ASCS.get(mode))).append(',')
+                    .append(number(definition.currentAscs().get(mode))).append(',')
                     .append(number(target(mode))).append(',').append(number(means.get(mode))).append(',')
                     .append(number(undamped)).append(",0.500000000,").append(number(damped)).append(',')
                     .append(number(recommended.get(mode))).append('\n');
@@ -384,30 +432,29 @@ public final class AnalyzeLiteratureBasedScoringCalibrationRound1
     private static String report(List<IterationSnapshot> iterations,
             Map<String, LateStatistic> late, List<StuckRow> stuck,
             AnalyzeLiteratureBasedScoringDiagnosticOutput.TripAnalysis plans,
-            AuditLiteratureBasedScoringTripDistances.AuditData distances) {
+            AuditLiteratureBasedScoringTripDistances.AuditData distances,
+            RoundDefinition definition) {
         boolean unexpected = iterations.stream().anyMatch(row -> row.unexpectedModeCount() != 0);
         boolean stable = late.values().stream().allMatch(value ->
                 Math.abs(value.trend()) < TREND_LIMIT_PP && value.range() <= LATE_RANGE_LIMIT_PP);
         boolean within = late.values().stream().allMatch(value ->
                 Math.abs(value.targetDifference()) <= TARGET_TOLERANCE_PP);
-        long affected = stuck.stream().filter(row -> row.mode().equals("ALL"))
-                .mapToLong(StuckRow::affectedBothInside).sum();
-        double stuckIncidence = percent(affected,
-                ValidateLiteratureBasedScoringCalibrationRound1Config.EXPECTED_BOTH_INSIDE);
-        boolean negligibleStuck = stuckIncidence <= STUCK_INCIDENCE_LIMIT_PERCENT;
+        StuckAssessment stuckAssessment = stuckAssessment(stuck, definition);
         boolean distanceWorsened = materialDistanceWorsening(distances);
-        String status = (!stable || unexpected || !negligibleStuck || distanceWorsened)
-                ? "STRUCTURAL_REVIEW_REQUIRED"
-                : within ? "ACCEPT_CALIBRATION" : "ONE_MORE_ASC_ROUND_REQUIRED";
+        String status = decisionStatus(stable, within, unexpected,
+                stuckAssessment.acceptable(), distanceWorsened, definition);
         long finalTrips = plans.scopeCounts().get(MunichTripBoundaryFilter.SpatialCategory.BOTH_INSIDE);
 
-        StringBuilder md = new StringBuilder("# Literature-based scoring calibration Round 1\n\n")
+        StringBuilder md = new StringBuilder("# Literature-based scoring calibration Round ")
+                .append(definition.roundNumber()).append("\n\n")
                 .append("## Scope and execution\n\n")
-                .append("The run completed iterations 0--40 with the frozen literature-based structural scoring and walk as the zero-ASC reference. Every iteration contains exactly ")
+                .append("The run completed iterations 0--").append(definition.lastIteration())
+                .append(" with the frozen literature-based structural scoring and walk as the zero-ASC reference. Every iteration contains exactly ")
                 .append(finalTrips).append(" Munich `BOTH_INSIDE` main trips. Stage activities do not create additional trips. Exact iteration values are selected-plan snapshots at MATSim's iteration-end lifecycle point.\n\n")
                 .append("No established subtour-readiness classifier exists on this branch, so the optional fixed-versus-mode-choice-capable cohort split is not invented. Missing car-availability attributes remain a limitation and `considerCarAvailability=false` remains unchanged.\n\n")
                 .append("## Late window and decision criteria\n\n")
-                .append("Iterations 31--40 provide ten observations after substantial mode-choice exposure and include the transition around the 80% innovation switch. Project review thresholds are: each late mean within +/-2 percentage points, absolute trend below 0.10 percentage points per iteration, range no greater than 2 percentage points, and BOTH_INSIDE stuck-person incidence no greater than 0.10% of the trip denominator. These are transparent thesis criteria, not universal MATSim standards.\n\n")
+                .append("Iterations ").append(definition.lateFirst()).append("--")
+                .append(definition.lateLast()).append(" provide ten post-switch observations. Project review thresholds are: each late mean within +/-2 percentage points, absolute trend below 0.10 percentage points per iteration, range no greater than 2 percentage points, and late-window plus final-iteration affected BOTH_INSIDE persons no greater than 0.10% of the fixed trip denominator per iteration. These are transparent thesis criteria, not universal MATSim standards.\n\n")
                 .append("| Mode | Late mean | Target difference | Trend | Range |\n|---|---:|---:|---:|---:|\n");
         for (String mode : MODES) {
             LateStatistic s = late.get(mode);
@@ -415,13 +462,55 @@ public final class AnalyzeLiteratureBasedScoringCalibrationRound1
                     .append(number(s.targetDifference())).append(" pp|").append(number(s.trend()))
                     .append(" pp/iteration|").append(number(s.range())).append(" pp|\n");
         }
-        md.append("\nPkm, travelled distance and active-mode distance distributions are validation outcomes; they are not direct ASC targets. The final distance summary compares only the unchanged input and iteration 40. No maximum walk or bike distance was introduced because the diagnostic audit found mostly inherited long active trips and ten diagnostic iterations could not establish persistence after adequate mode-choice exposure.\n\n")
+        md.append("\nPkm, travelled distance and active-mode distance distributions are validation outcomes; they are not direct ASC targets. The final distance summary compares only the unchanged input and iteration ")
+                .append(definition.lastIteration())
+                .append(". No maximum walk or bike distance was introduced because the diagnostic audit found mostly inherited long active trips; this round tests their persistence under the unchanged scoring and choice set.\n\n")
                 .append("Unexpected modes: ").append(unexpected ? "present" : "none")
-                .append(". BOTH_INSIDE stuck-person incidence: ").append(number(stuckIncidence))
-                .append("%. Material active-mode distance worsening: ").append(distanceWorsened ? "yes" : "no")
+                .append(". Cumulative StuckEvents: ").append(stuckAssessment.cumulativeEvents())
+                .append("; late-window StuckEvents: ").append(stuckAssessment.lateEvents())
+                .append("; final-iteration StuckEvents: ").append(stuckAssessment.finalEvents())
+                .append(". Maximum late-window affected-person incidence: ")
+                .append(number(stuckAssessment.maxLateIncidence())).append("%; final-iteration incidence: ")
+                .append(number(stuckAssessment.finalIncidence()))
+                .append("%. Early-iteration events remain documented but do not enter the decision. Material active-mode distance worsening: ").append(distanceWorsened ? "yes" : "no")
                 .append(".\n\n## Decision\n\n**").append(status).append("**\n\n")
-                .append("A damped, walk-referenced Round-2 recommendation is reported for transparency only. It does not create or run another calibration round.\n");
+                .append("A damped, walk-referenced next-round recommendation is reported for transparency only. It does not create or run another calibration round.\n");
         return md.toString();
+    }
+
+    static StuckAssessment stuckAssessment(List<StuckRow> stuck,
+            RoundDefinition definition) {
+        List<StuckRow> allRows = stuck.stream().filter(row -> row.mode().equals("ALL"))
+                .toList();
+        long cumulative = allRows.stream().mapToLong(StuckRow::events).sum();
+        long lateEvents = allRows.stream().filter(row ->
+                        row.iteration() >= definition.lateFirst()
+                                && row.iteration() <= definition.lateLast())
+                .mapToLong(StuckRow::events).sum();
+        long maxLateAffected = allRows.stream().filter(row ->
+                        row.iteration() >= definition.lateFirst()
+                                && row.iteration() <= definition.lateLast())
+                .mapToLong(StuckRow::affectedBothInside).max().orElse(0);
+        StuckRow finalRow = allRows.stream()
+                .filter(row -> row.iteration() == definition.lastIteration())
+                .findFirst().orElseThrow();
+        double maxLateIncidence = percent(maxLateAffected,
+                ValidateLiteratureBasedScoringCalibrationRound1Config.EXPECTED_BOTH_INSIDE);
+        double finalIncidence = percent(finalRow.affectedBothInside(),
+                ValidateLiteratureBasedScoringCalibrationRound1Config.EXPECTED_BOTH_INSIDE);
+        return new StuckAssessment(cumulative, lateEvents, finalRow.events(),
+                maxLateIncidence, finalIncidence,
+                maxLateIncidence <= STUCK_INCIDENCE_LIMIT_PERCENT
+                        && finalIncidence <= STUCK_INCIDENCE_LIMIT_PERCENT);
+    }
+
+    static String decisionStatus(boolean stable, boolean withinTargets,
+            boolean unexpectedModes, boolean stuckAcceptable,
+            boolean distanceWorsened, RoundDefinition definition) {
+        if (!stable || unexpectedModes || !stuckAcceptable || distanceWorsened) {
+            return "STRUCTURAL_REVIEW_REQUIRED";
+        }
+        return withinTargets ? "ACCEPT_CALIBRATION" : definition.additionalUpdateStatus();
     }
 
     static boolean materialDistanceWorsening(
@@ -444,7 +533,8 @@ public final class AnalyzeLiteratureBasedScoringCalibrationRound1
         return false;
     }
 
-    private static List<StuckRow> readStuckRows(Path file) throws IOException {
+    private static List<StuckRow> readStuckRows(Path file, int lastIteration)
+            throws IOException {
         List<StuckRow> result = new ArrayList<>();
         try (BufferedReader reader = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
             require(reader.readLine() != null, "Empty stuck-event history");
@@ -456,23 +546,25 @@ public final class AnalyzeLiteratureBasedScoringCalibrationRound1
                         Long.parseLong(f[3]), Long.parseLong(f[4]), Long.parseLong(f[5])));
             }
         }
-        require(result.stream().filter(row -> row.mode().equals("ALL")).count() == 41,
+        require(result.stream().filter(row -> row.mode().equals("ALL")).count()
+                        == lastIteration + 1,
                 "Stuck-event history must contain one ALL row per iteration");
         return List.copyOf(result);
     }
 
-    private static void publishSummaries(Map<String, String> reports) throws IOException {
+    private static void publishSummaries(Path analysis, Map<String, String> reports)
+            throws IOException {
         for (String name : reports.keySet()) {
-            require(!Files.exists(ANALYSIS.resolve(name)),
-                    "Round-1 analysis file already exists and will not be overwritten: " + name);
+            require(!Files.exists(analysis.resolve(name)),
+                    "Calibration analysis file already exists and will not be overwritten: " + name);
         }
-        Path temporary = ANALYSIS.resolve(".round-1-summary-tmp-" + UUID.randomUUID());
+        Path temporary = analysis.resolve(".calibration-summary-tmp-" + UUID.randomUUID());
         try {
             Files.createDirectory(temporary);
             for (var report : reports.entrySet()) Files.writeString(
                     temporary.resolve(report.getKey()), report.getValue(), StandardCharsets.UTF_8);
             for (String name : reports.keySet()) {
-                moveAtomic(temporary.resolve(name), ANALYSIS.resolve(name));
+                moveAtomic(temporary.resolve(name), analysis.resolve(name));
             }
             Files.delete(temporary);
         } catch (IOException | RuntimeException exception) {
@@ -547,6 +639,16 @@ public final class AnalyzeLiteratureBasedScoringCalibrationRound1
         if (!condition) throw new IllegalStateException(message);
     }
 
+    static RoundDefinition round1Definition() {
+        return new RoundDefinition(1, OUTPUT, RUN_ID, 40, LATE_FIRST, LATE_LAST,
+                "round_1",
+                ValidateLiteratureBasedScoringCalibrationRound1Config.EXPECTED_ASCS,
+                "ONE_MORE_ASC_ROUND_REQUIRED");
+    }
+
+    record RoundDefinition(int roundNumber, Path output, String runId,
+            int lastIteration, int lateFirst, int lateLast, String prefix,
+            Map<String, Double> currentAscs, String additionalUpdateStatus) { }
     record ScopeSelection(BitSet bothInside, int totalMainTrips) { }
     record IterationSnapshot(int iteration, long bothInsideTrips,
             Map<String, Long> modes, long unexpectedModeCount) {
@@ -562,6 +664,8 @@ public final class AnalyzeLiteratureBasedScoringCalibrationRound1
             StuckMetric total) { }
     record StuckRow(int iteration, String mode, long events, long uniquePersons,
             long exact48, long affectedBothInside) { }
+    record StuckAssessment(long cumulativeEvents, long lateEvents, long finalEvents,
+            double maxLateIncidence, double finalIncidence, boolean acceptable) { }
 
     private static final class MutableStuck {
         private final Map<String, MutableStuckMetric> modes = new HashMap<>();

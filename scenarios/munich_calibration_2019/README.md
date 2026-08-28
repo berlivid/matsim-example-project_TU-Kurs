@@ -159,3 +159,22 @@ and automatically creates the analysis after normal shutdown. If only the
 automatic postprocessing fails after a complete simulation, use recovery-only
 `10B Validate and Summarize Existing Literature-Based Scoring Round 1`; it does
 not start Controller or QSim.
+
+## Literature-based scoring calibration Round 2
+
+`config_literature_based_scoring_calibration_round_2.xml` is a strict fresh-
+start derivation of Round 1. It uses the original population, iterations 0--60
+and ASCs car `0.258598439`, PT `0.611403971`, bike `-0.348664107`, walk
+`0.000000000`. Innovation is disabled after iteration 48 and iterations 51--60
+form the late assessment window. All protected inputs and structural scoring
+remain unchanged. The protected output is
+`output/literature-based-scoring-calibration-round-2`.
+
+Run `11 Validate Literature-Based Scoring Calibration Round 2` first. On the
+server, execute `12 Run Literature-Based Scoring Calibration Round 2`; it runs
+the simulation once and automatically validates and summarizes the result.
+Use `12B Validate and Summarize Existing Literature-Based Scoring Round 2`
+only to recover analysis from a normally completed existing output. Run 12B is
+read-only with respect to MATSim execution and never starts Controller or QSim.
+Round-2 acceptance uses late/final per-iteration StuckEvent incidence, while
+cumulative early events remain reported as technical evidence.

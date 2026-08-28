@@ -363,3 +363,12 @@ Scenario outputs are excluded from Git.
 - Local verification uses only synthetic fixtures. The real analyzer is to run
   on the university server, after which only its generated `analysis` folder is
   copied back for review before any ASC-calibration round.
+
+## 28 August 2026 — scoring trip-count mismatch diagnostic prepared
+
+- Added read-only Run 07A to compare selected input and final output plans by
+  person using the established MATSim main-trip and stage-activity definition.
+- The diagnostic links PersonStuckEvents and reports missing, additional and
+  structurally incomplete final plans without changing the simulation output.
+  It writes only the protected `trip-count-diagnostic` folder and does not run
+  Controller or QSim.

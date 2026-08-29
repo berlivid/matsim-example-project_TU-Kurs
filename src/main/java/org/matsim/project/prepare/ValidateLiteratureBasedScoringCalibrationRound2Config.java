@@ -83,6 +83,28 @@ public final class ValidateLiteratureBasedScoringCalibrationRound2Config {
             "pt", 0.22971538337764302,
             "bike", -1.1684385773353396,
             "walk", 0.0);
+    public static final Path ROUND_5_CONFIG = Path.of("scenarios/munich_calibration_2019/"
+            + "config_literature_based_scoring_calibration_round_5.xml");
+    public static final Path ROUND_5_OUTPUT = Path.of("scenarios/munich_calibration_2019/output/"
+            + "literature-based-scoring-calibration-round-5");
+    public static final String ROUND_5_RUN_ID =
+            "munich-calibration-2019-literature-based-scoring-calibration-round-5";
+    public static final Path ROUND_4_ANALYSIS = ROUND_4_OUTPUT.resolve("analysis");
+    public static final Path ROUND_4_LATE = ROUND_4_ANALYSIS.resolve(
+            "round_4_late_iteration_statistics.csv");
+    public static final Path ROUND_5_DERIVATION = Path.of(
+            "scenarios/munich_calibration_2019/calibration_specifications/"
+                    + "round_5_constant_derivation.csv");
+    public static final Map<String, Double> ROUND_5_EXPECTED_LATE_MEANS = Map.of(
+            "car", 35.710291838,
+            "pt", 24.795800826,
+            "bike", 20.591022584,
+            "walk", 18.902884753);
+    public static final Map<String, Double> ROUND_5_EXPECTED_ASCS = Map.of(
+            "car", -0.35175057259662179,
+            "pt", 0.16187543976517921,
+            "bike", -1.2617442557140233,
+            "walk", 0.0);
     private static final double EPSILON = 1e-9;
     private static final double DERIVATION_EPSILON = 1e-14;
 
@@ -90,17 +112,22 @@ public final class ValidateLiteratureBasedScoringCalibrationRound2Config {
             2, CONFIG, OUTPUT, RUN_ID, ROUND_1_LATE, ROUND_1_RECOMMENDATION,
             "31-40", EXPECTED_LATE_MEANS,
             ValidateLiteratureBasedScoringCalibrationRound1Config.EXPECTED_ASCS,
-            EXPECTED_ASCS, null, true, false);
+            EXPECTED_ASCS, null, 0.5, true, false);
     static final CalibrationSpecification ROUND_3 = new CalibrationSpecification(
             3, ROUND_3_CONFIG, ROUND_3_OUTPUT, ROUND_3_RUN_ID,
             ROUND_2_LATE, ROUND_2_RECOMMENDATION, "51-60",
             ROUND_3_EXPECTED_LATE_MEANS, EXPECTED_ASCS,
-            ROUND_3_EXPECTED_ASCS, null, false, true);
+            ROUND_3_EXPECTED_ASCS, null, 0.5, false, true);
     static final CalibrationSpecification ROUND_4 = new CalibrationSpecification(
             4, ROUND_4_CONFIG, ROUND_4_OUTPUT, ROUND_4_RUN_ID,
             ROUND_3_LATE, null, "51-60", ROUND_4_EXPECTED_LATE_MEANS,
             ROUND_3_EXPECTED_ASCS, ROUND_4_EXPECTED_ASCS,
-            ROUND_4_DERIVATION, false, true);
+            ROUND_4_DERIVATION, 0.5, false, true);
+    static final CalibrationSpecification ROUND_5 = new CalibrationSpecification(
+            5, ROUND_5_CONFIG, ROUND_5_OUTPUT, ROUND_5_RUN_ID,
+            ROUND_4_LATE, null, "51-60", ROUND_5_EXPECTED_LATE_MEANS,
+            ROUND_4_EXPECTED_ASCS, ROUND_5_EXPECTED_ASCS,
+            ROUND_5_DERIVATION, 0.25, false, true);
 
     private ValidateLiteratureBasedScoringCalibrationRound2Config() { }
 
@@ -136,12 +163,29 @@ public final class ValidateLiteratureBasedScoringCalibrationRound2Config {
         require(lateMeans.equals(specification.expectedLateMeans()), "Round-"
                 + (specification.roundNumber() - 1)
                 + " late means differ from the approved basis: " + lateMeans);
+        Config base = switch (specification.roundNumber()) {
+            case 2 -> ValidateLiteratureBasedScoringCalibrationRound1Config
+                    .loadAndValidate(false);
+            case 3 -> loadAndValidate(ROUND_2, false);
+            case 4 -> loadAndValidate(ROUND_3, false);
+            case 5 -> loadAndValidate(ROUND_4, false);
+            default -> throw new IllegalStateException("Unsupported calibration round");
+        };
+        Map<String, Double> baseConfigAscs = new LinkedHashMap<>();
+        for (String mode : List.of("car", "pt", "bike", "walk")) {
+            baseConfigAscs.put(mode, base.scoring().getModes().get(mode).getConstant());
+        }
+        require(baseConfigAscs.equals(specification.baseAscs()), "Round-"
+                + (specification.roundNumber() - 1)
+                + " config ASCs differ from the approved basis: " + baseConfigAscs);
         Map<String, Double> recorded = specification.derivation() == null
                 ? readRecommendedAscs(specification.recommendation())
-                : readDerivedAscs(specification.derivation());
+                : readDerivedAscs(specification.derivation(),
+                        specification.roundNumber());
         if (specification.derivation() != null) {
-            validateDerivation(specification.derivation(), specification.baseAscs(),
-                    lateMeans, recorded);
+            validateDerivation(specification.derivation(), baseConfigAscs,
+                    lateMeans, recorded, specification.dampingFactor(),
+                    specification.roundNumber());
         }
         require(recorded.equals(specification.expectedAscs()), "Round-"
                 + (specification.roundNumber() - 1)
@@ -149,8 +193,8 @@ public final class ValidateLiteratureBasedScoringCalibrationRound2Config {
 
         Map<String, Double> calculated =
                 ValidateLiteratureBasedScoringCalibrationRound1Config.recommendNextAscs(
-                        specification.baseAscs(),
-                        lateMeans, 0.5);
+                        baseConfigAscs,
+                        lateMeans, specification.dampingFactor());
         for (String mode : specification.expectedAscs().keySet()) {
             require(close(calculated.get(mode), specification.expectedAscs().get(mode)),
                     "Recalculated " + mode + " ASC differs: calculated="
@@ -158,13 +202,6 @@ public final class ValidateLiteratureBasedScoringCalibrationRound2Config {
                             + specification.expectedAscs().get(mode));
         }
 
-        Config base = switch (specification.roundNumber()) {
-            case 2 -> ValidateLiteratureBasedScoringCalibrationRound1Config
-                    .loadAndValidate(false);
-            case 3 -> loadAndValidate(ROUND_2, false);
-            case 4 -> loadAndValidate(ROUND_3, false);
-            default -> throw new IllegalStateException("Unsupported calibration round");
-        };
         Config candidate = ConfigUtils.loadConfig(specification.config().toString());
         validateRunControl(candidate, specification, requireOutputAbsent);
         validateAscs(candidate, specification.expectedAscs());
@@ -175,23 +212,33 @@ public final class ValidateLiteratureBasedScoringCalibrationRound2Config {
                         + " must use the unchanged original input population");
         String plans = candidate.plans().getInputFile().toLowerCase(Locale.ROOT);
         require(!plans.contains("round-1") && !plans.contains("round-2")
-                        && !plans.contains("round-3"),
+                        && !plans.contains("round-3") && !plans.contains("round-4")
+                        && !plans.contains("round-5"),
                 "Calibration output plans must not be used as input");
         ValidateLiteratureBasedScoringDiagnosticConfig.validateProtectedWorkspace();
         return candidate;
     }
 
     static void requireCompleteAnalysis(int round) {
-        Path analysis = round == 2 ? ROUND_2_ANALYSIS : ROUND_3_ANALYSIS;
-        List<String> names = round == 2 ? List.of(
-                "round_2_iteration_mode_shares.csv", "round_2_late_iteration_statistics.csv",
-                "round_2_final_mode_summary.csv", "round_2_active_mode_distance_summary.csv",
-                "round_2_stuck_events.csv", "round_2_recommended_next_constants.csv",
-                "round_2_report.md") : List.of(
-                "round_3_iteration_mode_shares.csv", "round_3_late_iteration_statistics.csv",
-                "round_3_final_mode_summary.csv", "round_3_active_mode_distance_summary.csv",
-                "round_3_stuck_events.csv", "round_3_final_calibration_assessment.csv",
-                "round_3_report.md");
+        Path analysis = switch (round) {
+            case 2 -> ROUND_2_ANALYSIS;
+            case 3 -> ROUND_3_ANALYSIS;
+            case 4 -> ROUND_4_ANALYSIS;
+            default -> throw new IllegalStateException("Unsupported prior round " + round);
+        };
+        List<String> names = new java.util.ArrayList<>(List.of(
+                "round_" + round + "_iteration_mode_shares.csv",
+                "round_" + round + "_late_iteration_statistics.csv",
+                "round_" + round + "_final_mode_summary.csv",
+                "round_" + round + "_active_mode_distance_summary.csv",
+                "round_" + round + "_stuck_events.csv",
+                "round_" + round + "_report.md"));
+        if (round == 2) {
+            names.add("round_2_recommended_next_constants.csv");
+        } else {
+            names.add("round_" + round + "_final_calibration_assessment.csv");
+        }
+        if (round >= 4) names.add("round_" + round + "_constant_derivation.csv");
         for (String name : names) {
             require(Files.isRegularFile(analysis.resolve(name)),
                     "Incomplete Round-" + round + " analysis; missing "
@@ -316,18 +363,24 @@ public final class ValidateLiteratureBasedScoringCalibrationRound2Config {
     }
 
     static Map<String, Double> readDerivedAscs(Path file) throws Exception {
+        return readDerivedAscs(file, 4);
+    }
+
+    static Map<String, Double> readDerivedAscs(Path file, int round) throws Exception {
         require(Files.isRegularFile(file), "Missing constant derivation: " + file);
         Map<String, Double> result = new LinkedHashMap<>();
         try (BufferedReader reader = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
-            require("mode,old_ASC,target_share_percent,round_3_late_mean_share_percent,logarithmic_correction,damping_factor,temporary_ASC,normalization_against_walk,final_round_4_ASC"
-                            .equals(reader.readLine()),
-                    "Unexpected Round-4 constant-derivation header");
+            String[] header = requireDerivationHeader(reader.readLine(), round);
+            int finalIndex = columnIndex(header, "final_round_" + round + "_ASC");
             String line;
             while ((line = reader.readLine()) != null) {
                 if (line.isBlank()) continue;
                 String[] fields = line.split(",", -1);
-                require(fields.length == 9, "Malformed Round-4 derivation row: " + line);
-                result.put(fields[0], Double.parseDouble(fields[8]));
+                require(fields.length == header.length,
+                        "Malformed Round-" + round + " derivation row: " + line);
+                require(!result.containsKey(fields[0]),
+                        "Duplicate derivation mode " + fields[0]);
+                result.put(fields[0], Double.parseDouble(fields[finalIndex]));
             }
         }
         return Map.copyOf(result);
@@ -336,44 +389,78 @@ public final class ValidateLiteratureBasedScoringCalibrationRound2Config {
     static void validateDerivation(Path file, Map<String, Double> oldAscs,
             Map<String, Double> observed, Map<String, Double> finalAscs)
             throws Exception {
-        Map<String, double[]> rows = new LinkedHashMap<>();
+        validateDerivation(file, oldAscs, observed, finalAscs, 0.5, 4);
+    }
+
+    static void validateDerivation(Path file, Map<String, Double> oldAscs,
+            Map<String, Double> observed, Map<String, Double> finalAscs,
+            double dampingFactor, int round) throws Exception {
+        Map<String, Map<String, Double>> rows = new LinkedHashMap<>();
         try (BufferedReader reader = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
-            reader.readLine();
+            String[] header = requireDerivationHeader(reader.readLine(), round);
             String line;
             while ((line = reader.readLine()) != null) {
                 if (line.isBlank()) continue;
                 String[] f = line.split(",", -1);
-                double[] values = new double[8];
-                for (int index = 1; index < f.length; index++) {
-                    values[index - 1] = Double.parseDouble(f[index]);
+                require(f.length == header.length,
+                        "Malformed Round-" + round + " derivation row: " + line);
+                Map<String, Double> values = new LinkedHashMap<>();
+                for (int index = 1; index < header.length; index++) {
+                    values.put(header[index], Double.parseDouble(f[index]));
                 }
-                rows.put(f[0], values);
+                require(rows.put(f[0], Map.copyOf(values)) == null,
+                        "Duplicate derivation mode " + f[0]);
             }
         }
         require(rows.keySet().equals(oldAscs.keySet()),
-                "Round-4 derivation must contain exactly car, PT, bike and walk");
-        double walkTemporary = rows.get("walk")[5];
+                "Round-" + round + " derivation must contain exactly car, PT, bike and walk");
+        String oldColumn = round == 4 ? "old_ASC" : "round_4_ASC";
+        String observedColumn = "round_" + (round - 1) + "_late_mean_share_percent";
+        String logColumn = round == 4 ? "logarithmic_correction" : "log_ratio";
+        String finalColumn = "final_round_" + round + "_ASC";
+        double walkTemporary = rows.get("walk").get("temporary_ASC");
         double expectedShift = -walkTemporary;
         for (String mode : oldAscs.keySet()) {
-            double[] row = rows.get(mode);
+            Map<String, Double> row = rows.get(mode);
             double target = ValidateLiteratureBasedScoringCalibrationRound1Config
                     .TARGETS.get(mode);
             double logarithmic = Math.log(target / observed.get(mode));
-            double temporary = oldAscs.get(mode) + 0.5 * logarithmic;
-            require(derivationClose(row[0], oldAscs.get(mode))
-                            && derivationClose(row[1], target)
-                            && derivationClose(row[2], observed.get(mode))
-                            && derivationClose(row[3], logarithmic)
-                            && derivationClose(row[4], 0.5)
-                            && derivationClose(row[5], temporary)
-                            && derivationClose(row[6], expectedShift)
-                            && derivationClose(row[7], temporary + expectedShift)
-                            && derivationClose(row[7], finalAscs.get(mode)),
-                    "Round-4 constant derivation differs for " + mode);
+            double rawCorrection = dampingFactor * logarithmic;
+            double temporary = oldAscs.get(mode) + rawCorrection;
+            boolean valid = derivationClose(row.get(oldColumn), oldAscs.get(mode))
+                    && derivationClose(row.get("target_share_percent"), target)
+                    && derivationClose(row.get(observedColumn), observed.get(mode))
+                    && derivationClose(row.get(logColumn), logarithmic)
+                    && derivationClose(row.get("damping_factor"), dampingFactor)
+                    && derivationClose(row.get("temporary_ASC"), temporary)
+                    && derivationClose(row.get("normalization_against_walk"), expectedShift)
+                    && derivationClose(row.get(finalColumn), temporary + expectedShift)
+                    && derivationClose(row.get(finalColumn), finalAscs.get(mode));
+            if (round == 5) {
+                valid &= derivationClose(row.get("raw_correction"), rawCorrection);
+            }
+            require(valid, "Round-" + round
+                    + " constant derivation differs for " + mode);
         }
         require(Double.doubleToLongBits(finalAscs.get("walk"))
                         == Double.doubleToLongBits(0.0),
                 "Walk must normalize to exact positive zero");
+    }
+
+    private static String[] requireDerivationHeader(String line, int round) {
+        String expected = round == 4
+                ? "mode,old_ASC,target_share_percent,round_3_late_mean_share_percent,logarithmic_correction,damping_factor,temporary_ASC,normalization_against_walk,final_round_4_ASC"
+                : "mode,round_4_ASC,target_share_percent,round_4_late_mean_share_percent,log_ratio,damping_factor,raw_correction,temporary_ASC,normalization_against_walk,final_round_5_ASC";
+        require((round == 4 || round == 5) && expected.equals(line),
+                "Unexpected Round-" + round + " constant-derivation header");
+        return line.split(",", -1);
+    }
+
+    private static int columnIndex(String[] header, String name) {
+        for (int index = 0; index < header.length; index++) {
+            if (name.equals(header[index])) return index;
+        }
+        throw new IllegalStateException("Missing derivation column " + name);
     }
 
     static AnalyzeLiteratureBasedScoringCalibrationRound1.RoundDefinition definition() {
@@ -387,17 +474,26 @@ public final class ValidateLiteratureBasedScoringCalibrationRound2Config {
                 LAST_ITERATION, LATE_FIRST, LATE_LAST,
                 "round_" + specification.roundNumber(), specification.expectedAscs(),
                 "ONE_FINAL_ASC_UPDATE_REQUIRED", specification.finalRound(),
-                specification.derivation(), specification.roundNumber() == 4
-                        ? ROUND_3_ANALYSIS.resolve(
-                                "round_3_active_mode_distance_summary.csv") : null);
+                specification.derivation(), switch (specification.roundNumber()) {
+                    case 4 -> ROUND_3_ANALYSIS.resolve(
+                            "round_3_active_mode_distance_summary.csv");
+                    case 5 -> ROUND_4_ANALYSIS.resolve(
+                            "round_4_active_mode_distance_summary.csv");
+                    default -> null;
+                });
     }
 
     static CalibrationSpecification specification(String[] args) {
         if (args.length == 0) return ROUND_2;
         require(args.length == 1
-                        && ("--round=3".equals(args[0]) || "--round=4".equals(args[0])),
-                "Use no argument for Round 2 or exactly --round=3/--round=4");
-        return "--round=3".equals(args[0]) ? ROUND_3 : ROUND_4;
+                        && ("--round=3".equals(args[0]) || "--round=4".equals(args[0])
+                        || "--round=5".equals(args[0])),
+                "Use no argument for Round 2 or exactly --round=3/--round=4/--round=5");
+        return switch (args[0]) {
+            case "--round=3" -> ROUND_3;
+            case "--round=4" -> ROUND_4;
+            default -> ROUND_5;
+        };
     }
 
     static void requireOutputAbsent(Path output) {
@@ -420,6 +516,6 @@ public final class ValidateLiteratureBasedScoringCalibrationRound2Config {
             String runId, Path lateStatistics, Path recommendation,
             String lateWindow, Map<String, Double> expectedLateMeans,
             Map<String, Double> baseAscs, Map<String, Double> expectedAscs,
-            Path derivation, boolean allowLastIterationDifference,
+            Path derivation, double dampingFactor, boolean allowLastIterationDifference,
             boolean finalRound) { }
 }

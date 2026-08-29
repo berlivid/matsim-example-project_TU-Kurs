@@ -351,7 +351,7 @@ subsequently showed late means of car 36.726399880%, PT 23.538974988%, bike
 and its active-mode distance assessment also required review. This evidence
 motivated one manually authorized and strictly bounded final correction.
 
-## Binding final literature-based calibration Round 4
+## Literature-based calibration Round 4 and the post-hoc stop-rule exception
 
 Round 4 changes only the alternative-specific constants. It applies the same
 damping factor of 0.5 in two explicit steps:
@@ -371,12 +371,36 @@ uses iterations 51--60 for assessment.
 
 The predefined Round-3 decision rules remain binding. Round 4 reports
 `ACCEPT`, `ACCEPT_WITH_REPORTED_RESIDUAL_DEVIATION` or
-`CALIBRATION_TARGET_NOT_REACHED`; it does not calculate another ASC vector or
-create Round 5. If Round 4 performs worse than the stable Round-3 result, the
-analysis identifies Round 3 as the preferable candidate. Selection therefore
-follows the fixed stability, target-fit, stuck-event and active-distance rules,
-not merely the most recent run. Remaining deviations are reported as model
-limitations. Pkm shares, mean distances and travel times remain validation
-outcomes and are not direct calibration targets. Once the final candidate is
-selected, its complete scoring specification must be frozen and transferred
-unchanged to BAU and Fast Track.
+`CALIBRATION_TARGET_NOT_REACHED`. Round 4 was originally specified as the
+binding endpoint and its implementation did not calculate a subsequent vector.
+Its stable late means were car 35.710291838%, PT 24.795800826%, bike
+20.591022584% and walk 18.902884753%. After reviewing this evidence, one
+additional conservative round was authorized post hoc. This exception is
+reported explicitly and does not alter any acceptance criterion.
+
+## Binding final literature-based calibration Round 5
+
+Round 5 applies the same walk-normalized logarithmic method with the reduced
+damping factor 0.25:
+
+`temporary_ASC_m = old_ASC_m + 0.25 * ln(target_share_m / observed_share_m)`
+
+`new_ASC_m = temporary_ASC_m - temporary_ASC_walk`, with `new_ASC_walk = 0`
+
+The full-precision result is car `-0.35175057259662179`, PT
+`0.16187543976517921`, bike `-1.2617442557140233` and walk exactly `0.0`.
+Only these ASCs and the run identity change. The original population, frozen
+structural scoring, routing, strategies, technical settings, 48-hour horizon
+and iterations 0--60 remain identical to Round 4.
+
+Round 5 is not automatically preferred because it is newer. It is selected
+only if technically stable and either in a stronger pre-defined acceptance
+class, or in the same class with a lower summed absolute trip-share deviation
+and no relevant additional active-distance deterioration. Otherwise Round 4
+remains the final parameter set. A walk residual just below five percentage
+points does not change the fixed four-percentage-point class boundary. No Round
+6 or further constants are produced. Residual deviations remain model
+limitations. Pkm, distance and travel-time indicators remain validation and
+result measures rather than direct ASC targets. The selected scoring
+specification must subsequently be frozen and transferred unchanged to BAU and
+Fast Track.

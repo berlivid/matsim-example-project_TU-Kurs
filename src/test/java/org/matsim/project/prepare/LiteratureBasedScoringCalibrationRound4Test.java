@@ -111,7 +111,7 @@ class LiteratureBasedScoringCalibrationRound4Test {
     }
 
     @Test
-    void createsDerivationAndAssessmentButNoRound5() {
+    void createsDerivationAndAssessmentButNoAutomaticRecommendation() {
         var definition = ValidateLiteratureBasedScoringCalibrationRound2Config
                 .definition(ValidateLiteratureBasedScoringCalibrationRound2Config.ROUND_4);
         assertEquals(List.of(
@@ -125,8 +125,6 @@ class LiteratureBasedScoringCalibrationRound4Test {
                         .summaryFileNames(definition));
         assertTrue(definition.activeDistanceBaseline().endsWith(
                 "round_3_active_mode_distance_summary.csv"));
-        assertFalse(Files.exists(Path.of("scenarios/munich_calibration_2019/"
-                + "config_literature_based_scoring_calibration_round_5.xml")));
     }
 
     @Test

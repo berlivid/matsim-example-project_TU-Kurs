@@ -460,3 +460,23 @@ Scenario outputs are excluded from Git.
   ASC recommendations. Pkm remains a validation outcome, not a direct target.
 - Local verification did not start Controller or QSim. Protected inputs and
   the BAU and Fast Track scenario files remain unchanged.
+
+## 29 August 2026 - post-hoc final literature-based scoring calibration Round 5 prepared
+
+- Reviewed the stable Round-4 late means (car 35.710291838%, PT 24.795800826%,
+  bike 20.591022584% and walk 18.902884753%) after Round 4 had originally been
+  defined as the endpoint. One conservative post-hoc update was then explicitly
+  authorized without changing the pre-defined acceptance criteria.
+- Applied the walk-normalized logarithmic update with damping 0.25. The exact
+  Round-5 ASCs are car -0.35175057259662179, PT 0.16187543976517921, bike
+  -1.2617442557140233 and walk 0.0.
+- Extended the existing parameterized validator, runner and analyzer for Run
+  17, Run 18 and recovery-only Run 18B. Round 5 compares all late means from
+  Rounds 1--5 and selects itself over Round 4 only under the unchanged class,
+  stability, deviation and distance rules. No Round 6 is produced.
+- Added `-Djava.awt.headless=true` to the tracked Run 16 and Run 18 server
+  configurations solely to permit chart generation without a display device;
+  this is not a model parameter.
+- Structural scoring, inputs and previous outputs remain unchanged. Pkm remains
+  a validation outcome, and local verification starts neither Controller nor
+  QSim.

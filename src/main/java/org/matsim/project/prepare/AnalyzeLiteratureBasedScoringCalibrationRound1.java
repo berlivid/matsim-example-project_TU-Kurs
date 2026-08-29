@@ -205,10 +205,19 @@ public final class AnalyzeLiteratureBasedScoringCalibrationRound1
                 finalModeCsv(plans, measurements));
         reports.put(definition.prefix() + "_active_mode_distance_summary.csv",
                 activeDistanceCsv(distances));
-        reports.put(definition.prefix() + "_recommended_next_constants.csv",
-                recommendationCsv(late, definition));
+        String status = decisionStatus(iterations, late, stuck, distances, definition);
+        if (definition.finalRound()) {
+            reports.put(definition.prefix() + "_final_calibration_assessment.csv",
+                    finalAssessmentCsv(iterations, late, stuck, distances,
+                            definition, status));
+        } else {
+            reports.put(definition.prefix() + "_recommended_next_constants.csv",
+                    recommendationCsv(late, definition));
+        }
         reports.put(definition.prefix() + "_report.md",
-                report(iterations, late, stuck, plans, distances, definition));
+                report(iterations, late, stuck, plans, distances, definition, status));
+        require(new ArrayList<>(reports.keySet()).equals(summaryFileNames(definition)),
+                "Calibration summary file set differs from its round specification");
         publishSummaries(analysis, reports);
         System.out.printf(Locale.ROOT,
                 "LITERATURE-BASED SCORING CALIBRATION ROUND-%d ANALYSIS PASS%n"
@@ -433,16 +442,14 @@ public final class AnalyzeLiteratureBasedScoringCalibrationRound1
             Map<String, LateStatistic> late, List<StuckRow> stuck,
             AnalyzeLiteratureBasedScoringDiagnosticOutput.TripAnalysis plans,
             AuditLiteratureBasedScoringTripDistances.AuditData distances,
-            RoundDefinition definition) {
+            RoundDefinition definition, String status) {
         boolean unexpected = iterations.stream().anyMatch(row -> row.unexpectedModeCount() != 0);
         boolean stable = late.values().stream().allMatch(value ->
-                Math.abs(value.trend()) < TREND_LIMIT_PP && value.range() <= LATE_RANGE_LIMIT_PP);
-        boolean within = late.values().stream().allMatch(value ->
-                Math.abs(value.targetDifference()) <= TARGET_TOLERANCE_PP);
+                Math.abs(value.trend()) < TREND_LIMIT_PP
+                        && value.range() <= LATE_RANGE_LIMIT_PP);
         StuckAssessment stuckAssessment = stuckAssessment(stuck, definition);
         boolean distanceWorsened = materialDistanceWorsening(distances);
-        String status = decisionStatus(stable, within, unexpected,
-                stuckAssessment.acceptable(), distanceWorsened, definition);
+        ClosestResult closest = closestLateResult(iterations, definition);
         long finalTrips = plans.scopeCounts().get(MunichTripBoundaryFilter.SpatialCategory.BOTH_INSIDE);
 
         StringBuilder md = new StringBuilder("# Literature-based scoring calibration Round ")
@@ -474,8 +481,74 @@ public final class AnalyzeLiteratureBasedScoringCalibrationRound1
                 .append(number(stuckAssessment.finalIncidence()))
                 .append("%. Early-iteration events remain documented but do not enter the decision. Material active-mode distance worsening: ").append(distanceWorsened ? "yes" : "no")
                 .append(".\n\n## Decision\n\n**").append(status).append("**\n\n")
-                .append("A damped, walk-referenced next-round recommendation is reported for transparency only. It does not create or run another calibration round.\n");
+                .append(stable
+                        ? "The closest result within the stable late window is iteration "
+                        : "No stable late-window result exists; the closest late-window observation is iteration ")
+                .append(closest.iteration()).append(" (total deviation ")
+                .append(number(closest.sumAbsoluteDeviation())).append(" percentage points): ")
+                .append(formatShares(closest.shares())).append(". ");
+        if (definition.finalRound()) {
+            md.append("This is the final planned ASC round. A technically valid and stable result with every residual no greater than 4 percentage points is accepted only with reported residual deviation; a larger or unstable miss is reported as target not reached. No Round 4 constants are calculated or created. Any remaining deviation is retained explicitly as a model limitation; Pkm shares remain validation outcomes rather than acceptance targets.\n");
+        } else {
+            md.append("A damped, walk-referenced next-round recommendation is reported for transparency only. It does not create or run another calibration round.\n");
+        }
         return md.toString();
+    }
+
+    private static String finalAssessmentCsv(List<IterationSnapshot> iterations,
+            Map<String, LateStatistic> late, List<StuckRow> stuck,
+            AuditLiteratureBasedScoringTripDistances.AuditData distances,
+            RoundDefinition definition, String status) {
+        StuckAssessment assessment = stuckAssessment(stuck, definition);
+        ClosestResult closest = closestLateResult(iterations, definition);
+        boolean unexpected = iterations.stream().anyMatch(row -> row.unexpectedModeCount() != 0);
+        StringBuilder csv = new StringBuilder("metric,mode,value,criterion,status\n")
+                .append("overall_status,,,").append("final three-way decision,")
+                .append(status).append('\n')
+                .append("closest_late_iteration,,").append(closest.iteration())
+                .append(",minimum summed absolute target deviation,REPORTED\n")
+                .append("closest_late_sum_absolute_deviation_pp,,")
+                .append(number(closest.sumAbsoluteDeviation()))
+                .append(",descriptive only,REPORTED\n");
+        for (String mode : MODES) {
+            LateStatistic value = late.get(mode);
+            csv.append("late_mean_share_percent,").append(mode).append(',')
+                    .append(number(value.mean())).append(",target ")
+                    .append(number(target(mode))).append(",")
+                    .append(Math.abs(value.targetDifference()) <= TARGET_TOLERANCE_PP
+                            ? "WITHIN_2_PP" : Math.abs(value.targetDifference()) <= 4.0
+                            ? "WITHIN_4_PP" : "OVER_4_PP").append('\n');
+        }
+        csv.append("maximum_late_stuck_incidence_percent,,")
+                .append(number(assessment.maxLateIncidence()))
+                .append(",no greater than 0.10%,")
+                .append(assessment.maxLateIncidence() <= STUCK_INCIDENCE_LIMIT_PERCENT
+                        ? "PASS" : "FAIL").append('\n')
+                .append("final_stuck_incidence_percent,,")
+                .append(number(assessment.finalIncidence()))
+                .append(",no greater than 0.10%,")
+                .append(assessment.finalIncidence() <= STUCK_INCIDENCE_LIMIT_PERCENT
+                        ? "PASS" : "FAIL").append('\n')
+                .append("unexpected_modes,,").append(unexpected ? "present" : "none")
+                .append(",none allowed,").append(unexpected ? "FAIL" : "PASS").append('\n')
+                .append("active_mode_distance_worsening,,")
+                .append(materialDistanceWorsening(distances) ? "yes" : "no")
+                .append(",no material worsening,")
+                .append(materialDistanceWorsening(distances) ? "FAIL" : "PASS").append('\n')
+                .append("automatic_next_round_created,,no,Round 3 is final,PASS\n");
+        return csv.toString();
+    }
+
+    static List<String> summaryFileNames(RoundDefinition definition) {
+        List<String> names = new ArrayList<>();
+        names.add(definition.prefix() + "_late_iteration_statistics.csv");
+        names.add(definition.prefix() + "_final_mode_summary.csv");
+        names.add(definition.prefix() + "_active_mode_distance_summary.csv");
+        names.add(definition.prefix() + (definition.finalRound()
+                ? "_final_calibration_assessment.csv"
+                : "_recommended_next_constants.csv"));
+        names.add(definition.prefix() + "_report.md");
+        return List.copyOf(names);
     }
 
     static StuckAssessment stuckAssessment(List<StuckRow> stuck,
@@ -507,10 +580,69 @@ public final class AnalyzeLiteratureBasedScoringCalibrationRound1
     static String decisionStatus(boolean stable, boolean withinTargets,
             boolean unexpectedModes, boolean stuckAcceptable,
             boolean distanceWorsened, RoundDefinition definition) {
+        return decisionStatus(stable, withinTargets, true, unexpectedModes,
+                stuckAcceptable, distanceWorsened, definition);
+    }
+
+    static String decisionStatus(boolean stable, boolean withinTwo,
+            boolean withinFour, boolean unexpectedModes, boolean stuckAcceptable,
+            boolean distanceWorsened, RoundDefinition definition) {
+        if (definition.finalRound()) {
+            if (!stable || !withinFour || unexpectedModes || !stuckAcceptable
+                    || distanceWorsened) {
+                return "CALIBRATION_TARGET_NOT_REACHED";
+            }
+            return withinTwo ? "ACCEPT_CALIBRATION"
+                    : "ACCEPT_WITH_REPORTED_RESIDUAL_DEVIATION";
+        }
         if (!stable || unexpectedModes || !stuckAcceptable || distanceWorsened) {
             return "STRUCTURAL_REVIEW_REQUIRED";
         }
-        return withinTargets ? "ACCEPT_CALIBRATION" : definition.additionalUpdateStatus();
+        return withinTwo ? "ACCEPT_CALIBRATION" : definition.additionalUpdateStatus();
+    }
+
+    static String decisionStatus(List<IterationSnapshot> iterations,
+            Map<String, LateStatistic> late, List<StuckRow> stuck,
+            AuditLiteratureBasedScoringTripDistances.AuditData distances,
+            RoundDefinition definition) {
+        boolean unexpected = iterations.stream().anyMatch(row -> row.unexpectedModeCount() != 0);
+        boolean stable = late.values().stream().allMatch(value ->
+                Math.abs(value.trend()) < TREND_LIMIT_PP
+                        && value.range() <= LATE_RANGE_LIMIT_PP);
+        boolean withinTwo = late.values().stream().allMatch(value ->
+                Math.abs(value.targetDifference()) <= TARGET_TOLERANCE_PP);
+        boolean withinFour = late.values().stream().allMatch(value ->
+                Math.abs(value.targetDifference()) <= 4.0);
+        return decisionStatus(stable, withinTwo, withinFour, unexpected,
+                stuckAssessment(stuck, definition).acceptable(),
+                materialDistanceWorsening(distances), definition);
+    }
+
+    static ClosestResult closestLateResult(List<IterationSnapshot> iterations,
+            RoundDefinition definition) {
+        return iterations.stream().filter(row -> row.iteration() >= definition.lateFirst()
+                        && row.iteration() <= definition.lateLast())
+                .map(row -> {
+                    Map<String, Double> shares = new LinkedHashMap<>();
+                    double total = 0;
+                    for (String mode : MODES) {
+                        shares.put(mode, row.share(mode));
+                        total += Math.abs(row.share(mode) - target(mode));
+                    }
+                    return new ClosestResult(row.iteration(), total, Map.copyOf(shares));
+                })
+                .min(Comparator.comparingDouble(ClosestResult::sumAbsoluteDeviation)
+                        .thenComparingInt(ClosestResult::iteration))
+                .orElseThrow();
+    }
+
+    private static String formatShares(Map<String, Double> shares) {
+        StringBuilder value = new StringBuilder();
+        for (String mode : MODES) {
+            if (!value.isEmpty()) value.append(", ");
+            value.append(mode).append(' ').append(number(shares.get(mode))).append('%');
+        }
+        return value.toString();
     }
 
     static boolean materialDistanceWorsening(
@@ -643,12 +775,13 @@ public final class AnalyzeLiteratureBasedScoringCalibrationRound1
         return new RoundDefinition(1, OUTPUT, RUN_ID, 40, LATE_FIRST, LATE_LAST,
                 "round_1",
                 ValidateLiteratureBasedScoringCalibrationRound1Config.EXPECTED_ASCS,
-                "ONE_MORE_ASC_ROUND_REQUIRED");
+                "ONE_MORE_ASC_ROUND_REQUIRED", false);
     }
 
     record RoundDefinition(int roundNumber, Path output, String runId,
             int lastIteration, int lateFirst, int lateLast, String prefix,
-            Map<String, Double> currentAscs, String additionalUpdateStatus) { }
+            Map<String, Double> currentAscs, String additionalUpdateStatus,
+            boolean finalRound) { }
     record ScopeSelection(BitSet bothInside, int totalMainTrips) { }
     record IterationSnapshot(int iteration, long bothInsideTrips,
             Map<String, Long> modes, long unexpectedModeCount) {
@@ -666,6 +799,8 @@ public final class AnalyzeLiteratureBasedScoringCalibrationRound1
             long exact48, long affectedBothInside) { }
     record StuckAssessment(long cumulativeEvents, long lateEvents, long finalEvents,
             double maxLateIncidence, double finalIncidence, boolean acceptable) { }
+    record ClosestResult(int iteration, double sumAbsoluteDeviation,
+            Map<String, Double> shares) { }
 
     private static final class MutableStuck {
         private final Map<String, MutableStuckMetric> modes = new HashMap<>();

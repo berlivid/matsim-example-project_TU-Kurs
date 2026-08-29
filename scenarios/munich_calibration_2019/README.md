@@ -178,3 +178,21 @@ only to recover analysis from a normally completed existing output. Run 12B is
 read-only with respect to MATSim execution and never starts Controller or QSim.
 Round-2 acceptance uses late/final per-iteration StuckEvent incidence, while
 cumulative early events remain reported as technical evidence.
+
+## Final literature-based scoring calibration Round 3
+
+`config_literature_based_scoring_calibration_round_3.xml` is a strict
+fresh-start derivation of Round 2. It retains iterations 0--60 and the original
+population, and changes only the run identity, protected output and ASCs: car
+`-0.052867606`, PT `0.408378132`, bike `-0.851722801`, walk `0.000000000`.
+All structural scoring and protected inputs remain unchanged. The protected
+output is `output/literature-based-scoring-calibration-round-3`.
+
+Run `13 Validate Literature-Based Scoring Calibration Round 3` first. On the
+server, execute `14 Run Literature-Based Scoring Calibration Round 3` once;
+normal shutdown is followed automatically by final validation and analysis.
+Use recovery-only `14B Validate and Summarize Existing Literature-Based Scoring
+Round 3` only if postprocessing fails after a normally completed simulation.
+Run 14B never starts Controller or QSim. Round 3 uses iterations 51--60 for the
+final three-way calibration decision and deliberately produces no Round-4 ASC
+recommendation.

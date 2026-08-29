@@ -313,3 +313,37 @@ of active-mode distance tails. A stable target miss produces
 `ONE_FINAL_ASC_UPDATE_REQUIRED`; technical or late-run instability produces
 `STRUCTURAL_REVIEW_REQUIRED`. No distance limit, distance penalty, new
 car-availability assumption, Pkm target or warm start is introduced.
+
+## Final literature-based calibration Round 3
+
+Round 2 was technically stable but remained outside the trip-share targets.
+Its iteration-51--60 means were car 36.717620468%, PT 20.864927803%, bike
+28.515656619% and walk 13.901795110%. The final round applies the same damped,
+walk-referenced formula to those late means:
+
+`new_ASC_i = current_ASC_i + 0.5 * ln[(target_i / lateMean_i) / (target_walk / lateMean_walk)]`
+
+The resulting ASCs are car `-0.052867606`, PT `0.408378132`, bike
+`-0.851722801` and walk `0.000000000`. All three non-reference constants fall
+because walk was more underrepresented relative to its target than each other
+mode. Bike receives the largest reduction because it was the most strongly
+overrepresented mode in the Round-2 late window. These remain transparent ASC
+adjustments rather than empirically estimated behavioural coefficients.
+
+Round 3 starts again from the unchanged original population and retains the
+complete structural scoring, routing, capacity, strategy and 48-hour technical
+configuration. It runs iterations 0--60, disables innovation after iteration
+48 and uses iterations 51--60 for the final assessment. This fresh-start design
+keeps all rounds comparable and excludes warm-start effects.
+
+This is the final planned calibration round. `ACCEPT_CALIBRATION` requires all
+late means within +/-2 percentage points, trends below 0.10 percentage points
+per iteration, ranges no greater than 2 percentage points, no denominator or
+mode inconsistency, acceptable late/final StuckEvent incidence and no material
+active-mode distance deterioration. A technically valid and stable result with
+all residuals no greater than 4 percentage points is reported as
+`ACCEPT_WITH_REPORTED_RESIDUAL_DEVIATION`. A larger residual, instability or
+technical inconsistency is reported as `CALIBRATION_TARGET_NOT_REACHED`.
+Round 3 creates no Round-4 recommendation. Remaining deviations are retained
+as explicit model limitations; Pkm shares, mean distances and travel times
+remain validation outcomes rather than acceptance targets.

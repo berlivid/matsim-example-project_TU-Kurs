@@ -429,3 +429,17 @@ Scenario outputs are excluded from Git.
   incidence enter the calibration decision.
 - Local preparation was limited to compilation, focused tests and the read-only
   configuration validator. No Controller or QSim was started.
+
+## 29 August 2026 - final literature-based scoring calibration Round 3 prepared
+
+- Verified the Round-2 late means for iterations 51--60 and reproduced the
+  damped walk-referenced ASCs: car -0.052867606, PT 0.408378132, bike
+  -0.851722801 and walk 0.000000000.
+- Added the protected fresh-start Round-3 configuration and Run 13, Run 14 and
+  recovery-only Run 14B by parameterizing the existing Round-2 entry points;
+  no duplicate Round-3 Java pipeline was created.
+- Added the final three-way assessment and explicit closest-late-result
+  reporting. Round 3 produces no Round-4 recommendation.
+- Structural scoring, protected inputs, 48-hour horizon, strategies and the
+  160,603-trip `BOTH_INSIDE` scope remain unchanged. Local work was restricted
+  to compilation, focused tests and the read-only validator; QSim was not run.

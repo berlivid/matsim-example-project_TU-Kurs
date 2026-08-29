@@ -102,7 +102,7 @@ class LiteratureBasedScoringCalibrationRound3Test {
     }
 
     @Test
-    void finalRoundCreatesAssessmentButNoRecommendationOrRound4() {
+    void round3CreatesAssessmentButNoAutomaticRecommendation() {
         var definition = ValidateLiteratureBasedScoringCalibrationRound2Config
                 .definition(ValidateLiteratureBasedScoringCalibrationRound2Config.ROUND_3);
         assertEquals(List.of(
@@ -113,8 +113,6 @@ class LiteratureBasedScoringCalibrationRound3Test {
                         "round_3_report.md"),
                 AnalyzeLiteratureBasedScoringCalibrationRound1
                         .summaryFileNames(definition));
-        assertFalse(Files.exists(Path.of("scenarios/munich_calibration_2019/"
-                + "config_literature_based_scoring_calibration_round_4.xml")));
     }
 
     @Test

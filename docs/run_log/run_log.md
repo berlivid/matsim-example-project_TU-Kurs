@@ -443,3 +443,20 @@ Scenario outputs are excluded from Git.
 - Structural scoring, protected inputs, 48-hour horizon, strategies and the
   160,603-trip `BOTH_INSIDE` scope remain unchanged. Local work was restricted
   to compilation, focused tests and the read-only validator; QSim was not run.
+
+## 29 August 2026 - binding final literature-based scoring calibration Round 4 prepared
+
+- Verified the complete Round-3 analysis and its iteration-51--60 means: car
+  36.726399880%, PT 23.538974988%, bike 23.268058505% and walk 16.466566627%.
+- Applied the authorized damped logarithmic update at full precision and
+  normalized against walk. The Round-4 ASCs are car -0.27979614837234024, PT
+  0.22971538337764302, bike -1.1684385773353396 and walk exactly 0.0.
+- Added a strict fresh-start Round-4 configuration, versioned derivation, Run
+  15, Run 16 and recovery-only Run 16B by extending the existing parameterized
+  validator and analyzer. Round 4 differs from Round 3 only in run identity,
+  protected output and the four ASCs.
+- The final assessment compares Rounds 1--4 and retains Round 3 if it is the
+  better stable candidate. The binding stop rule prohibits Round 5 and further
+  ASC recommendations. Pkm remains a validation outcome, not a direct target.
+- Local verification did not start Controller or QSim. Protected inputs and
+  the BAU and Fast Track scenario files remain unchanged.

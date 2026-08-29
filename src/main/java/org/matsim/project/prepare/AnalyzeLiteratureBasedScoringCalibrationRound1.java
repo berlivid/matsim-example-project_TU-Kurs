@@ -199,12 +199,17 @@ public final class AnalyzeLiteratureBasedScoringCalibrationRound1
                 "Final distance-audit denominator changed");
 
         Map<String, String> reports = new LinkedHashMap<>();
+        if (definition.constantDerivation() != null) {
+            reports.put(definition.prefix() + "_constant_derivation.csv",
+                    Files.readString(required(definition.constantDerivation(),
+                            "versioned constant derivation"), StandardCharsets.UTF_8));
+        }
         reports.put(definition.prefix() + "_late_iteration_statistics.csv",
                 lateCsv(late, definition));
         reports.put(definition.prefix() + "_final_mode_summary.csv",
                 finalModeCsv(plans, measurements));
         reports.put(definition.prefix() + "_active_mode_distance_summary.csv",
-                activeDistanceCsv(distances));
+                activeDistanceCsv(distances, definition));
         String status = decisionStatus(iterations, late, stuck, distances, definition);
         if (definition.finalRound()) {
             reports.put(definition.prefix() + "_final_calibration_assessment.csv",
@@ -389,9 +394,32 @@ public final class AnalyzeLiteratureBasedScoringCalibrationRound1
         return csv.toString();
     }
 
-    private static String activeDistanceCsv(AuditLiteratureBasedScoringTripDistances.AuditData data) {
+    private static String activeDistanceCsv(
+            AuditLiteratureBasedScoringTripDistances.AuditData data,
+            RoundDefinition definition) throws IOException {
         StringBuilder csv = new StringBuilder("state,mode,threshold_km,mode_trip_count,trips_over_threshold,within_mode_share_percent,mean_od_km,median_od_km,p90_od_km,inherited_count,generated_count,unmatched_or_uncertain_count\n");
-        for (var state : List.of(data.inputState(), data.finalState())) {
+        appendActiveDistanceState(csv, data, data.inputState());
+        if (definition.activeDistanceBaseline() != null) {
+            Path baseline = required(definition.activeDistanceBaseline(),
+                    "Round-3 active-mode distance baseline");
+            try (BufferedReader reader = Files.newBufferedReader(baseline,
+                    StandardCharsets.UTF_8)) {
+                reader.readLine();
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    if (line.startsWith("FINAL,")) {
+                        csv.append("ROUND_3_FINAL,").append(line.substring(6)).append('\n');
+                    }
+                }
+            }
+        }
+        appendActiveDistanceState(csv, data, data.finalState());
+        return csv.toString();
+    }
+
+    private static void appendActiveDistanceState(StringBuilder csv,
+            AuditLiteratureBasedScoringTripDistances.AuditData data,
+            AuditLiteratureBasedScoringTripDistances.MutableState state) {
             for (String mode : List.of("walk", "bike")) {
                 var metric = state.modes.getOrDefault(mode,
                         new AuditLiteratureBasedScoringTripDistances.ModeDistances());
@@ -412,8 +440,6 @@ public final class AnalyzeLiteratureBasedScoringCalibrationRound1
                     csv.append('\n');
                 }
             }
-        }
-        return csv.toString();
     }
 
     private static String recommendationCsv(Map<String, LateStatistic> late,
@@ -442,13 +468,14 @@ public final class AnalyzeLiteratureBasedScoringCalibrationRound1
             Map<String, LateStatistic> late, List<StuckRow> stuck,
             AnalyzeLiteratureBasedScoringDiagnosticOutput.TripAnalysis plans,
             AuditLiteratureBasedScoringTripDistances.AuditData distances,
-            RoundDefinition definition, String status) {
+            RoundDefinition definition, String status) throws Exception {
         boolean unexpected = iterations.stream().anyMatch(row -> row.unexpectedModeCount() != 0);
         boolean stable = late.values().stream().allMatch(value ->
                 Math.abs(value.trend()) < TREND_LIMIT_PP
                         && value.range() <= LATE_RANGE_LIMIT_PP);
         StuckAssessment stuckAssessment = stuckAssessment(stuck, definition);
-        boolean distanceWorsened = materialDistanceWorsening(distances);
+        DistanceAssessment distanceAssessment = distanceAssessment(distances, definition);
+        boolean distanceWorsened = distanceAssessment.materialWorsening();
         ClosestResult closest = closestLateResult(iterations, definition);
         long finalTrips = plans.scopeCounts().get(MunichTripBoundaryFilter.SpatialCategory.BOTH_INSIDE);
 
@@ -479,7 +506,10 @@ public final class AnalyzeLiteratureBasedScoringCalibrationRound1
                 .append(". Maximum late-window affected-person incidence: ")
                 .append(number(stuckAssessment.maxLateIncidence())).append("%; final-iteration incidence: ")
                 .append(number(stuckAssessment.finalIncidence()))
-                .append("%. Early-iteration events remain documented but do not enter the decision. Material active-mode distance worsening: ").append(distanceWorsened ? "yes" : "no")
+                .append("%. Early-iteration events remain documented but do not enter the decision. Material active-mode distance worsening versus input: ")
+                .append(distanceAssessment.versusInput() ? "yes" : "no")
+                .append("; additional worsening versus Round 3: ")
+                .append(distanceAssessment.versusRound3() ? "yes" : "no")
                 .append(".\n\n## Decision\n\n**").append(status).append("**\n\n")
                 .append(stable
                         ? "The closest result within the stable late window is iteration "
@@ -488,9 +518,30 @@ public final class AnalyzeLiteratureBasedScoringCalibrationRound1
                 .append(number(closest.sumAbsoluteDeviation())).append(" percentage points): ")
                 .append(formatShares(closest.shares())).append(". ");
         if (definition.finalRound()) {
-            md.append("This is the final planned ASC round. A technically valid and stable result with every residual no greater than 4 percentage points is accepted only with reported residual deviation; a larger or unstable miss is reported as target not reached. No Round 4 constants are calculated or created. Any remaining deviation is retained explicitly as a model limitation; Pkm shares remain validation outcomes rather than acceptance targets.\n");
+            md.append("This is the final planned ASC round. A technically valid and stable result with every residual no greater than 4 percentage points is accepted only with reported residual deviation; a larger or unstable miss is reported as target not reached. No Round ")
+                    .append(definition.roundNumber() + 1)
+                    .append(" constants are calculated or created. Any remaining deviation is retained explicitly as a model limitation; Pkm shares remain validation outcomes rather than acceptance targets.\n");
         } else {
             md.append("A damped, walk-referenced next-round recommendation is reported for transparency only. It does not create or run another calibration round.\n");
+        }
+        if (definition.roundNumber() == 4) {
+            List<CalibrationHistoryRow> history = calibrationHistory(late, status);
+            CandidateSelection selection = selectFinalCandidate(history);
+            md.append("\n## Calibration history and final parameter selection\n\n")
+                    .append("| Round | Car | PT | Bike | Walk | Sum absolute deviation | Status |\n")
+                    .append("|---|---:|---:|---:|---:|---:|---|\n");
+            for (CalibrationHistoryRow row : history) {
+                md.append('|').append(row.round()).append('|')
+                        .append(number(row.means().get("car"))).append("%|")
+                        .append(number(row.means().get("pt"))).append("%|")
+                        .append(number(row.means().get("bike"))).append("%|")
+                        .append(number(row.means().get("walk"))).append("%|")
+                        .append(number(row.sumAbsoluteDeviation())).append(" pp|")
+                        .append(row.status()).append("|\n");
+            }
+            md.append("\nSelected final parameter candidate: **Round ")
+                    .append(selection.round()).append("**. ")
+                    .append(selection.reason()).append(" The selection follows the pre-defined acceptance, stability and deviation criteria rather than automatically preferring the latest round. No Round 5 is calculated or created.\n");
         }
         return md.toString();
     }
@@ -498,10 +549,11 @@ public final class AnalyzeLiteratureBasedScoringCalibrationRound1
     private static String finalAssessmentCsv(List<IterationSnapshot> iterations,
             Map<String, LateStatistic> late, List<StuckRow> stuck,
             AuditLiteratureBasedScoringTripDistances.AuditData distances,
-            RoundDefinition definition, String status) {
+            RoundDefinition definition, String status) throws Exception {
         StuckAssessment assessment = stuckAssessment(stuck, definition);
         ClosestResult closest = closestLateResult(iterations, definition);
         boolean unexpected = iterations.stream().anyMatch(row -> row.unexpectedModeCount() != 0);
+        DistanceAssessment distanceAssessment = distanceAssessment(distances, definition);
         StringBuilder csv = new StringBuilder("metric,mode,value,criterion,status\n")
                 .append("overall_status,,,").append("final three-way decision,")
                 .append(status).append('\n')
@@ -531,16 +583,47 @@ public final class AnalyzeLiteratureBasedScoringCalibrationRound1
                         ? "PASS" : "FAIL").append('\n')
                 .append("unexpected_modes,,").append(unexpected ? "present" : "none")
                 .append(",none allowed,").append(unexpected ? "FAIL" : "PASS").append('\n')
-                .append("active_mode_distance_worsening,,")
-                .append(materialDistanceWorsening(distances) ? "yes" : "no")
+                .append("active_mode_distance_worsening_vs_input,,")
+                .append(distanceAssessment.versusInput() ? "yes" : "no")
                 .append(",no material worsening,")
-                .append(materialDistanceWorsening(distances) ? "FAIL" : "PASS").append('\n')
-                .append("automatic_next_round_created,,no,Round 3 is final,PASS\n");
+                .append(distanceAssessment.versusInput() ? "FAIL" : "PASS").append('\n')
+                .append("active_mode_distance_worsening_vs_round_3,,")
+                .append(distanceAssessment.versusRound3() ? "yes" : "no")
+                .append(",no additional material worsening,")
+                .append(distanceAssessment.versusRound3() ? "FAIL" : "PASS").append('\n')
+                .append("automatic_next_round_created,,no,Round ")
+                .append(definition.roundNumber()).append(" is final,PASS\n");
+        if (definition.roundNumber() == 4) {
+            List<CalibrationHistoryRow> history = calibrationHistory(late, status);
+            CandidateSelection selection = selectFinalCandidate(history);
+            for (CalibrationHistoryRow row : history) {
+                for (String mode : MODES) {
+                    csv.append("calibration_history_late_mean,")
+                            .append("round_").append(row.round()).append('_').append(mode)
+                            .append(',').append(number(row.means().get(mode)))
+                            .append(",descriptive comparison,REPORTED\n");
+                }
+                csv.append("calibration_history_sum_absolute_deviation_pp,round_")
+                        .append(row.round()).append(',')
+                        .append(number(row.sumAbsoluteDeviation()))
+                        .append(",lower is closer to trip-share targets,")
+                        .append(row.status()).append('\n');
+            }
+            csv.append("selected_final_parameter_candidate,,round_")
+                    .append(selection.round())
+                    .append(",pre-defined acceptance stability and deviation criteria,SELECTED\n")
+                    .append("selection_reason,,\"")
+                    .append(selection.reason().replace("\"", "\"\""))
+                    .append("\",not automatically the latest round,REPORTED\n");
+        }
         return csv.toString();
     }
 
     static List<String> summaryFileNames(RoundDefinition definition) {
         List<String> names = new ArrayList<>();
+        if (definition.constantDerivation() != null) {
+            names.add(definition.prefix() + "_constant_derivation.csv");
+        }
         names.add(definition.prefix() + "_late_iteration_statistics.csv");
         names.add(definition.prefix() + "_final_mode_summary.csv");
         names.add(definition.prefix() + "_active_mode_distance_summary.csv");
@@ -592,7 +675,8 @@ public final class AnalyzeLiteratureBasedScoringCalibrationRound1
                     || distanceWorsened) {
                 return "CALIBRATION_TARGET_NOT_REACHED";
             }
-            return withinTwo ? "ACCEPT_CALIBRATION"
+            return withinTwo ? (definition.roundNumber() == 4 ? "ACCEPT"
+                    : "ACCEPT_CALIBRATION")
                     : "ACCEPT_WITH_REPORTED_RESIDUAL_DEVIATION";
         }
         if (!stable || unexpectedModes || !stuckAcceptable || distanceWorsened) {
@@ -615,7 +699,7 @@ public final class AnalyzeLiteratureBasedScoringCalibrationRound1
                 Math.abs(value.targetDifference()) <= 4.0);
         return decisionStatus(stable, withinTwo, withinFour, unexpected,
                 stuckAssessment(stuck, definition).acceptable(),
-                materialDistanceWorsening(distances), definition);
+                distanceAssessment(distances, definition).materialWorsening(), definition);
     }
 
     static ClosestResult closestLateResult(List<IterationSnapshot> iterations,
@@ -645,6 +729,105 @@ public final class AnalyzeLiteratureBasedScoringCalibrationRound1
         return value.toString();
     }
 
+    static List<CalibrationHistoryRow> calibrationHistory(
+            Map<String, LateStatistic> round4Late, String round4Status)
+            throws Exception {
+        List<CalibrationHistoryRow> history = new ArrayList<>();
+        history.add(readCalibrationHistoryRow(1,
+                ValidateLiteratureBasedScoringCalibrationRound2Config.ROUND_1_LATE,
+                ValidateLiteratureBasedScoringCalibrationRound1Config.OUTPUT.resolve(
+                        "analysis/round_1_report.md")));
+        history.add(readCalibrationHistoryRow(2,
+                ValidateLiteratureBasedScoringCalibrationRound2Config.ROUND_2_LATE,
+                ValidateLiteratureBasedScoringCalibrationRound2Config.OUTPUT.resolve(
+                        "analysis/round_2_report.md")));
+        history.add(readCalibrationHistoryRow(3,
+                ValidateLiteratureBasedScoringCalibrationRound2Config.ROUND_3_LATE,
+                ValidateLiteratureBasedScoringCalibrationRound2Config.ROUND_3_ANALYSIS.resolve(
+                        "round_3_report.md")));
+        Map<String, Double> means = new LinkedHashMap<>();
+        round4Late.forEach((mode, statistic) -> means.put(mode, statistic.mean()));
+        boolean stable = round4Late.values().stream().allMatch(value ->
+                Math.abs(value.trend()) < TREND_LIMIT_PP
+                        && value.range() <= LATE_RANGE_LIMIT_PP);
+        history.add(new CalibrationHistoryRow(4, Map.copyOf(means),
+                sumAbsoluteDeviation(means), stable, round4Status));
+        return List.copyOf(history);
+    }
+
+    static CalibrationHistoryRow readCalibrationHistoryRow(int round, Path lateFile,
+            Path reportFile) throws IOException {
+        Map<String, Double> means = new LinkedHashMap<>();
+        boolean stable = true;
+        try (BufferedReader reader = Files.newBufferedReader(required(lateFile,
+                "Round-" + round + " late statistics"), StandardCharsets.UTF_8)) {
+            reader.readLine();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (line.isBlank()) continue;
+                String[] f = line.split(",", -1);
+                require(f.length >= 11, "Malformed Round-" + round + " late statistics");
+                means.put(f[0], Double.parseDouble(f[2]));
+                stable &= Math.abs(Double.parseDouble(f[6])) < TREND_LIMIT_PP
+                        && Double.parseDouble(f[5]) <= LATE_RANGE_LIMIT_PP;
+            }
+        }
+        require(means.keySet().containsAll(MODES) && means.size() == MODES.size(),
+                "Round-" + round + " late statistics do not contain four modes");
+        String report = Files.readString(required(reportFile,
+                "Round-" + round + " report"), StandardCharsets.UTF_8);
+        int start = report.indexOf("**");
+        int end = start < 0 ? -1 : report.indexOf("**", start + 2);
+        require(start >= 0 && end > start, "Round-" + round + " report has no status");
+        return new CalibrationHistoryRow(round, Map.copyOf(means),
+                sumAbsoluteDeviation(means), stable,
+                report.substring(start + 2, end));
+    }
+
+    static CandidateSelection selectFinalCandidate(List<CalibrationHistoryRow> history) {
+        CalibrationHistoryRow round3 = history.stream().filter(row -> row.round() == 3)
+                .findFirst().orElseThrow();
+        CalibrationHistoryRow round4 = history.stream().filter(row -> row.round() == 4)
+                .findFirst().orElseThrow();
+        int rank3 = statusRank(round3.status());
+        int rank4 = statusRank(round4.status());
+        if (rank4 < rank3) {
+            return new CandidateSelection(4,
+                    "Round 4 attains the stronger pre-defined acceptance status.");
+        }
+        if (rank3 < rank4) {
+            return new CandidateSelection(3,
+                    "Round 3 remains the better stable candidate because Round 4 attains a weaker acceptance status.");
+        }
+        if (round3.stable() && !round4.stable()) {
+            return new CandidateSelection(3,
+                    "Round 3 remains the better stable candidate because Round 4 is unstable.");
+        }
+        if (round4.stable() && !round3.stable()) {
+            return new CandidateSelection(4,
+                    "Round 4 is stable while Round 3 is not.");
+        }
+        if (round4.sumAbsoluteDeviation() <= round3.sumAbsoluteDeviation()) {
+            return new CandidateSelection(4,
+                    "Rounds 3 and 4 have the same acceptance class and stability; Round 4 has the lower summed absolute target deviation.");
+        }
+        return new CandidateSelection(3,
+                "Round 3 remains the better stable candidate because it has the lower summed absolute target deviation.");
+    }
+
+    private static int statusRank(String status) {
+        return switch (status) {
+            case "ACCEPT", "ACCEPT_CALIBRATION" -> 0;
+            case "ACCEPT_WITH_REPORTED_RESIDUAL_DEVIATION" -> 1;
+            default -> 2;
+        };
+    }
+
+    private static double sumAbsoluteDeviation(Map<String, Double> means) {
+        return MODES.stream().mapToDouble(mode ->
+                Math.abs(means.get(mode) - target(mode))).sum();
+    }
+
     static boolean materialDistanceWorsening(
             AuditLiteratureBasedScoringTripDistances.AuditData data) {
         for (String mode : List.of("walk", "bike")) {
@@ -663,6 +846,64 @@ public final class AnalyzeLiteratureBasedScoringCalibrationRound1
             if ((meanChange >= 10 || p90Change >= 10) && outShare - inShare >= 1.0) return true;
         }
         return false;
+    }
+
+    static DistanceAssessment distanceAssessment(
+            AuditLiteratureBasedScoringTripDistances.AuditData data,
+            RoundDefinition definition) {
+        boolean versusInput = materialDistanceWorsening(data);
+        if (definition.activeDistanceBaseline() == null) {
+            return new DistanceAssessment(versusInput, false);
+        }
+        try {
+            Map<String, ActiveDistanceReference> baseline = readActiveDistanceReference(
+                    definition.activeDistanceBaseline());
+            boolean versusRound3 = false;
+            for (String mode : List.of("walk", "bike")) {
+                double threshold = AuditLiteratureBasedScoringTripDistances
+                        .THRESHOLDS_KM.get(mode)[0];
+                ActiveDistanceReference reference = baseline.get(mode + "|" + threshold);
+                var current = data.finalState().modes.get(mode);
+                require(reference != null && current != null,
+                        "Missing Round-3/current active-distance comparison for " + mode);
+                double currentMean = mean(current.od) / 1000.0;
+                double currentP90 = AuditLiteratureBasedScoringTripDistances
+                        .percentile(current.od, .9) / 1000.0;
+                double currentShare = percent(current.od.stream().filter(value ->
+                        AuditLiteratureBasedScoringTripDistances.exceeds(value, threshold))
+                        .count(), current.od.size());
+                if ((relativeChange(reference.meanOdKm(), currentMean) >= 10
+                        || relativeChange(reference.p90OdKm(), currentP90) >= 10)
+                        && currentShare - reference.thresholdSharePercent() >= 1.0) {
+                    versusRound3 = true;
+                }
+            }
+            return new DistanceAssessment(versusInput, versusRound3);
+        } catch (IOException exception) {
+            throw new IllegalStateException(
+                    "Could not read Round-3 active-distance comparison", exception);
+        }
+    }
+
+    static Map<String, ActiveDistanceReference> readActiveDistanceReference(Path file)
+            throws IOException {
+        Map<String, ActiveDistanceReference> result = new LinkedHashMap<>();
+        try (BufferedReader reader = Files.newBufferedReader(required(file,
+                "active-distance baseline"), StandardCharsets.UTF_8)) {
+            reader.readLine();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (line.isBlank()) continue;
+                String[] f = line.split(",", -1);
+                require(f.length == 12, "Malformed active-distance baseline row");
+                if (!"FINAL".equals(f[0])) continue;
+                double threshold = Double.parseDouble(f[2]);
+                result.put(f[1] + "|" + threshold,
+                        new ActiveDistanceReference(Double.parseDouble(f[5]),
+                                Double.parseDouble(f[6]), Double.parseDouble(f[8])));
+            }
+        }
+        return Map.copyOf(result);
     }
 
     private static List<StuckRow> readStuckRows(Path file, int lastIteration)
@@ -775,13 +1016,14 @@ public final class AnalyzeLiteratureBasedScoringCalibrationRound1
         return new RoundDefinition(1, OUTPUT, RUN_ID, 40, LATE_FIRST, LATE_LAST,
                 "round_1",
                 ValidateLiteratureBasedScoringCalibrationRound1Config.EXPECTED_ASCS,
-                "ONE_MORE_ASC_ROUND_REQUIRED", false);
+                "ONE_MORE_ASC_ROUND_REQUIRED", false, null, null);
     }
 
     record RoundDefinition(int roundNumber, Path output, String runId,
             int lastIteration, int lateFirst, int lateLast, String prefix,
             Map<String, Double> currentAscs, String additionalUpdateStatus,
-            boolean finalRound) { }
+            boolean finalRound, Path constantDerivation,
+            Path activeDistanceBaseline) { }
     record ScopeSelection(BitSet bothInside, int totalMainTrips) { }
     record IterationSnapshot(int iteration, long bothInsideTrips,
             Map<String, Long> modes, long unexpectedModeCount) {
@@ -801,6 +1043,14 @@ public final class AnalyzeLiteratureBasedScoringCalibrationRound1
             double maxLateIncidence, double finalIncidence, boolean acceptable) { }
     record ClosestResult(int iteration, double sumAbsoluteDeviation,
             Map<String, Double> shares) { }
+    record DistanceAssessment(boolean versusInput, boolean versusRound3) {
+        boolean materialWorsening() { return versusInput || versusRound3; }
+    }
+    record ActiveDistanceReference(double thresholdSharePercent,
+            double meanOdKm, double p90OdKm) { }
+    record CalibrationHistoryRow(int round, Map<String, Double> means,
+            double sumAbsoluteDeviation, boolean stable, String status) { }
+    record CandidateSelection(int round, String reason) { }
 
     private static final class MutableStuck {
         private final Map<String, MutableStuckMetric> modes = new HashMap<>();

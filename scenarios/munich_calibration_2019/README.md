@@ -179,7 +179,7 @@ read-only with respect to MATSim execution and never starts Controller or QSim.
 Round-2 acceptance uses late/final per-iteration StuckEvent incidence, while
 cumulative early events remain reported as technical evidence.
 
-## Final literature-based scoring calibration Round 3
+## Literature-based scoring calibration Round 3
 
 `config_literature_based_scoring_calibration_round_3.xml` is a strict
 fresh-start derivation of Round 2. It retains iterations 0--60 and the original
@@ -193,6 +193,28 @@ server, execute `14 Run Literature-Based Scoring Calibration Round 3` once;
 normal shutdown is followed automatically by final validation and analysis.
 Use recovery-only `14B Validate and Summarize Existing Literature-Based Scoring
 Round 3` only if postprocessing fails after a normally completed simulation.
-Run 14B never starts Controller or QSim. Round 3 uses iterations 51--60 for the
-final three-way calibration decision and deliberately produces no Round-4 ASC
-recommendation.
+Run 14B never starts Controller or QSim. Round 3 uses iterations 51--60 for its
+three-way calibration decision and deliberately produces no automatic
+next-round ASC recommendation. The preserved result did not reach the targets,
+so one manually authorized final Round 4 follows it without changing the
+structural scoring design.
+
+## Binding final literature-based scoring calibration Round 4
+
+`config_literature_based_scoring_calibration_round_4.xml` is a strict
+fresh-start derivation of Round 3. Only the run ID, protected output directory
+and ASCs differ. The full-precision ASCs are car
+`-0.27979614837234024`, PT `0.22971538337764302`, bike
+`-1.1684385773353396` and walk `0.0`. Their reproducible derivation is stored in
+`calibration_specifications/round_4_constant_derivation.csv`. The protected
+output is `output/literature-based-scoring-calibration-round-4`.
+
+Run `15 Validate Literature-Based Scoring Calibration Round 4` first. On the
+server, run `16 Run Literature-Based Scoring Calibration Round 4` exactly once;
+after normal shutdown it performs the established analysis automatically. Use
+recovery-only `16B Analyze Existing Literature-Based Scoring Calibration Round
+4` only for a complete existing output when postprocessing must be repeated.
+Run 16B never starts Controller or QSim. Round 4 uses iterations 51--60, applies
+the unchanged Round-3 decision rules, compares Rounds 1--4, and creates neither
+Round 5 nor another ASC recommendation. The finally selected specification must
+then be transferred unchanged to BAU and Fast Track.

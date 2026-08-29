@@ -314,7 +314,7 @@ of active-mode distance tails. A stable target miss produces
 `STRUCTURAL_REVIEW_REQUIRED`. No distance limit, distance penalty, new
 car-availability assumption, Pkm target or warm start is introduced.
 
-## Final literature-based calibration Round 3
+## Literature-based calibration Round 3
 
 Round 2 was technically stable but remained outside the trip-share targets.
 Its iteration-51--60 means were car 36.717620468%, PT 20.864927803%, bike
@@ -336,7 +336,8 @@ configuration. It runs iterations 0--60, disables innovation after iteration
 48 and uses iterations 51--60 for the final assessment. This fresh-start design
 keeps all rounds comparable and excludes warm-start effects.
 
-This is the final planned calibration round. `ACCEPT_CALIBRATION` requires all
+Round 3 was initially designated as the final planned calibration round.
+`ACCEPT_CALIBRATION` requires all
 late means within +/-2 percentage points, trends below 0.10 percentage points
 per iteration, ranges no greater than 2 percentage points, no denominator or
 mode inconsistency, acceptable late/final StuckEvent incidence and no material
@@ -344,6 +345,38 @@ active-mode distance deterioration. A technically valid and stable result with
 all residuals no greater than 4 percentage points is reported as
 `ACCEPT_WITH_REPORTED_RESIDUAL_DEVIATION`. A larger residual, instability or
 technical inconsistency is reported as `CALIBRATION_TARGET_NOT_REACHED`.
-Round 3 creates no Round-4 recommendation. Remaining deviations are retained
-as explicit model limitations; Pkm shares, mean distances and travel times
-remain validation outcomes rather than acceptance targets.
+Round 3 created no automatic Round-4 recommendation. Its preserved analysis
+subsequently showed late means of car 36.726399880%, PT 23.538974988%, bike
+23.268058505% and walk 16.466566627%. It therefore did not reach the target,
+and its active-mode distance assessment also required review. This evidence
+motivated one manually authorized and strictly bounded final correction.
+
+## Binding final literature-based calibration Round 4
+
+Round 4 changes only the alternative-specific constants. It applies the same
+damping factor of 0.5 in two explicit steps:
+
+`temporary_ASC_m = old_ASC_m + 0.5 * ln(target_share_m / observed_share_m)`
+
+`new_ASC_m = temporary_ASC_m - temporary_ASC_walk`, with `new_ASC_walk = 0`
+
+The full-precision derivation is versioned in
+`calibration_specifications/round_4_constant_derivation.csv`. It produces car
+`-0.27979614837234024`, PT `0.22971538337764302`, bike
+`-1.1684385773353396` and walk exactly `0.0`. Walk remains the permanent
+reference. No travel-time, cost, speed, distance, activity, routing, capacity,
+strategy or availability parameter changes. The run starts from the unchanged
+original 2019 population, runs iterations 0--60 with the 48-hour horizon and
+uses iterations 51--60 for assessment.
+
+The predefined Round-3 decision rules remain binding. Round 4 reports
+`ACCEPT`, `ACCEPT_WITH_REPORTED_RESIDUAL_DEVIATION` or
+`CALIBRATION_TARGET_NOT_REACHED`; it does not calculate another ASC vector or
+create Round 5. If Round 4 performs worse than the stable Round-3 result, the
+analysis identifies Round 3 as the preferable candidate. Selection therefore
+follows the fixed stability, target-fit, stuck-event and active-distance rules,
+not merely the most recent run. Remaining deviations are reported as model
+limitations. Pkm shares, mean distances and travel times remain validation
+outcomes and are not direct calibration targets. Once the final candidate is
+selected, its complete scoring specification must be frozen and transferred
+unchanged to BAU and Fast Track.

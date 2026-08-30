@@ -28,6 +28,8 @@ The BAU and Fast Track GTFS feeds and their activated MATSim transit inputs have
 
 Contract-compliant server entry points are prepared under the `P` IntelliJ prefix. `P1` and `P2` validate inputs read-only; `P3` and `P4` run protected iteration-zero smoke tests and validate them automatically; `P3B` and `P4B` validate preserved, normally completed smoke outputs without repeating QSim; `P7` and `P8` run the sequential BAU and Fast Track productions; `P7B` and `P8B` recover analysis only after normal simulation shutdown. QSim configurations are headless. Smoke outputs are technical evidence only, and no local Controller, QSim or smoke run is part of repository verification.
 
+The completed production outputs are analyzed further without rerunning simulation through `P9 Analyze Existing BAU 2040 Accounting Scopes` and `P10 Analyze Existing Fast Track 2040 Accounting Scopes`. One shared fail-closed method separates `BOTH_INSIDE` trip accounting, the complete travel of documented Munich residents, scoped private-car Fkm and territorially clipped PT service Fkm. Five-percent private demand is expanded by factor 20; full-scale PT service is not. Any 365-day figure is explicitly illustrative rather than an authoritative annual total.
+
 An isolated literature-based 2019 scoring diagnostic is prepared on a separate
 branch. It resets the four choice-mode constants, keeps walk as the permanent
 zero reference, introduces an explicit car operating cost and uses observed

@@ -10,6 +10,7 @@ import org.matsim.api.core.v01.events.LinkEnterEvent;
 import org.matsim.api.core.v01.events.ActivityEndEvent;
 import org.matsim.api.core.v01.events.PersonEntersVehicleEvent;
 import org.matsim.api.core.v01.events.PersonLeavesVehicleEvent;
+import org.matsim.api.core.v01.events.PersonStuckEvent;
 import org.matsim.api.core.v01.events.TransitDriverStartsEvent;
 import org.matsim.api.core.v01.events.VehicleEntersTrafficEvent;
 import org.matsim.api.core.v01.events.VehicleLeavesTrafficEvent;
@@ -17,6 +18,7 @@ import org.matsim.api.core.v01.events.handler.LinkEnterEventHandler;
 import org.matsim.api.core.v01.events.handler.ActivityEndEventHandler;
 import org.matsim.api.core.v01.events.handler.PersonEntersVehicleEventHandler;
 import org.matsim.api.core.v01.events.handler.PersonLeavesVehicleEventHandler;
+import org.matsim.api.core.v01.events.handler.PersonStuckEventHandler;
 import org.matsim.api.core.v01.events.handler.TransitDriverStartsEventHandler;
 import org.matsim.api.core.v01.events.handler.VehicleEntersTrafficEventHandler;
 import org.matsim.api.core.v01.events.handler.VehicleLeavesTrafficEventHandler;
@@ -41,11 +43,12 @@ final class Production2040VehicleMetrics implements LinkEnterEventHandler,
         VehicleEntersTrafficEventHandler, VehicleLeavesTrafficEventHandler,
         TransitDriverStartsEventHandler, PersonEntersVehicleEventHandler,
         PersonLeavesVehicleEventHandler, ActivityEndEventHandler,
-        VehicleArrivesAtFacilityEventHandler {
+        VehicleArrivesAtFacilityEventHandler, PersonStuckEventHandler {
     private final Network network;
     private final TransitSchedule schedule;
     private final Map<Id<Person>, java.util.List<Boolean>> relevantTrips;
     private final Vehicles transitVehicles;
+    private final MovementObserver movementObserver;
     private final Map<Id<Person>, Integer> currentTripIndex = new HashMap<>();
     private final Map<Id<Vehicle>, VehicleState> vehicles = new HashMap<>();
     private final Map<String, MutablePtMetric> pt = new TreeMap<>();
@@ -61,10 +64,17 @@ final class Production2040VehicleMetrics implements LinkEnterEventHandler,
     Production2040VehicleMetrics(Network network, TransitSchedule schedule,
             Vehicles transitVehicles,
             Map<Id<Person>, java.util.List<Boolean>> relevantTrips) {
+        this(network, schedule, transitVehicles, relevantTrips, MovementObserver.NONE);
+    }
+
+    Production2040VehicleMetrics(Network network, TransitSchedule schedule,
+            Vehicles transitVehicles, Map<Id<Person>, java.util.List<Boolean>> relevantTrips,
+            MovementObserver movementObserver) {
         this.network = java.util.Objects.requireNonNull(network);
         this.schedule = java.util.Objects.requireNonNull(schedule);
         this.transitVehicles = transitVehicles;
         this.relevantTrips = Map.copyOf(relevantTrips);
+        this.movementObserver = java.util.Objects.requireNonNull(movementObserver);
     }
 
     @Override
@@ -75,6 +85,7 @@ final class Production2040VehicleMetrics implements LinkEnterEventHandler,
         missingTransitReferences = 0;
         unmatchedAlightings = 0;
         currentTripIndex.clear();
+        movementObserver.reset();
     }
 
     @Override
@@ -124,9 +135,13 @@ final class Production2040VehicleMetrics implements LinkEnterEventHandler,
         VehicleState state = state(event.getVehicleId());
         state.networkMode = Production2040AnalysisSpec.normalizeMainMode(event.getNetworkMode());
         state.currentLink = event.getLinkId();
+        state.trafficPerson = event.getPersonId();
+        movementObserver.trafficEnter(event.getVehicleId(), event.getPersonId(),
+                state.networkMode, currentTripIndex.get(event.getPersonId()), state.transit);
         double length = linkLength(event.getLinkId());
         if (Double.isFinite(length)) {
-            addMovement(state, length * (1.0 - boundedPosition(
+            addMovement(event.getVehicleId(), state, event.getLinkId(),
+                    length * (1.0 - boundedPosition(
                     event.getRelativePositionOnLink())));
         }
     }
@@ -136,7 +151,9 @@ final class Production2040VehicleMetrics implements LinkEnterEventHandler,
         VehicleState state = state(event.getVehicleId());
         state.currentLink = event.getLinkId();
         double length = linkLength(event.getLinkId());
-        if (Double.isFinite(length)) addMovement(state, length);
+        if (Double.isFinite(length)) {
+            addMovement(event.getVehicleId(), state, event.getLinkId(), length);
+        }
     }
 
     @Override
@@ -144,10 +161,18 @@ final class Production2040VehicleMetrics implements LinkEnterEventHandler,
         VehicleState state = state(event.getVehicleId());
         double length = linkLength(event.getLinkId());
         if (Double.isFinite(length)) {
-            addMovement(state, -length * (1.0 - boundedPosition(
+            addMovement(event.getVehicleId(), state, event.getLinkId(),
+                    -length * (1.0 - boundedPosition(
                     event.getRelativePositionOnLink())));
         }
+        movementObserver.trafficLeave(event.getVehicleId(), event.getPersonId());
         state.currentLink = null;
+        state.trafficPerson = null;
+    }
+
+    @Override
+    public void handleEvent(PersonStuckEvent event) {
+        movementObserver.personStuck(event.getPersonId(), currentTripIndex.get(event.getPersonId()));
     }
 
     @Override
@@ -198,9 +223,12 @@ final class Production2040VehicleMetrics implements LinkEnterEventHandler,
         if (boarding.relevant()) metric.relevantPassengerMetres += metres;
     }
 
-    private void addMovement(VehicleState state, double metres) {
+    private void addMovement(Id<Vehicle> vehicleId, VehicleState state, Id<Link> linkId,
+            double metres) {
         if (!Double.isFinite(metres)) return;
         state.distanceMetres += metres;
+        movementObserver.movement(vehicleId, state.trafficPerson, linkId, metres,
+                state.transit, state.ptMode);
         if (!state.transit) return;
         MutablePtMetric metric = metric(state.ptMode);
         metric.vehicleMetres += metres;
@@ -288,12 +316,25 @@ final class Production2040VehicleMetrics implements LinkEnterEventHandler,
         private String networkMode = "unknown";
         private String ptMode = "unknown";
         private Id<Person> driver;
+        private Id<Person> trafficPerson;
         private TransitRoute route;
         private TransitStopFacility currentFacility;
         private Id<Link> currentLink;
         private double distanceMetres;
         private final Set<Id<Person>> passengers = new HashSet<>();
         private final Map<Id<Person>, Boarding> boardings = new HashMap<>();
+    }
+
+    interface MovementObserver {
+        MovementObserver NONE = new MovementObserver() { };
+
+        default void reset() { }
+        default void trafficEnter(Id<Vehicle> vehicle, Id<Person> person, String networkMode,
+                                  Integer mainTripIndex, boolean transit) { }
+        default void movement(Id<Vehicle> vehicle, Id<Person> person, Id<Link> link,
+                              double metres, boolean transit, String ptMode) { }
+        default void trafficLeave(Id<Vehicle> vehicle, Id<Person> person) { }
+        default void personStuck(Id<Person> person, Integer mainTripIndex) { }
     }
 
     private record Boarding(TransitStopFacility accessFacility, boolean relevant) { }

@@ -480,3 +480,11 @@ Scenario outputs are excluded from Git.
 - Structural scoring, inputs and previous outputs remain unchanged. Pkm remains
   a validation outcome, and local verification starts neither Controller nor
   QSim.
+
+## 30 August 2026 - contract-compliant 2040 production configs prepared
+
+- Generated `config_bau_2040_mode_choice.xml` and `config_fast_track_2040_mode_choice.xml` from the frozen Round-5 config through one MATSim Config API implementation. The legacy 2040 configs remain unchanged and are not production-ready.
+- Applied only the allowlisted scenario identity, protected output and population, network, schedule and transit-vehicle references. BAU and Fast Track retain identical scoring, mode choice, strategies, seed, iterations, QSim horizon, routing, transit and technical settings.
+- Added a read-only paired validator covering all 149 shared contract rows, all 13 manifest hashes, complete order-independent config semantics, scenario input assignment and default-deny difference checking.
+- Added focused negative, hash, output-protection and byte-idempotence tests. Config generation and validation created no output directory and changed no protected model input.
+- No Controller, QSim, smoke test or production simulation was started. `BOTH_INSIDE` remains a later analysis filter over the complete regional simulation population, and neither 2040 projection was recalibrated against unavailable 2040 observations.

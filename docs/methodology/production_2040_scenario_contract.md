@@ -78,4 +78,17 @@ The current inventory required no reconstruction of missing large files and did 
 
 Before either production run, a read-only validator must compare the proposed configs semantically against this contract, verify all available hashes, require the output directory to be absent, and prove that the BAU--Fast Track differences are a subset of the allowlist. Both configs must be validated together before either simulation starts. The full regional population is then simulated in both scenarios, and the same `BOTH_INSIDE` analysis and scaling rules are applied after normal completion.
 
-This contract releases the next implementation step: new BAU and Fast Track production configs may now be created. It does **not** release a production simulation using the current legacy configs. Step 2 remains fail-closed until the new configs pass the shared-parameter, input-hash and allowlist checks described above.
+This contract released the implementation of new BAU and Fast Track production configs. It did **not** release a production simulation using the legacy configs. The Step-2 gate is satisfied only by the generated configs documented below after they pass the shared-parameter, input-hash and allowlist checks described above.
+
+## Contract-compliant production configs
+
+The paired configs are now generated from the Round-5 source through the MATSim Config API rather than maintained as independent XML copies:
+
+- BAU: `scenarios/munich_bau_2040/config_bau_2040_mode_choice.xml`
+- Fast Track: `scenarios/munich_fast_track_2040/config_fast_track_2040_mode_choice.xml`
+
+`BuildProduction2040Configs` validates the versioned contract and all protected hashes, loads Round 5, changes only the allowlisted run identity, output and scenario-input fields, validates both candidates together and publishes them deterministically. `ValidateProduction2040Configs` is read-only: it checks all 149 shared contract rows, including 135 config-backed values and 14 analysis, scaling and frozen-reference rules; compares the complete semantic module and parameter-set structure independently of XML order; and rejects every non-allowlisted difference. Known path fields are compared after separator normalization, while substantive values are not broadly normalized. Numeric serialization is accepted only when the written value has the identical Java `double` bit representation as the frozen Round-5 value; no numerical tolerance is used.
+
+The production run IDs are `munich-bau-2040-mode-choice` and `munich-fast-track-2040-mode-choice`. Their protected output directories are `scenarios/munich_bau_2040/output/production-mode-choice` and `scenarios/munich_fast_track_2040/output/production-mode-choice`. Neither directory is created by config generation or validation. The legacy `config_bau.xml` and `config_fast_track.xml` remain technical predecessors and must not be used for production.
+
+This implementation establishes structural readiness only. No Controller, QSim, smoke test or production simulation has been run. Both projections retain identical behavioural parameters and are not recalibrated against unavailable 2040 observations. The complete regional population remains a simulation input, and `BOTH_INSIDE` remains a later analysis rule rather than a population filter.

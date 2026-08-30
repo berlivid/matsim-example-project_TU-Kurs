@@ -6,6 +6,7 @@ import java.nio.file.Path;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Predicate;
 import org.matsim.core.config.Config;
 import org.matsim.core.config.ConfigUtils;
 import org.matsim.core.controler.Controler;
@@ -107,6 +108,37 @@ final class Production2040RunSupport {
         controler.addOverridingModule(new SwissRailRaptorModule());
     }
 
+    static void requireSmokeRunnerOutputsAbsent(RunDefinition definition) {
+        requireSmokeRunnerOutputsAbsent(definition, Files::exists);
+    }
+
+    static void requireSmokeRunnerOutputsAbsent(RunDefinition definition,
+            Predicate<Path> exists) {
+        Production2040Contract.require(!exists.test(definition.smokeOutput()),
+                "Protected smoke output already exists: "
+                        + Production2040Contract.projectPath(definition.smokeOutput()));
+        Production2040Contract.require(!exists.test(definition.productionOutput()),
+                "Protected production output already exists: "
+                        + Production2040Contract.projectPath(definition.productionOutput()));
+    }
+
+    static void requireProductionRunnerOutputAbsent(RunDefinition definition) {
+        requireProductionRunnerOutputAbsent(definition, Files::exists);
+    }
+
+    static void requireProductionRunnerOutputAbsent(RunDefinition definition,
+            Predicate<Path> exists) {
+        Production2040Contract.require(!exists.test(definition.productionOutput()),
+                "Protected production output already exists: "
+                        + Production2040Contract.projectPath(definition.productionOutput()));
+    }
+
+    static void validateBothSmokeOutputs(Map<Path, String> protectedBefore,
+            SmokeOutputValidation validator) throws Exception {
+        validator.validate(scenario("BAU"), protectedBefore);
+        validator.validate(scenario("FAST_TRACK"), protectedBefore);
+    }
+
     private static String projectRelative(Path path) {
         return Production2040Contract.projectPath(path);
     }
@@ -124,4 +156,10 @@ final class Production2040RunSupport {
                               int firstIteration, int lastIteration,
                               boolean transitEnabled,
                               boolean postprocessAfterNormalShutdown) { }
+
+    @FunctionalInterface
+    interface SmokeOutputValidation {
+        void validate(RunDefinition definition, Map<Path, String> protectedBefore)
+                throws Exception;
+    }
 }

@@ -1,6 +1,5 @@
 package org.matsim.project.prepare;
 
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 import org.matsim.api.core.v01.Scenario;
@@ -18,8 +17,7 @@ public final class RunMatsim2040ProductionSmokeTest {
         ValidateMatsim2040ProductionInput.validate(definition);
         var contract = Production2040Contract.loadAndValidate();
         Map<Path, String> protectedBefore = Production2040Contract.protectedInputSnapshot(contract);
-        Production2040Contract.require(!Files.exists(definition.smokeOutput()),
-                "Protected smoke output already exists");
+        Production2040RunSupport.requireSmokeRunnerOutputsAbsent(definition);
 
         Scenario scenario = ScenarioUtils.loadScenario(
                 Production2040RunSupport.smokeConfig(definition));

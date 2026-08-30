@@ -8,7 +8,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import javax.xml.parsers.DocumentBuilderFactory;
 import org.junit.jupiter.api.Test;
@@ -92,6 +94,80 @@ class Production2040RunnersTest {
         assertEquals(1, smoke.swissRailRaptorInstallations());
         assertEquals(0, smoke.analysisListenerInstallations());
         assertEquals(0, smoke.lastIteration());
+    }
+
+    @Test
+    void inputValidationIsIndependentOfExistingOutputDirectories() throws Exception {
+        String source = Files.readString(ROOT.resolve(
+                "src/main/java/org/matsim/project/prepare/ValidateMatsim2040ProductionInput.java"));
+        assertFalse(source.contains("smokeOutput()"));
+        assertFalse(source.contains("Files.exists"));
+        assertFalse(source.contains("output already exists"));
+        assertTrue(source.contains(
+                "Production2040Contract.FAST_TRACK.configPath(), false)"));
+    }
+
+    @Test
+    void smokeRunnerRejectsExistingSmokeOrProductionTarget() {
+        var definition = Production2040RunSupport.scenario("BAU");
+        Production2040RunSupport.requireSmokeRunnerOutputsAbsent(definition,
+                ignored -> false);
+        assertThrows(IllegalStateException.class, () ->
+                Production2040RunSupport.requireSmokeRunnerOutputsAbsent(definition,
+                        path -> path.equals(definition.smokeOutput())));
+        assertThrows(IllegalStateException.class, () ->
+                Production2040RunSupport.requireSmokeRunnerOutputsAbsent(definition,
+                        path -> path.equals(definition.productionOutput())));
+    }
+
+    @Test
+    void productionRunnerRequiresBothValidatedSmokeOutputs() throws Exception {
+        List<String> validated = new ArrayList<>();
+        Production2040RunSupport.validateBothSmokeOutputs(Map.of(),
+                (definition, ignored) -> validated.add(definition.argument()));
+        assertEquals(List.of("BAU", "FAST_TRACK"), validated);
+
+        validated.clear();
+        assertThrows(IllegalStateException.class, () ->
+                Production2040RunSupport.validateBothSmokeOutputs(Map.of(),
+                        (definition, ignored) -> {
+                            validated.add(definition.argument());
+                            if (definition.fastTrack())
+                                throw new IllegalStateException("invalid Fast Track smoke");
+                        }));
+        assertEquals(List.of("BAU", "FAST_TRACK"), validated);
+    }
+
+    @Test
+    void productionRunnerRejectsExistingTargetOutput() {
+        var definition = Production2040RunSupport.scenario("FAST_TRACK");
+        Production2040RunSupport.requireProductionRunnerOutputAbsent(definition,
+                ignored -> false);
+        assertThrows(IllegalStateException.class, () ->
+                Production2040RunSupport.requireProductionRunnerOutputAbsent(definition,
+                        path -> path.equals(definition.productionOutput())));
+    }
+
+    @Test
+    void noControllerCanBeCreatedBeforeAllRunnerGatesPass() throws Exception {
+        String production = Files.readString(ROOT.resolve(
+                "src/main/java/org/matsim/project/prepare/RunMatsim2040Production.java"));
+        int productionOutputGate = production.indexOf(
+                "requireProductionRunnerOutputAbsent");
+        int bothSmokeGate = production.indexOf("validateBothSmokeOutputs");
+        int productionScenario = production.indexOf("ScenarioUtils.loadScenario");
+        int productionController = production.indexOf("new Controler");
+        assertTrue(productionOutputGate >= 0 && productionOutputGate < bothSmokeGate);
+        assertTrue(bothSmokeGate < productionScenario
+                && productionScenario < productionController);
+
+        String smoke = Files.readString(ROOT.resolve(
+                "src/main/java/org/matsim/project/prepare/RunMatsim2040ProductionSmokeTest.java"));
+        int smokeOutputGate = smoke.indexOf("requireSmokeRunnerOutputsAbsent");
+        int smokeScenario = smoke.indexOf("ScenarioUtils.loadScenario");
+        int smokeController = smoke.indexOf("new Controler");
+        assertTrue(smokeOutputGate >= 0 && smokeOutputGate < smokeScenario
+                && smokeScenario < smokeController);
     }
 
     @Test

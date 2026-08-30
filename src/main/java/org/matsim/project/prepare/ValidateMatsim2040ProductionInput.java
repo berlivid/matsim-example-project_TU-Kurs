@@ -10,7 +10,6 @@ import ch.sbb.matsim.routing.pt.raptor.OccupancyData;
 import ch.sbb.matsim.routing.pt.raptor.RaptorUtils;
 import ch.sbb.matsim.routing.pt.raptor.SwissRailRaptor;
 import ch.sbb.matsim.routing.pt.raptor.SwissRailRaptorData;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -51,15 +50,9 @@ public final class ValidateMatsim2040ProductionInput {
     static ValidationSummary validate(Production2040RunSupport.RunDefinition definition)
             throws Exception {
         ValidateProduction2040Configs.validateFiles(Production2040Contract.BAU.configPath(),
-                Production2040Contract.FAST_TRACK.configPath(), true);
+                Production2040Contract.FAST_TRACK.configPath(), false);
         var contract = Production2040Contract.loadAndValidate();
         Map<Path, String> protectedBefore = Production2040Contract.protectedInputSnapshot(contract);
-        Production2040Contract.require(!Files.exists(definition.productionOutput()),
-                "Production output already exists: "
-                        + Production2040Contract.projectPath(definition.productionOutput()));
-        Production2040Contract.require(!Files.exists(definition.smokeOutput()),
-                "Smoke output already exists: "
-                        + Production2040Contract.projectPath(definition.smokeOutput()));
 
         Scenario scenario = ScenarioUtils.loadScenario(
                 Production2040RunSupport.productionConfig(definition));

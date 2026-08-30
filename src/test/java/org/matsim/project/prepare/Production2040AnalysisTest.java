@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.zip.GZIPOutputStream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -31,6 +32,7 @@ import org.matsim.api.core.v01.network.Node;
 import org.matsim.api.core.v01.population.Person;
 import org.matsim.api.core.v01.population.Plan;
 import org.matsim.core.config.Config;
+import org.matsim.core.config.ConfigGroup;
 import org.matsim.core.config.ConfigUtils;
 import org.matsim.core.network.NetworkUtils;
 import org.matsim.core.population.PopulationUtils;
@@ -47,6 +49,20 @@ class Production2040AnalysisTest {
     private static final Id<Person> PASSENGER = Id.createPersonId("passenger");
     private static final Id<Person> PASSENGER_2 = Id.createPersonId("passenger-2");
     private static final Id<Person> DRIVER = Id.createPersonId("driver");
+    private static final Map<String, String> EXPECTED_RAPTOR_DEFAULTS = Map.ofEntries(
+            Map.entry("intermodalAccessEgressModeSelection", "CalcLeastCostModePerStop"),
+            Map.entry("intermodalLegOnlyHandling", "forbid"),
+            Map.entry("scoringParameters", "Default"),
+            Map.entry("transferCalculation", "Initial"),
+            Map.entry("transferPenaltyBaseCost", "0.0"),
+            Map.entry("transferPenaltyCostPerTravelTimeHour", "0.0"),
+            Map.entry("transferPenaltyMaxCost", "Infinity"),
+            Map.entry("transferPenaltyMinCost", "-Infinity"),
+            Map.entry("transferWalkMargin", "5.0"),
+            Map.entry("useCapacityConstraints", "false"),
+            Map.entry("useIntermodalAccessEgress", "false"),
+            Map.entry("useModeMappingForPassengers", "false"),
+            Map.entry("useRangeQuery", "false"));
 
     @Test
     void definesScenarioNeutralScalingAndLateWindow() {
@@ -320,6 +336,50 @@ class Production2040AnalysisTest {
     }
 
     @Test
+    void acceptsOnlyExactMatsim2025SwissRailRaptorRuntimeDefaultsPostRun() {
+        Config expected = bauConfig();
+        assertFalse(expected.getModules().containsKey(
+                Production2040PostRunConfigComparison.SWISS_RAIL_RAPTOR_MODULE));
+        assertEquals(EXPECTED_RAPTOR_DEFAULTS, Production2040PostRunConfigComparison
+                .expectedMatsim2025Defaults());
+
+        Config exact = withRuntimeSwissRailRaptor(Map.of(), Set.of());
+        assertTrue(AnalyzeLiteratureBasedScoringDiagnosticOutput
+                .semanticConfigDifferences(expected, exact).stream()
+                .anyMatch(value -> value.startsWith("swissRailRaptor:")));
+        ValidateProduction2040AnalysisOutput.validateOutputConfig(expected, exact,
+                Production2040Contract.BAU.runId());
+        ValidateMatsim2040ProductionSmokeOutput.validateOutputConfig(expected, exact,
+                Production2040Contract.BAU.runId());
+
+        Config changed = withRuntimeSwissRailRaptor(
+                Map.of("useRangeQuery", "true"), Set.of());
+        assertThrows(IllegalStateException.class, () ->
+                ValidateProduction2040AnalysisOutput.validateOutputConfig(expected, changed,
+                        Production2040Contract.BAU.runId()));
+
+        Config additional = withRuntimeSwissRailRaptor(
+                Map.of("unsupportedRuntimeParameter", "value"), Set.of());
+        assertThrows(IllegalStateException.class, () ->
+                ValidateProduction2040AnalysisOutput.validateOutputConfig(expected, additional,
+                        Production2040Contract.BAU.runId()));
+
+        Config missing = withRuntimeSwissRailRaptor(Map.of(),
+                Set.of("transferWalkMargin"));
+        assertThrows(IllegalStateException.class, () ->
+                ValidateProduction2040AnalysisOutput.validateOutputConfig(expected, missing,
+                        Production2040Contract.BAU.runId()));
+
+        Config unrelated = withRuntimeSwissRailRaptor(Map.of(), Set.of());
+        ConfigGroup unrelatedModule = new ConfigGroup("unrelatedRuntimeModule");
+        unrelatedModule.addParam("unexpected", "value");
+        unrelated.addModule(unrelatedModule);
+        assertThrows(IllegalStateException.class, () ->
+                ValidateProduction2040AnalysisOutput.validateOutputConfig(expected, unrelated,
+                        Production2040Contract.BAU.runId()));
+    }
+
+    @Test
     void reportBundleRejectsWrongScenarioAndPartialPublication() {
         var definition = Production2040AnalysisSpec.scenario("BAU");
         Map<String, String> reports = new LinkedHashMap<>();
@@ -345,6 +405,24 @@ class Production2040AnalysisTest {
                     modes, Map.of()));
         }
         return result;
+    }
+
+    private static Config bauConfig() {
+        return ConfigUtils.loadConfig(Production2040Contract.BAU.configPath().toString());
+    }
+
+    private static Config withRuntimeSwissRailRaptor(Map<String, String> replacements,
+            Set<String> removals) {
+        Config config = bauConfig();
+        Map<String, String> values = new LinkedHashMap<>(
+                Production2040PostRunConfigComparison.expectedMatsim2025Defaults());
+        removals.forEach(values::remove);
+        values.putAll(replacements);
+        ConfigGroup raptor = new ConfigGroup(
+                Production2040PostRunConfigComparison.SWISS_RAIL_RAPTOR_MODULE);
+        values.forEach(raptor::addParam);
+        config.addModule(raptor);
+        return config;
     }
 
     private static Fixture fixture() {

@@ -188,12 +188,14 @@ class Production2040RunnersTest {
     }
 
     @Test
-    void allEightIntellijConfigurationsAreWellFormedAndProtected() throws Exception {
+    void allTenIntellijConfigurationsAreWellFormedAndProtected() throws Exception {
         List<String> names = List.of(
                 "P1 Validate BAU 2040 Production Input",
                 "P2 Validate Fast Track 2040 Production Input",
                 "P3 Run BAU 2040 Production Smoke Test",
                 "P4 Run Fast Track 2040 Production Smoke Test",
+                "P3B Validate Existing BAU 2040 Production Smoke Output",
+                "P4B Validate Existing Fast Track 2040 Production Smoke Output",
                 "P7 Run BAU 2040 Production", "P8 Run Fast Track 2040 Production",
                 "P7B Analyze Existing BAU 2040 Production Output",
                 "P8B Analyze Existing Fast Track 2040 Production Output");
@@ -206,10 +208,14 @@ class Production2040RunnersTest {
             assertTrue(xml.contains("shortenClasspath name=\"ARGS_FILE\""));
             assertTrue(xml.contains("-Djava.awt.headless=true"));
             assertTrue(xml.contains("option name=\"Make\" enabled=\"true\""));
-            if (name.startsWith("P3") || name.startsWith("P4")
+            if (name.startsWith("P3 Run") || name.startsWith("P4 Run")
                     || name.startsWith("P7 Run") || name.startsWith("P8 Run"))
                 assertTrue(xml.contains("-Xms4g -Xmx16g"));
             else assertTrue(xml.contains("-Xms2g -Xmx8g"));
+            if (name.startsWith("P3B") || name.startsWith("P4B")) {
+                assertTrue(xml.contains("ValidateMatsim2040ProductionSmokeOutput"));
+                assertFalse(xml.contains("RunMatsim2040ProductionSmokeTest"));
+            }
         }
     }
 

@@ -132,7 +132,7 @@ public final class ValidateProduction2040AnalysisOutput {
     }
 
     static void validateOutputConfig(Config expected, Config actual, String runId) {
-        List<String> differences = AnalyzeLiteratureBasedScoringDiagnosticOutput
+        List<String> differences = Production2040PostRunConfigComparison
                 .semanticConfigDifferences(expected, actual);
         Production2040AnalysisSpec.require(differences.isEmpty(),
                 "Production output config differs from the approved config:\n- "

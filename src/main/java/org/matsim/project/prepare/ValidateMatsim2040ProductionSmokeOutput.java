@@ -63,13 +63,7 @@ public final class ValidateMatsim2040ProductionSmokeOutput {
                 "smoke output config");
         Config expected = Production2040RunSupport.smokeConfig(definition);
         Config actual = ConfigUtils.loadConfig(outputConfig.toString());
-        var configDifferences = AnalyzeLiteratureBasedScoringDiagnosticOutput
-                .semanticConfigDifferences(expected, actual);
-        Production2040Contract.require(configDifferences.isEmpty(),
-                "Smoke output config differs from the approved in-memory derivation:\n- "
-                        + String.join("\n- ", configDifferences));
-        Production2040Contract.require(runId.equals(actual.controller().getRunId()),
-                "Smoke output belongs to the wrong scenario/run ID");
+        validateOutputConfig(expected, actual, runId);
 
         // Load the protected scenario inputs from the production-config context.
         // The output config is compared semantically above but its own directory
@@ -103,6 +97,16 @@ public final class ValidateMatsim2040ProductionSmokeOutput {
                 result.carLinkEvents());
         System.out.println("No Controller or QSim was started by this validator.");
         return result;
+    }
+
+    static void validateOutputConfig(Config expected, Config actual, String runId) {
+        var configDifferences = Production2040PostRunConfigComparison
+                .semanticConfigDifferences(expected, actual);
+        Production2040Contract.require(configDifferences.isEmpty(),
+                "Smoke output config differs from the approved in-memory derivation:\n- "
+                        + String.join("\n- ", configDifferences));
+        Production2040Contract.require(runId.equals(actual.controller().getRunId()),
+                "Smoke output belongs to the wrong scenario/run ID");
     }
 
     private static Path required(Path file, String label) {

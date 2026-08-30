@@ -514,3 +514,9 @@ Scenario outputs are excluded from Git.
 - Server evidence showed that BAU input validation and iteration-zero QSim completed through the configured horizon, but scoring then rejected the synthetic activity type `smoke_origin` because it had no utility parameters.
 - The four in-memory smoke plans now use the existing production-scored type `home` at both ends, forming closed home-to-home tours. Person IDs, coordinates, links, departure times, modes and schedule route anchors are unchanged; neither production config nor any scenario input was modified.
 - A fail-closed pre-Controller check rejects any non-stage synthetic activity type not present in the active `ScoringConfigGroup`. Focused tests cover all four agents, the protected IDs and route anchors, and rejection of an unknown activity type without starting Controller or QSim.
+
+## 30 August 2026 - post-run SwissRailRaptor serialization normalized
+
+- Server evidence showed a normally completed BAU smoke QSim and scoring phase whose automatic validation failed only because MATSim 2025.0 serialized the installed SwissRailRaptor module's thirteen defaults into the output config while the approved input config contains no explicit module. The existing smoke output is preserved and must not be rerun.
+- One shared post-run semantic comparator now accepts only that exact thirteen-value serialization and only when the expected config has no explicit `swissRailRaptor` module. Changed, missing or additional values, parameter sets and unrelated differences remain fail-closed. Pre-run contract and config comparison is unchanged.
+- Smoke-output validation and full production-output/analysis validation use the same comparator. `P3B` and `P4B` provide read-only smoke recovery, checking normal shutdown, iteration 0, output-config semantics, all four persons, car and PT event evidence, zero stuck persons and protected-input hashes without constructing Controller or QSim.

@@ -51,9 +51,6 @@ public final class ValidateProduction2040AnalysisOutput {
         Production2040AnalysisSpec.require(quality != null
                         && !quality.contains(",FAIL,") && !quality.contains(",WARN,"),
                 "Published analysis contains a non-PASS quality check");
-        Production2040AnalysisSpec.require(reports.get("analysis_report.md")
-                        .contains(definition.scenarioId()),
-                "Published analysis report belongs to another scenario");
         return output;
     }
 
@@ -147,6 +144,10 @@ public final class ValidateProduction2040AnalysisOutput {
         Production2040AnalysisSpec.require(reports.keySet().equals(
                         Production2040AnalysisSpec.OUTPUT_FILES),
                 "Analysis report set is incomplete or contains unknown files");
+        String markdown = reports.get("analysis_report.md");
+        Production2040AnalysisSpec.require(markdown != null && markdown.lines().findFirst()
+                        .orElse("").equals(Production2040AnalysisSpec.reportHeading(definition)),
+                "Published analysis report belongs to another scenario");
         for (var entry : reports.entrySet()) {
             Production2040AnalysisSpec.require(entry.getValue() != null
                             && !entry.getValue().isBlank(),

@@ -72,6 +72,11 @@ public final class Production2040AnalysisSpec {
         return sampleValue * EXPANSION_FACTOR;
     }
 
+    static String reportHeading(ScenarioDefinition definition) {
+        return "# " + definition.scenarioId().replace('_', ' ')
+                + " production analysis";
+    }
+
     public static Map<String, LateStatistic> lateStatistics(List<IterationSnapshot> rows) {
         require(rows.size() == LAST_ITERATION - FIRST_ITERATION + 1,
                 "Iteration history must contain exactly iterations 0..60");

@@ -526,3 +526,9 @@ Scenario outputs are excluded from Git.
 - Server evidence confirmed that P3B validated the preserved BAU smoke and P4 completed the Fast Track smoke, while P7 stopped before Controller creation because the input validator incorrectly treated the required BAU smoke evidence as a blocker. No BAU production output was created.
 - P1 and P2 now validate only contract-compliant configs and protected scenario inputs, independent of all output-directory state. P3 and P4 own their fail-if-present checks for both their smoke target and scenario production target.
 - P7 and P8 share one pre-production gate: the selected production target must be absent, then both existing smoke outputs must pass their complete read-only validators before any production scenario or Controller is created. Existing smoke outputs are preserved and reused; no local Controller, QSim, smoke test or production simulation was started for this correction.
+
+## 30 August 2026 - BAU production analysis identity validation corrected
+
+- The server BAU production simulation completed all iterations and shut down normally. Its postprocessor published a complete BAU-labelled analysis package, but final validation then reported `ANALYSIS_FAILED_AFTER_NORMAL_SIMULATION`.
+- The failure was confined to Markdown identity validation: the shared report generator correctly wrote the human-readable heading `# BAU 2040 production analysis`, while the validator searched that report for the machine-readable CSV identifier `BAU_2040`. All published CSV rows, the run ID, output config and scenario-specific path identified BAU correctly.
+- Generation and validation now share one exact heading function for BAU and Fast Track. A wrong, mixed or stale report heading still fails closed, while the preserved BAU analysis can be validated through the read-only P7B recovery entry point. The completed simulation must not be repeated; no Controller or QSim was started for this correction.

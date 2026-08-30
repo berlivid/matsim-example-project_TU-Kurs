@@ -410,7 +410,7 @@ public final class AnalyzeProduction2040Output {
             AnalyzeLiteratureBasedScoringDiagnosticOutput.TripAnalysis plans,
             TripMeasurements trips, Production2040VehicleMetrics.Result vehicles) {
         long denominator = plans.scopeCounts().get(MunichTripBoundaryFilter.SpatialCategory.BOTH_INSIDE);
-        return "# " + definition.scenarioId().replace('_', ' ') + " production analysis\n\n"
+        return Production2040AnalysisSpec.reportHeading(definition) + "\n\n"
                 + "## Scope and comparability\n\nThe complete regional five-percent population was simulated. The central analysis includes "
                 + denominator + " final selected-plan MATSim main trips whose origin and destination main activities are covered by the Munich municipal boundary (`BOTH_INSIDE`). Stage activities do not create additional trips. BAU and Fast Track use this same code and specification; no 2019 trip denominator is imposed on 2040.\n\n"
                 + "## Scaling and distance definitions\n\nTrip shares, Pkm shares, means, medians and travel times are unscaled. Absolute private-person trips, passenger-kilometres and private-car vehicle-kilometres are reported at sample scale and expanded by factor 20. Main-mode Pkm use MATSim's final `output_trips` `traveled_distance`, the complete routed main-trip distance including PT access, egress and transfers. Missing distances are not replaced by straight-line estimates. Car Fkm use the final event stream and the used network, count each traversed link once under MATSim 2025.0 first/last-link conventions and exclude transit vehicles.\n\n"

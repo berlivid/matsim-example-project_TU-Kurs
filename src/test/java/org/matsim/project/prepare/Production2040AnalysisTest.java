@@ -395,6 +395,41 @@ class Production2040AnalysisTest {
                 ValidateProduction2040AnalysisOutput.validateReportBundle(definition, reports));
     }
 
+    @Test
+    void reportBundleAcceptsExactBauAndFastTrackHeadings() {
+        var bau = Production2040AnalysisSpec.scenario("BAU");
+        var fastTrack = Production2040AnalysisSpec.scenario("FAST_TRACK");
+
+        ValidateProduction2040AnalysisOutput.validateReportBundle(bau,
+                validReportBundle(bau));
+        ValidateProduction2040AnalysisOutput.validateReportBundle(fastTrack,
+                validReportBundle(fastTrack));
+    }
+
+    @Test
+    void reportBundleRejectsDeliberatelyMismatchedHeading() {
+        var bau = Production2040AnalysisSpec.scenario("BAU");
+        Map<String, String> reports = validReportBundle(bau);
+        reports.put("analysis_report.md",
+                Production2040AnalysisSpec.reportHeading(
+                        Production2040AnalysisSpec.scenario("FAST_TRACK")) + "\n");
+
+        assertThrows(IllegalStateException.class, () ->
+                ValidateProduction2040AnalysisOutput.validateReportBundle(bau, reports));
+    }
+
+    private static Map<String, String> validReportBundle(
+            Production2040AnalysisSpec.ScenarioDefinition definition) {
+        Map<String, String> reports = new LinkedHashMap<>();
+        for (String name : Production2040AnalysisSpec.OUTPUT_FILES) {
+            reports.put(name, name.endsWith(".csv")
+                    ? "scenario_id,sample_factor,unit,value\n" + definition.scenarioId()
+                            + ",0.05,test,1\n"
+                    : Production2040AnalysisSpec.reportHeading(definition) + "\n");
+        }
+        return reports;
+    }
+
     private static List<Production2040AnalysisSpec.IterationSnapshot> iterations(
             java.util.function.IntFunction<Map<String, Long>> function) {
         List<Production2040AnalysisSpec.IterationSnapshot> result = new ArrayList<>();

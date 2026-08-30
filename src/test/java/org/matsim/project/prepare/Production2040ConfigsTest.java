@@ -3,6 +3,7 @@ package org.matsim.project.prepare;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -95,6 +96,42 @@ class Production2040ConfigsTest {
         Files.writeString(protectedCopy, "protected", StandardCharsets.UTF_8);
         assertThrows(IllegalStateException.class, () -> Production2040Contract.requireHash(protectedCopy,
                 Production2040Contract.HashMethod.RAW_SHA256, "00".repeat(32)));
+    }
+
+    @Test
+    void round5TextHashIsIdenticalForLfAndCrlf() throws Exception {
+        String source = Files.readString(Production2040Contract.ROUND_5_CONFIG,
+                StandardCharsets.UTF_8).replace("\r\n", "\n").replace('\r', '\n');
+        Path lf = temporaryDirectory.resolve("round5-lf.xml");
+        Path crlf = temporaryDirectory.resolve("round5-crlf.xml");
+        Files.writeString(lf, source, StandardCharsets.UTF_8);
+        Files.writeString(crlf, source.replace("\n", "\r\n"), StandardCharsets.UTF_8);
+
+        assertEquals(Production2040Contract.ROUND_5_SHA256,
+                Production2040Contract.sha256(lf,
+                        Production2040Contract.HashMethod.CANONICAL_UTF8_LF_SHA256));
+        assertEquals(Production2040Contract.ROUND_5_SHA256,
+                Production2040Contract.sha256(crlf,
+                        Production2040Contract.HashMethod.CANONICAL_UTF8_LF_SHA256));
+        Production2040Contract.requireRound5ConfigHash(lf);
+        Production2040Contract.requireRound5ConfigHash(crlf);
+    }
+
+    @Test
+    void round5TextHashStillRejectsAnXmlParameterChange() throws Exception {
+        String source = Files.readString(Production2040Contract.ROUND_5_CONFIG,
+                StandardCharsets.UTF_8);
+        String changed = source.replace("value=\"-0.35175057259662179\"",
+                "value=\"-0.35175057259662178\"");
+        assertNotEquals(source, changed, "Test fixture must change the car ASC parameter");
+        Path changedConfig = temporaryDirectory.resolve("round5-changed.xml");
+        Files.writeString(changedConfig, changed, StandardCharsets.UTF_8);
+
+        assertNotEquals(Production2040Contract.ROUND_5_SHA256,
+                Production2040Contract.sha256(changedConfig,
+                        Production2040Contract.HashMethod.CANONICAL_UTF8_LF_SHA256));
+        assertThrows(IllegalStateException.class,
+                () -> Production2040Contract.requireRound5ConfigHash(changedConfig));
     }
 
     @Test

@@ -74,8 +74,7 @@ final class Production2040Contract {
     static ContractData loadAndValidate() {
         try {
             require(Files.isRegularFile(SCENARIO_CONTRACT), "Missing production scenario contract");
-            require(ROUND_5_SHA256.equals(sha256(ROUND_5_CONFIG, HashMethod.RAW_SHA256)),
-                    "Round-5 config hash differs from the frozen contract");
+            requireRound5ConfigHash(ROUND_5_CONFIG);
 
             List<Map<String, String>> sharedRows = readCsv(SHARED_PARAMETERS);
             require(sharedRows.size() == 149, "Expected 149 shared parameters but found " + sharedRows.size());
@@ -134,7 +133,7 @@ final class Production2040Contract {
             addSnapshotPath(methods, entry.bauPath(), entry.hashMethod());
             addSnapshotPath(methods, entry.fastTrackPath(), entry.hashMethod());
         }
-        methods.put(ROUND_5_CONFIG, HashMethod.RAW_SHA256);
+        methods.put(ROUND_5_CONFIG, HashMethod.CANONICAL_UTF8_LF_SHA256);
         Map<Path, String> result = new LinkedHashMap<>();
         for (var entry : methods.entrySet()) result.put(entry.getKey(), sha256(entry.getKey(), entry.getValue()));
         return Map.copyOf(result);
@@ -172,6 +171,10 @@ final class Production2040Contract {
 
     static void requireHash(Path file, HashMethod method, String expected) {
         require(expected.equals(sha256(file, method)), "Hash mismatch for " + projectPath(file));
+    }
+
+    static void requireRound5ConfigHash(Path file) {
+        requireHash(file, HashMethod.CANONICAL_UTF8_LF_SHA256, ROUND_5_SHA256);
     }
 
     static Map<String, String> expectedNonConfigParameters() {

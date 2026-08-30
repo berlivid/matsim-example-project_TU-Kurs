@@ -508,3 +508,9 @@ Scenario outputs are excluded from Git.
 - The production runner installs SwissRailRaptor and `Production2040AnalysisListener` exactly once, preserves failed outputs, and postprocesses only after normal Controller shutdown. Recovery accepts only a normal complete simulation and never starts Controller or QSim.
 - Added eight tracked IntelliJ configurations: P1, P2, P3, P4, P7, P8, P7B and P8B. P3/P4 include automatic output validation, so redundant P5/P6 configurations were not added. QSim entries use headless 4--16 GB settings; validators and recovery use headless 2--8 GB settings.
 - Offline compilation, focused no-QSim tests, paired production-config validation, XML parsing and protected-hash checks passed locally. No local Controller, QSim, smoke test or production output was started or created.
+
+## 30 August 2026 - production smoke activity types corrected
+
+- Server evidence showed that BAU input validation and iteration-zero QSim completed through the configured horizon, but scoring then rejected the synthetic activity type `smoke_origin` because it had no utility parameters.
+- The four in-memory smoke plans now use the existing production-scored type `home` at both ends, forming closed home-to-home tours. Person IDs, coordinates, links, departure times, modes and schedule route anchors are unchanged; neither production config nor any scenario input was modified.
+- A fail-closed pre-Controller check rejects any non-stage synthetic activity type not present in the active `ScoringConfigGroup`. Focused tests cover all four agents, the protected IDs and route anchors, and rejection of an unknown activity type without starting Controller or QSim.

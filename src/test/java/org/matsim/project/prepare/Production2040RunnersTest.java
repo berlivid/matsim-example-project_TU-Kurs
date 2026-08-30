@@ -17,10 +17,13 @@ import org.matsim.api.core.v01.Coord;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.TransportMode;
+import org.matsim.api.core.v01.population.Activity;
+import org.matsim.api.core.v01.population.Leg;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.network.Node;
 import org.matsim.core.config.Config;
 import org.matsim.core.config.ConfigUtils;
+import org.matsim.core.config.groups.ScoringConfigGroup;
 import org.matsim.core.network.NetworkUtils;
 import org.matsim.core.population.routes.RouteUtils;
 import org.matsim.core.scenario.ScenarioUtils;
@@ -115,11 +118,44 @@ class Production2040RunnersTest {
                 bau.getPopulation().getPersons().keySet().stream().map(Object::toString)
                         .collect(java.util.stream.Collectors.toSet()));
         assertEquals("subway", bauFixture.routeMode());
+        assertEquals("BAU_U6", bauFixture.lineId());
+        assertEquals("route", bauFixture.routeId());
+        assertEquals("s1", bauFixture.fromStopId());
+        assertEquals("s3", bauFixture.toStopId());
+        assertEquals(3600, bauFixture.departureTime());
+        assertSmokePerson(bau, "smoke-car", TransportMode.car);
+        assertSmokePerson(bau, "smoke-pt", TransportMode.pt);
+        assertSmokePerson(bau, "smoke-walk", TransportMode.walk);
+        assertSmokePerson(bau, "smoke-bike", TransportMode.bike);
+        assertTrue(bau.getPopulation().getPersons().values().stream()
+                .flatMap(person -> person.getPlans().stream())
+                .flatMap(plan -> plan.getPlanElements().stream())
+                .filter(Activity.class::isInstance).map(Activity.class::cast)
+                .allMatch(activity -> "home".equals(activity.getType())
+                        && bau.getConfig().scoring().getActivityParams(activity.getType())
+                        != null));
 
         Scenario fast = smokeFixture(true);
         var fastFixture = Production2040SmokePopulation.install(fast,
                 Production2040RunSupport.scenario("FAST_TRACK"));
         assertEquals("FT_U9", fastFixture.lineId());
+        assertEquals("route", fastFixture.routeId());
+        assertEquals("s1", fastFixture.fromStopId());
+        assertEquals("s3", fastFixture.toStopId());
+        assertEquals(3600, fastFixture.departureTime());
+    }
+
+    @Test
+    void rejectsUnknownSmokeActivityTypeBeforeControllerCreation() {
+        Scenario scenario = smokeFixture(false);
+        Production2040SmokePopulation.install(scenario,
+                Production2040RunSupport.scenario("BAU"));
+        Activity origin = (Activity) scenario.getPopulation().getPersons()
+                .get(Id.createPersonId("smoke-car")).getSelectedPlan().getPlanElements().getFirst();
+        origin.setType("unknown_smoke_activity");
+        IllegalStateException failure = assertThrows(IllegalStateException.class,
+                () -> Production2040SmokePopulation.validateScorableActivityTypes(scenario));
+        assertTrue(failure.getMessage().contains("unknown_smoke_activity"));
     }
 
     @Test
@@ -178,7 +214,10 @@ class Production2040RunnersTest {
     }
 
     private static Scenario smokeFixture(boolean fastTrack) {
-        Scenario scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig());
+        Config config = ConfigUtils.createConfig();
+        config.scoring().addActivityParams(new ScoringConfigGroup.ActivityParams("home")
+                .setTypicalDuration(12 * 3600));
+        Scenario scenario = ScenarioUtils.createScenario(config);
         Node n1 = NetworkUtils.createAndAddNode(scenario.getNetwork(), Id.createNodeId("n1"),
                 new Coord(4_470_000, 5_330_000));
         Node n2 = NetworkUtils.createAndAddNode(scenario.getNetwork(), Id.createNodeId("n2"),
@@ -214,5 +253,23 @@ class Production2040RunnersTest {
         line.addRoute(route);
         scenario.getTransitSchedule().addTransitLine(line);
         return scenario;
+    }
+
+    private static void assertSmokePerson(Scenario scenario, String id, String mode) {
+        var person = scenario.getPopulation().getPersons().get(Id.createPersonId(id));
+        assertEquals(3, person.getSelectedPlan().getPlanElements().size());
+        Activity origin = (Activity) person.getSelectedPlan().getPlanElements().get(0);
+        Leg leg = (Leg) person.getSelectedPlan().getPlanElements().get(1);
+        Activity destination = (Activity) person.getSelectedPlan().getPlanElements().get(2);
+        assertEquals("home", origin.getType());
+        assertEquals("home", destination.getType());
+        assertEquals(new Coord(4_470_000, 5_330_000), origin.getCoord());
+        assertEquals(new Coord(4_470_200, 5_330_000), destination.getCoord());
+        assertEquals(3600, origin.getEndTime().seconds());
+        assertFalse(destination.getEndTime().isDefined());
+        assertEquals(mode, leg.getMode());
+        assertEquals(null, origin.getLinkId());
+        assertEquals(null, destination.getLinkId());
+        assertEquals(null, leg.getRoute());
     }
 }

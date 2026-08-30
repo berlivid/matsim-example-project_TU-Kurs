@@ -5,8 +5,10 @@ import java.util.List;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.TransportMode;
+import org.matsim.api.core.v01.population.Activity;
 import org.matsim.api.core.v01.population.Person;
 import org.matsim.api.core.v01.population.Plan;
+import org.matsim.core.router.TripStructureUtils;
 import org.matsim.pt.transitSchedule.api.TransitLine;
 import org.matsim.pt.transitSchedule.api.TransitRoute;
 import org.matsim.pt.transitSchedule.api.TransitStopFacility;
@@ -30,6 +32,7 @@ final class Production2040SmokePopulation {
                         .map(Object::toString).collect(java.util.stream.Collectors.toSet())
                         .equals(Production2040RunSupport.SMOKE_PERSON_IDS),
                 "Smoke population identity differs from the protected fixture");
+        validateScorableActivityTypes(scenario);
         return new SmokeFixture(route.line().getId().toString(), route.route().getId().toString(),
                 route.route().getTransportMode(), route.from().getId().toString(),
                 route.to().getId().toString(), departure);
@@ -70,14 +73,30 @@ final class Production2040SmokePopulation {
         Person person = scenario.getPopulation().getFactory().createPerson(Id.createPersonId(id));
         Plan plan = scenario.getPopulation().getFactory().createPlan();
         var origin = scenario.getPopulation().getFactory().createActivityFromCoord(
-                "smoke_origin", from.getCoord());
+                "home", from.getCoord());
         origin.setEndTime(departure);
         plan.addActivity(origin);
         plan.addLeg(scenario.getPopulation().getFactory().createLeg(mode));
         plan.addActivity(scenario.getPopulation().getFactory().createActivityFromCoord(
-                "smoke_destination", to.getCoord()));
+                "home", to.getCoord()));
         person.addPlan(plan);
         scenario.getPopulation().addPerson(person);
+    }
+
+    static void validateScorableActivityTypes(Scenario scenario) {
+        var scoring = scenario.getConfig().scoring();
+        var unknown = scenario.getPopulation().getPersons().values().stream()
+                .flatMap(person -> person.getPlans().stream())
+                .flatMap(plan -> plan.getPlanElements().stream())
+                .filter(Activity.class::isInstance)
+                .map(Activity.class::cast)
+                .map(Activity::getType)
+                .filter(type -> type == null || !TripStructureUtils.isStageActivityType(type))
+                .filter(type -> type == null || scoring.getActivityParams(type) == null)
+                .map(String::valueOf).collect(java.util.stream.Collectors.toCollection(
+                        java.util.TreeSet::new));
+        Production2040Contract.require(unknown.isEmpty(),
+                "Smoke population uses activity types without scoring parameters: " + unknown);
     }
 
     record SmokeFixture(String lineId, String routeId, String routeMode,

@@ -267,6 +267,11 @@ public final class FastTrackPedestrianZones {
         return Set.copyOf(ids);
     }
 
+    /** Immutable IDs used by read-only event validators; does not read or alter the network. */
+    static Set<String> readOnlyRestrictedLinkIds() {
+        return EXPECTED_LINK_IDS;
+    }
+
     private static void validateSpecification(List<Restriction> restrictions) {
         Set<String> ids = new TreeSet<>();
         int herzogWilhelm = 0;

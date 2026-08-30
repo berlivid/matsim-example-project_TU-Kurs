@@ -68,3 +68,13 @@ Final checks cover selected-plan structure and coordinates, mode and trip sums, 
 The Round-5 iteration artifact is used read-only as regression evidence. The common trend/statistics implementation reproduces its documented late modal means. No calibration output is changed or republished. No production output yet exists, so this task does not execute the production postprocessor.
 
 These 2040 results remain scenario projections transferred from the frozen 2019 behavioural calibration. They are not recalibrated against unavailable 2040 observations, and remaining calibration and distance limitations continue to constrain absolute interpretation.
+
+## Runner integration and recovery
+
+`RunMatsim2040Production BAU|FAST_TRACK` is the only full-run entry point. It loads the corresponding approved config without overrides, installs the project's established SwissRailRaptor module, and calls `Production2040AnalysisListener.install(controler, scenario)` exactly once. After normal Controller shutdown it runs the common postprocessor and then validates the published analysis package. A PASS is emitted only after all three stages have succeeded.
+
+Smoke runs use the same scenario network, schedule, vehicles, routing, scoring, QSim and time settings but iteration 0 and four in-memory technical agents. Their automatic smoke validator is separate from this scientific pipeline: smoke modal shares, trip totals, Pkm and Fkm are not research results and must never enter a BAU--Fast Track comparison.
+
+`AnalyzeExistingMatsim2040ProductionOutput BAU|FAST_TRACK` is the recovery entry point. It has no Controller or QSim path. It accepts only a normally completed output with the exact approved run ID and output config, complete iterations 0--60, complete runtime listener evidence and protected hashes. If no final analysis exists, it reruns postprocessing once; if a complete analysis exists, it validates it without overwriting. Partial or contradictory publication remains fail-closed and must be investigated rather than silently replaced.
+
+The comparison stage remains unreleased until both independently produced and validated analysis packages exist. BAU is completed and validated before Fast Track is started, so server contention cannot become an undocumented scenario difference.

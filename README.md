@@ -16,6 +16,7 @@ Authoritative methods:
 - [Population 2040](docs/methodology/population_2040.md)
 - [Literature-based 2019 scoring diagnostic](docs/methodology/literature_based_scoring_diagnostic.md)
 - [Shared BAU/Fast Track production analysis](docs/methodology/production_2040_analysis.md)
+- [BAU/Fast Track production contract and server order](docs/methodology/production_2040_scenario_contract.md)
 - [GTFS filtering](docs/gtfs2040/gtfs2037_munich_filter_method.md)
 - [BAU and Fast Track public transport](docs/gtfs2040/gtfs2037_fast_track_method.md)
 - [MATSim transit inputs](docs/gtfs2040/matsim_2040_transit_inputs.md)
@@ -24,6 +25,8 @@ Authoritative methods:
 ## Current status
 
 The BAU and Fast Track GTFS feeds and their activated MATSim transit inputs have been rebuilt and revalidated with the common Poccistraße and Berduxstraße measures. Fast Track additionally contains the Olympic Village and Media Village population relocation and a 13-link pedestrian-zone car restriction: 12 spatially selected links plus one technical boundary connector required for car-network consistency. The connector is not an extension of the planned pedestrian area. The Sendlinger Spange is documented as an indirect normal-day representation without added GTFS rows. Focused readback and routing tests pass; no calibrated or full BAU/Fast Track simulation has been run.
+
+Contract-compliant server entry points are prepared under the `P` IntelliJ prefix. `P1` and `P2` validate inputs read-only; `P3` and `P4` run protected iteration-zero smoke tests and validate them automatically; `P7` and `P8` run the sequential BAU and Fast Track productions; `P7B` and `P8B` recover analysis only after normal simulation shutdown. QSim configurations are headless. Smoke outputs are technical evidence only, and no local Controller, QSim or smoke run is part of repository verification.
 
 An isolated literature-based 2019 scoring diagnostic is prepared on a separate
 branch. It resets the four choice-mode constants, keeps walk as the permanent

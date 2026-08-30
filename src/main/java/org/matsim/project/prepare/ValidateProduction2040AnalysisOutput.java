@@ -21,11 +21,40 @@ public final class ValidateProduction2040AnalysisOutput {
         Production2040AnalysisSpec.require(args.length == 1,
                 "Usage: ValidateProduction2040AnalysisOutput BAU|FAST_TRACK");
         var definition = Production2040AnalysisSpec.scenario(args[0]);
-        ValidatedOutput output = validate(definition, true);
-        System.out.println("2040 PRODUCTION ANALYSIS OUTPUT VALIDATION PASS");
+        ValidatedOutput output = validatePublished(definition);
+        System.out.println("2040 PUBLISHED PRODUCTION ANALYSIS VALIDATION PASS");
         System.out.println("  scenario=" + definition.scenarioId());
         System.out.println("  output=" + Production2040Contract.projectPath(output.output()));
         System.out.println("No Controller or QSim was started by the validator.");
+    }
+
+    static ValidatedOutput validatePublished(
+            Production2040AnalysisSpec.ScenarioDefinition definition) throws Exception {
+        ValidatedOutput output = validate(definition, false);
+        Production2040AnalysisSpec.require(Files.isDirectory(definition.analysisDirectory()),
+                "Missing published production analysis");
+        Map<String, String> reports = new LinkedHashMap<>();
+        try (var files = Files.list(definition.analysisDirectory())) {
+            files.filter(Files::isRegularFile).forEach(file -> {
+                try {
+                    reports.put(file.getFileName().toString(),
+                            Files.readString(file, StandardCharsets.UTF_8));
+                } catch (IOException error) {
+                    throw new java.io.UncheckedIOException(error);
+                }
+            });
+        } catch (java.io.UncheckedIOException error) {
+            throw error.getCause();
+        }
+        validateReportBundle(definition, reports);
+        String quality = reports.get("analysis_quality_checks.csv");
+        Production2040AnalysisSpec.require(quality != null
+                        && !quality.contains(",FAIL,") && !quality.contains(",WARN,"),
+                "Published analysis contains a non-PASS quality check");
+        Production2040AnalysisSpec.require(reports.get("analysis_report.md")
+                        .contains(definition.scenarioId()),
+                "Published analysis report belongs to another scenario");
+        return output;
     }
 
     static ValidatedOutput validate(Production2040AnalysisSpec.ScenarioDefinition definition,

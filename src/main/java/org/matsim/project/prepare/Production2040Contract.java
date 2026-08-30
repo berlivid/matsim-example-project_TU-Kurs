@@ -53,6 +53,14 @@ final class Production2040Contract {
             "scoring_and_asc", "mode_choice", "strategies", "random_seed", "iterations",
             "innovation_switch", "qsim_horizon", "sample_and_capacity", "coordinate_system",
             "analysis_scope", "scaling", "unlisted_difference");
+    private static final Set<String> EXPECTED_CANONICAL_MANIFEST_TEXT_PATHS = Set.of(
+            "scenarios/munich_bau_2040/config_bau.xml",
+            "scenarios/munich_fast_track_2040/config_fast_track.xml",
+            "original-input-data/munich-demography/munich_boundary.json",
+            "original-input-data/mvv_gtfs_2037/common_service_specification.csv",
+            "original-input-data/mvv_gtfs_2037/fast_track_service_specification.csv",
+            "original-input-data/mvv_gtfs_2037/fast_track_pedestrian_zone_links.csv",
+            "original-input-data/fast_track_2040_sources/mobility_hubs/approved_mobility_hubs.csv");
     private static final Map<String, String> EXPECTED_NON_CONFIG_PARAMETERS = Map.ofEntries(
             Map.entry("analysis.population", "complete regional five-percent population"),
             Map.entry("analysis.scope", "BOTH_INSIDE"),
@@ -94,6 +102,7 @@ final class Production2040Contract {
             List<Map<String, String>> manifestRows = readCsv(INPUT_MANIFEST);
             require(manifestRows.size() == 13, "Expected 13 manifest entries but found " + manifestRows.size());
             Map<String, ManifestEntry> manifest = new LinkedHashMap<>();
+            Set<String> canonicalTextPaths = new HashSet<>();
             for (Map<String, String> row : manifestRows) {
                 ManifestEntry entry = new ManifestEntry(row.get("artifact_id"), row.get("bau_path"),
                         row.get("fast_track_path"), HashMethod.valueOf(row.get("hash_method")),
@@ -101,7 +110,11 @@ final class Production2040Contract {
                 require(manifest.put(entry.id(), entry) == null, "Duplicate manifest artifact " + entry.id());
                 verifyManifestSide(entry, false);
                 verifyManifestSide(entry, true);
+                addCanonicalManifestPath(canonicalTextPaths, entry, entry.bauPath());
+                addCanonicalManifestPath(canonicalTextPaths, entry, entry.fastTrackPath());
             }
+            require(canonicalTextPaths.equals(EXPECTED_CANONICAL_MANIFEST_TEXT_PATHS),
+                    "Canonical manifest text-input set differs from the frozen contract");
             requireManifestPath(manifest, "scenario_population", BAU.populationPath(), FAST_TRACK.populationPath());
             requireManifestPath(manifest, "combined_network", BAU.networkPath(), FAST_TRACK.networkPath());
             requireManifestPath(manifest, "transit_schedule", BAU.schedulePath(), FAST_TRACK.schedulePath());
@@ -181,6 +194,10 @@ final class Production2040Contract {
         return EXPECTED_NON_CONFIG_PARAMETERS;
     }
 
+    static Set<String> expectedCanonicalManifestTextPaths() {
+        return EXPECTED_CANONICAL_MANIFEST_TEXT_PATHS;
+    }
+
     static String projectPath(Path path) {
         Path normalized = path.toAbsolutePath().normalize();
         return normalized.startsWith(ROOT) ? ROOT.relativize(normalized).toString().replace('\\', '/') : normalized.toString();
@@ -221,6 +238,16 @@ final class Production2040Contract {
         Path file = path(value);
         HashMethod old = target.put(file, method);
         require(old == null || old == method, "Conflicting hash methods for " + value);
+    }
+
+    private static void addCanonicalManifestPath(Set<String> target, ManifestEntry entry,
+            String value) {
+        if ("NOT_APPLICABLE".equals(value)) return;
+        boolean expectedCanonical = EXPECTED_CANONICAL_MANIFEST_TEXT_PATHS.contains(value);
+        require((entry.hashMethod() == HashMethod.CANONICAL_UTF8_LF_SHA256)
+                        == expectedCanonical,
+                "Wrong hash method for manifest input " + value);
+        if (expectedCanonical) target.add(value);
     }
 
     private static List<Map<String, String>> readCsv(Path file) throws IOException {

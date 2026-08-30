@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
@@ -135,6 +136,77 @@ class Production2040ConfigsTest {
     }
 
     @Test
+    void everyCanonicalManifestTextInputIsLineEndingIndependentAndContentSensitive()
+            throws Exception {
+        var contract = Production2040Contract.loadAndValidate();
+        Map<String, String> inputs = new LinkedHashMap<>();
+        for (var entry : contract.manifest().values()) {
+            if (entry.hashMethod()
+                    != Production2040Contract.HashMethod.CANONICAL_UTF8_LF_SHA256) continue;
+            addManifestSide(inputs, entry.bauPath(), entry.bauSha256());
+            addManifestSide(inputs, entry.fastTrackPath(), entry.fastTrackSha256());
+        }
+        assertEquals(Production2040Contract.expectedCanonicalManifestTextPaths(),
+                inputs.keySet());
+
+        for (var entry : inputs.entrySet()) {
+            String normalized = Files.readString(Production2040Contract.path(entry.getKey()),
+                    StandardCharsets.UTF_8).replace("\r\n", "\n").replace('\r', '\n');
+            String safeName = entry.getKey().replaceAll("[^A-Za-z0-9.-]", "_");
+            Path lf = temporaryDirectory.resolve(safeName + ".lf");
+            Path crlf = temporaryDirectory.resolve(safeName + ".crlf");
+            Path changed = temporaryDirectory.resolve(safeName + ".changed");
+            Files.writeString(lf, normalized, StandardCharsets.UTF_8);
+            Files.writeString(crlf, normalized.replace("\n", "\r\n"),
+                    StandardCharsets.UTF_8);
+            Files.writeString(changed, changeFirstAsciiAlphaNumeric(normalized),
+                    StandardCharsets.UTF_8);
+
+            assertEquals(entry.getValue(), Production2040Contract.sha256(lf,
+                    Production2040Contract.HashMethod.CANONICAL_UTF8_LF_SHA256),
+                    entry.getKey());
+            assertEquals(entry.getValue(), Production2040Contract.sha256(crlf,
+                    Production2040Contract.HashMethod.CANONICAL_UTF8_LF_SHA256),
+                    entry.getKey());
+            assertThrows(IllegalStateException.class, () -> Production2040Contract.requireHash(
+                    changed, Production2040Contract.HashMethod.CANONICAL_UTF8_LF_SHA256,
+                    entry.getValue()), entry.getKey());
+        }
+    }
+
+    @Test
+    void everyGeneratedOrTransferredManifestInputRemainsRawByteProtected()
+            throws Exception {
+        var contract = Production2040Contract.loadAndValidate();
+        int rawSides = 0;
+        for (var entry : contract.manifest().values()) {
+            for (String[] side : new String[][]{
+                    {entry.bauPath(), entry.bauSha256()},
+                    {entry.fastTrackPath(), entry.fastTrackSha256()}}) {
+                if ("NOT_APPLICABLE".equals(side[0])
+                        || Production2040Contract.expectedCanonicalManifestTextPaths()
+                        .contains(side[0])) continue;
+                assertEquals(Production2040Contract.HashMethod.RAW_SHA256,
+                        entry.hashMethod(), side[0]);
+                assertEquals(side[1], Production2040Contract.sha256(
+                        Production2040Contract.path(side[0]),
+                        Production2040Contract.HashMethod.RAW_SHA256), side[0]);
+                rawSides++;
+            }
+        }
+        assertTrue(rawSides > 0);
+
+        Path lf = temporaryDirectory.resolve("raw-lf.bin");
+        Path crlf = temporaryDirectory.resolve("raw-crlf.bin");
+        Files.write(lf, new byte[]{'a', '\n', 0, 1});
+        Files.write(crlf, new byte[]{'a', '\r', '\n', 0, 1});
+        assertNotEquals(Production2040Contract.sha256(lf,
+                        Production2040Contract.HashMethod.RAW_SHA256),
+                Production2040Contract.sha256(crlf,
+                        Production2040Contract.HashMethod.RAW_SHA256));
+    }
+
+    @Test
     void protectsDistinctAbsentOutputDirectories() {
         Config bau = buildBau();
         Config fastTrack = buildFastTrack();
@@ -195,5 +267,26 @@ class Production2040ConfigsTest {
     private static void assertSameDouble(String expected, String actual) {
         assertEquals(Double.doubleToLongBits(Double.parseDouble(expected)),
                 Double.doubleToLongBits(Double.parseDouble(actual)));
+    }
+
+    private static void addManifestSide(Map<String, String> target, String path,
+            String expectedHash) {
+        if ("NOT_APPLICABLE".equals(path)) return;
+        String previous = target.put(path, expectedHash);
+        assertTrue(previous == null || previous.equals(expectedHash),
+                "Conflicting expected hashes for " + path);
+    }
+
+    private static String changeFirstAsciiAlphaNumeric(String source) {
+        char[] changed = source.toCharArray();
+        for (int index = 0; index < changed.length; index++) {
+            char value = changed[index];
+            if ((value >= 'a' && value <= 'z') || (value >= 'A' && value <= 'Z')
+                    || (value >= '0' && value <= '9')) {
+                changed[index] = value == 'Z' ? 'Y' : (char) (value + 1);
+                return new String(changed);
+            }
+        }
+        throw new IllegalStateException("Text fixture contains no ASCII alphanumeric content");
     }
 }

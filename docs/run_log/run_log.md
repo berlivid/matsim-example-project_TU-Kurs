@@ -488,3 +488,13 @@ Scenario outputs are excluded from Git.
 - Added a read-only paired validator covering all 149 shared contract rows, all 13 manifest hashes, complete order-independent config semantics, scenario input assignment and default-deny difference checking.
 - Added focused negative, hash, output-protection and byte-idempotence tests. Config generation and validation created no output directory and changed no protected model input.
 - No Controller, QSim, smoke test or production simulation was started. `BOTH_INSIDE` remains a later analysis filter over the complete regional simulation population, and neither 2040 projection was recalibrated against unavailable 2040 observations.
+
+## 30 August 2026 - shared 2040 production analysis prepared
+
+- Added one scenario-parameterised analysis specification, iteration listener, read-only postprocessor, event metric stream and strict output validator for both BAU and Fast Track. No scenario-specific analyzer was copied.
+- Fixed the territorial scope to stage-aware MATSim main trips with both main-activity endpoints covered by the canonical Munich boundary. The 2040 denominator is derived from each final population and the historical 160,603 calibration trips are not imposed.
+- Fixed iterations 51--60 as the late window and added mean, minimum, maximum, range, linear trend and iteration-level PersonStuckEvent evidence under one set of quality limits.
+- Defined main-mode Pkm and travel time from final standard output trips; event-based private-car Fkm under MATSim 2025.0 first-/last-link conventions; and event-based PT Pkm, Fkm and boardings by bus, tram, subway and rail. Transfers partition PT Pkm without becoming additional main trips.
+- Added ten-file atomic publication, exact run/config/input/boundary validation and fail-closed checks for missing iterations, coordinates, measurements, links, schedule routes, stops, departures, vehicles and unknown modes.
+- Focused synthetic tests cover boundary and stage handling, all main modes, factor-20 scaling, late statistics, missing iterations, car and transit vehicle distances, bus, subway and bus--subway transfer events, reference failures and wrong-scenario configs. Read-only regression reproduces the documented Round-5 late modal means.
+- MATSim 2025.0 already writes final events, plans and trips under the approved configs, so no production config or generator change was required. No Controller, QSim, smoke test, production run, scenario comparison, external-cost calculation or visualization was started.

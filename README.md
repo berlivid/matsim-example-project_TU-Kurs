@@ -15,6 +15,7 @@ Authoritative methods:
 
 - [Population 2040](docs/methodology/population_2040.md)
 - [Literature-based 2019 scoring diagnostic](docs/methodology/literature_based_scoring_diagnostic.md)
+- [Shared BAU/Fast Track production analysis](docs/methodology/production_2040_analysis.md)
 - [GTFS filtering](docs/gtfs2040/gtfs2037_munich_filter_method.md)
 - [BAU and Fast Track public transport](docs/gtfs2040/gtfs2037_fast_track_method.md)
 - [MATSim transit inputs](docs/gtfs2040/matsim_2040_transit_inputs.md)

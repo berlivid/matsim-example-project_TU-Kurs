@@ -263,6 +263,31 @@ public final class AnalyzeProduction2040AccountingScopes {
             requireClose(observed, attributed, "event PT Fkm for " + mode);
             requireClose(observed, published, "published regional PT Fkm for " + mode);
         }
+        var pseudolinks = accounting.ptPseudolinks();
+        Production2040AnalysisSpec.require(finiteNonNegative(pseudolinks.uncutModelMetres())
+                        && finiteNonNegative(pseudolinks.insideModelMetres())
+                        && finiteNonNegative(pseudolinks.outsideModelMetres())
+                        && finiteNonNegative(pseudolinks.territorialServiceMetres())
+                        && finiteNonNegative(pseudolinks.zeroModelLengthTerritorialServiceMetres()),
+                "Invalid PT pseudolink accounting metrics");
+        Production2040AnalysisSpec.require(pseudolinks.usedPointAnchoredLinks()
+                        == pseudolinks.insideLinks() + pseudolinks.outsideLinks(),
+                "Point-anchored PT pseudolink counts do not reconcile");
+        requireClose(pseudolinks.uncutModelMetres(), pseudolinks.insideModelMetres()
+                        + pseudolinks.outsideModelMetres(),
+                "Point-anchored PT pseudolink model lengths");
+        Production2040AnalysisSpec.require(pseudolinks.boundaryAmbiguousAnchors() == 0,
+                "Boundary-ambiguous PT pseudolink anchors must fail before publication");
+        double territorialPt = accounting.ptByRouteMode().values().stream()
+                .mapToDouble(Production2040AccountingEventMetrics.PtService::territorialMetres)
+                .sum();
+        Production2040AnalysisSpec.require(pseudolinks.territorialServiceMetres()
+                        <= territorialPt + RECONCILIATION_TOLERANCE_METRES,
+                "Point-anchored PT pseudolink service exceeds territorial PT service");
+        Production2040AnalysisSpec.require(Math.abs(
+                        pseudolinks.zeroModelLengthTerritorialServiceMetres())
+                        <= RECONCILIATION_TOLERANCE_METRES,
+                "Zero-model-length PT links must contribute zero territorial service");
     }
 
     static RegionalReferences readRegionalReferences(
@@ -455,7 +480,7 @@ public final class AnalyzeProduction2040AccountingScopes {
             RegionalReferences references) {
         Map<String, Production2040AccountingEventMetrics.PtService> grouped = groupPt(
                 result.ptByRouteMode());
-        StringBuilder csv = new StringBuilder("scenario_id,scope_id,sample_factor,unit,pt_route_mode,full_service_daily_vehicle_km,factor_20_daily_vehicle_km,illustrative_annual_equivalent_365_days,regional_uncut_full_service_vehicle_km,territorial_share_percent,crossing_link_count,crossing_link_model_km,crossing_link_service_vehicle_km,definition\n");
+        StringBuilder csv = new StringBuilder("scenario_id,scope_id,sample_factor,unit,pt_route_mode,full_service_daily_vehicle_km,factor_20_daily_vehicle_km,illustrative_annual_equivalent_365_days,regional_uncut_full_service_vehicle_km,territorial_share_percent,crossing_link_count,crossing_link_model_km,crossing_link_service_vehicle_km,point_anchored_pseudolink_used_link_count,point_anchored_pseudolink_uncut_model_km,point_anchored_pseudolink_inside_link_count,point_anchored_pseudolink_inside_model_km,point_anchored_pseudolink_outside_link_count,point_anchored_pseudolink_outside_model_km,point_anchored_pseudolink_boundary_ambiguous_anchor_count,point_anchored_pseudolink_territorial_service_km,point_anchored_pseudolink_territorial_service_share_percent,zero_model_length_pt_link_count,zero_model_length_pt_link_territorial_service_km,definition\n");
         double totalTerritorial = 0;
         double totalUncut = 0;
         double totalCrossingService = 0;
@@ -474,8 +499,10 @@ public final class AnalyzeProduction2040AccountingScopes {
                             territorial, uncut))).append(',').append(metric.crossingLinkCount())
                     .append(',').append(number(metric.crossingLinkModelMetres() / 1000.0))
                     .append(',').append(number(metric.crossingServiceMetres() / 1000.0))
+                    .append(notApplicablePseudolinkColumns())
                     .append(',').append(quote(ptDefinition())).append('\n');
         }
+        var pseudolinks = result.ptPseudolinks();
         csv.append(definition.scenarioId())
                 .append(",TERRITORIAL_PT_SERVICE,1.0,vehicle_km,TOTAL,")
                 .append(number(totalTerritorial)).append(",NOT_APPLICABLE,")
@@ -484,7 +511,20 @@ public final class AnalyzeProduction2040AccountingScopes {
                         totalTerritorial, totalUncut))).append(',')
                 .append(result.crossingLinkCount()).append(',')
                 .append(number(result.crossingLinkModelMetres() / 1000.0)).append(',')
-                .append(number(totalCrossingService)).append(',').append(quote(ptDefinition()))
+                .append(number(totalCrossingService)).append(',')
+                .append(pseudolinks.usedPointAnchoredLinks()).append(',')
+                .append(number(pseudolinks.uncutModelMetres() / 1000.0)).append(',')
+                .append(pseudolinks.insideLinks()).append(',')
+                .append(number(pseudolinks.insideModelMetres() / 1000.0)).append(',')
+                .append(pseudolinks.outsideLinks()).append(',')
+                .append(number(pseudolinks.outsideModelMetres() / 1000.0)).append(',')
+                .append(pseudolinks.boundaryAmbiguousAnchors()).append(',')
+                .append(number(pseudolinks.territorialServiceMetres() / 1000.0)).append(',')
+                .append(number(Production2040AnalysisSpec.percent(
+                        pseudolinks.territorialServiceMetres(), totalTerritorial * 1000.0)))
+                .append(',').append(pseudolinks.zeroModelLengthLinks()).append(',')
+                .append(number(pseudolinks.zeroModelLengthTerritorialServiceMetres() / 1000.0))
+                .append(',').append(quote(ptDefinition()))
                 .append('\n');
         return csv.toString();
     }
@@ -615,6 +655,49 @@ public final class AnalyzeProduction2040AccountingScopes {
         check(csv, definition, "regional_pt_fkm_reconciliation", "PASS",
                 number(eventPt / 1000.0), number(publishedPt / 1000.0),
                 "uncut event PT service equals unchanged final_pt_fkm_by_route_mode.csv");
+        var pseudolinks = accounting.ptPseudolinks();
+        double territorialPt = accounting.ptByRouteMode().values().stream()
+                .mapToDouble(Production2040AccountingEventMetrics.PtService::territorialMetres)
+                .sum();
+        check(csv, definition, "point_anchored_pt_pseudolinks_used", "REPORTED",
+                Long.toString(pseudolinks.usedPointAnchoredLinks()), "distinct event-used links",
+                "positive-model-length PT self-loops with identical finite endpoint coordinates use a point-anchor proxy, not geometric clipping");
+        check(csv, definition, "point_anchored_pt_pseudolink_uncut_model_km", "REPORTED",
+                number(pseudolinks.uncutModelMetres() / 1000.0), "unique model link km",
+                "positive MATSim model lengths of distinct used point-anchored pseudolinks");
+        check(csv, definition, "point_anchored_pt_pseudolinks_inside", "REPORTED",
+                Long.toString(pseudolinks.insideLinks()), "distinct event-used links",
+                "anchors strictly inside the Munich polygon; full model length is assigned territorially");
+        check(csv, definition, "point_anchored_pt_pseudolink_inside_model_km", "REPORTED",
+                number(pseudolinks.insideModelMetres() / 1000.0), "unique model link km",
+                "model length of point-anchored pseudolinks classified strictly inside");
+        check(csv, definition, "point_anchored_pt_pseudolinks_outside", "REPORTED",
+                Long.toString(pseudolinks.outsideLinks()), "distinct event-used links",
+                "anchors outside and not covered by the Munich polygon; zero territorial distance is assigned");
+        check(csv, definition, "point_anchored_pt_pseudolink_outside_model_km", "REPORTED",
+                number(pseudolinks.outsideModelMetres() / 1000.0), "unique model link km",
+                "model length of point-anchored pseudolinks classified outside");
+        check(csv, definition, "point_anchored_pt_pseudolink_boundary_ambiguous_anchors",
+                pseudolinks.boundaryAmbiguousAnchors() == 0 ? "PASS" : "FAIL",
+                Long.toString(pseudolinks.boundaryAmbiguousAnchors()), "0",
+                "a point anchor covered by but not strictly inside the boundary must fail before publication");
+        check(csv, definition, "point_anchored_pt_pseudolink_territorial_service_km",
+                "REPORTED", number(pseudolinks.territorialServiceMetres() / 1000.0),
+                "full-service vehicle_km",
+                "territorial PT service assigned through the documented point-anchor proxy");
+        check(csv, definition, "point_anchored_pt_pseudolink_territorial_service_share_percent",
+                "REPORTED", number(Production2040AnalysisSpec.percent(
+                        pseudolinks.territorialServiceMetres(), territorialPt)),
+                "percent of territorial PT Fkm",
+                "share of territorial PT service relying on the point-anchor proxy");
+        check(csv, definition, "zero_model_length_pt_links_used", "REPORTED",
+                Long.toString(pseudolinks.zeroModelLengthLinks()), "distinct event-used links",
+                "zero-model-length PT links are reported separately and contribute zero territorial service");
+        check(csv, definition, "zero_model_length_pt_link_territorial_service_km",
+                Math.abs(pseudolinks.zeroModelLengthTerritorialServiceMetres())
+                        <= RECONCILIATION_TOLERANCE_METRES ? "PASS" : "FAIL",
+                number(pseudolinks.zeroModelLengthTerritorialServiceMetres() / 1000.0), "0",
+                "zero-model-length PT links must not contribute territorial vehicle-kilometres");
         check(csv, definition, "pt_scaling", "PASS", "1.0", "no factor 20",
                 "public-transport service is simulated at full service scale");
         check(csv, definition, "annualisation", "REPORTED", "365 multiplier",
@@ -646,7 +729,9 @@ public final class AnalyzeProduction2040AccountingScopes {
                 + ". Every available output row must still match the indexed selected-plan key, main mode and endpoint category exactly; duplicate or extra rows fail validation. Private-demand trip counts, Pkm and car Fkm are sample observations expanded by factor 20; shares, means, medians and travel times are unscaled. Bike-km is a transparent derivative equal to bike Pkm under a one-person-per-bike convention. Walk is reported only as Pkm and never as vehicle-kilometres. The car-Pkm/Fkm ratio is a plausibility ratio, not an occupancy estimate.\n\n"
                 + "## Vehicle accounting\n\nPrivate-car Fkm use the final event stream, exclude transit vehicles and share the established MATSim 2025.0 first-/last-link calculation. Each traffic segment is joined to its person and current selected-plan main trip. Endpoint-category totals must reproduce the existing regional private-car Fkm exactly; those earlier regional Fkm remain unchanged but are unsuitable for a `BOTH_INSIDE` external-cost calculation because they include all simulated regional car movement.\n\n"
                 + "PT service cannot be assigned uniquely to resident or `BOTH_INSIDE` passengers. It is therefore reported territorially: full links inside Munich count fully, outside links count zero, and crossing links count the fraction of their straight node-to-node segment inside the polygon multiplied by MATSim link length. "
-                + accounting.crossingLinkCount() + " distinct event-used PT links cross the boundary. Uncut route-mode totals must reproduce the existing regional PT Fkm before clipping. PT supply is already full-scale and is not multiplied by 20.\n\n"
+                + accounting.crossingLinkCount() + " distinct event-used PT links cross the boundary. "
+                + pseudolinkReport(accounting.ptPseudolinks(), accounting.ptByRouteMode())
+                + " Uncut route-mode totals must reproduce the existing regional PT Fkm before territorial classification. PT supply is already full-scale and is not multiplied by 20.\n\n"
                 + "## Time interpretation\n\nEvery daily value describes the technical weekday represented by the GTFS/MATSim run. `illustrative_annual_equivalent_365_days` is a mechanically labelled multiplication by 365, not an empirically validated or authoritative annual total. No Controller, QSim, simulation, external-cost calculation or visualization was run by this analyzer.\n";
     }
 
@@ -922,7 +1007,43 @@ public final class AnalyzeProduction2040AccountingScopes {
     }
 
     private static String ptDefinition() {
-        return "full-service PT event distance within Munich; full links inside, zero outside, crossing-link MATSim length multiplied by geometric inside fraction; no factor 20";
+        return "full-service PT event distance within Munich; ordinary links use geometric line clipping (full inside, zero outside, crossing-link MATSim length multiplied by exact inside fraction); identical-endpoint PT pseudolinks use a strict point-anchor proxy and are reported separately; no factor 20";
+    }
+
+    private static String notApplicablePseudolinkColumns() {
+        return ",NOT_APPLICABLE,NOT_APPLICABLE,NOT_APPLICABLE,NOT_APPLICABLE,"
+                + "NOT_APPLICABLE,NOT_APPLICABLE,NOT_APPLICABLE,NOT_APPLICABLE,"
+                + "NOT_APPLICABLE,NOT_APPLICABLE,NOT_APPLICABLE";
+    }
+
+    private static String pseudolinkReport(
+            Production2040AccountingEventMetrics.PtPseudolinkSummary pseudolinks,
+            Map<String, Production2040AccountingEventMetrics.PtService> byMode) {
+        double territorialPt = byMode.values().stream()
+                .mapToDouble(Production2040AccountingEventMetrics.PtService::territorialMetres)
+                .sum();
+        return pseudolinks.usedPointAnchoredLinks()
+                + " distinct used positive-model-length PT pseudolinks have identical endpoint coordinates and therefore no line geometry. They are not geometrically clipped: their anchor is classified strictly inside ("
+                + pseudolinks.insideLinks() + ", "
+                + number(pseudolinks.insideModelMetres() / 1000.0)
+                + " model km) or outside (" + pseudolinks.outsideLinks() + ", "
+                + number(pseudolinks.outsideModelMetres() / 1000.0)
+                + " model km); a boundary anchor would fail before publication (reported count "
+                + pseudolinks.boundaryAmbiguousAnchors() + "). Their total uncut model length is "
+                + number(pseudolinks.uncutModelMetres() / 1000.0)
+                + " km, and their point-anchor proxy assigns "
+                + number(pseudolinks.territorialServiceMetres() / 1000.0)
+                + " territorial service km ("
+                + number(Production2040AnalysisSpec.percent(
+                        pseudolinks.territorialServiceMetres(), territorialPt))
+                + "% of territorial PT Fkm). " + pseudolinks.zeroModelLengthLinks()
+                + " distinct used zero-model-length PT links are separately reported and contribute "
+                + number(pseudolinks.zeroModelLengthTerritorialServiceMetres() / 1000.0)
+                + " territorial service km.";
+    }
+
+    private static boolean finiteNonNegative(double value) {
+        return Double.isFinite(value) && value >= 0;
     }
 
     private static String number(double value) {

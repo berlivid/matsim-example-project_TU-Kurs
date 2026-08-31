@@ -8,6 +8,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
+import org.matsim.api.core.v01.Coord;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.network.Network;
@@ -35,6 +36,8 @@ final class Production2040AccountingEventMetrics
             scopeCarTrips = new EnumMap<>(Production2040AccountingScopes.Scope.class);
     private final Map<String, MutablePtService> pt = new TreeMap<>();
     private final Set<Production2040AccountingScopes.TripKey> stuckTrips = new HashSet<>();
+    private double pointAnchoredTerritorialServiceMetres;
+    private double zeroModelLengthTerritorialServiceMetres;
     private long unmatchedPersons;
     private long unmatchedTrips;
     private long repeatedVehicleEnters;
@@ -68,6 +71,8 @@ final class Production2040AccountingEventMetrics
         }
         pt.clear();
         stuckTrips.clear();
+        pointAnchoredTerritorialServiceMetres = 0;
+        zeroModelLengthTerritorialServiceMetres = 0;
         unmatchedPersons = 0;
         unmatchedTrips = 0;
         repeatedVehicleEnters = 0;
@@ -100,8 +105,21 @@ final class Production2040AccountingEventMetrics
             LinkClip clip = clips.computeIfAbsent(linkId, ignored -> clip(link, boundary));
             MutablePtService metric = pt.computeIfAbsent(
                     ptMode == null ? "unknown" : ptMode, ignored -> new MutablePtService());
+            if (clip.modelLinkMetres() == 0) {
+                Production2040AnalysisSpec.require(Math.abs(metres) <= FRACTION_EPSILON,
+                        "Zero-model-length PT link has non-zero event distance " + linkId);
+            }
+            double territorialMetres = clip.modelLinkMetres() == 0 ? 0
+                    : metres * clip.insideFraction();
             metric.uncutMetres += metres;
-            metric.territorialMetres += metres * clip.insideFraction();
+            metric.territorialMetres += territorialMetres;
+            if (clip.method() == LinkClipMethod.POINT_ANCHORED_PSEUDOLINK
+                    && clip.modelLinkMetres() > 0) {
+                pointAnchoredTerritorialServiceMetres += territorialMetres;
+            }
+            if (clip.modelLinkMetres() == 0) {
+                zeroModelLengthTerritorialServiceMetres += territorialMetres;
+            }
             if (clip.category() == LinkLocation.CROSSING && Math.abs(metres) > 0) {
                 metric.crossingLinks.add(linkId);
                 metric.crossingServiceMetres += metres;
@@ -162,32 +180,113 @@ final class Production2040AccountingEventMetrics
                     scopeCarVehicles.get(scope).size(), scopeCarTrips.get(scope).size(), stuck));
         }
         return new Result(Map.copyOf(cars), Map.copyOf(endpointCarMetres), Map.copyOf(frozenPt),
-                allCrossingLinks.size(), allCrossingModelMetres,
+                allCrossingLinks.size(), allCrossingModelMetres, pointAnchoredSummary(),
                 unmatchedPersons, unmatchedTrips, repeatedVehicleEnters,
                 unmatchedVehicleLeaves, unattributedCarMovementEvents,
                 openCarSegments.size());
     }
 
     static LinkClip clip(Link link, MunichMunicipalBoundary boundary) {
-        Coordinate from = new Coordinate(link.getFromNode().getCoord().getX(),
-                link.getFromNode().getCoord().getY());
-        Coordinate to = new Coordinate(link.getToNode().getCoord().getX(),
-                link.getToNode().getCoord().getY());
+        double modelLength = link.getLength();
+        Production2040AnalysisSpec.require(Double.isFinite(modelLength) && modelLength >= 0,
+                "PT link has invalid model length " + link.getId());
+        Coordinate from = coordinate(link, true);
+        Coordinate to = coordinate(link, false);
+        if (from.equals2D(to)) {
+            var anchor = GEOMETRY_FACTORY.createPoint(from);
+            boolean strictlyInside = boundary.geometry().contains(anchor);
+            boolean covered = boundary.geometry().covers(anchor);
+            Production2040AnalysisSpec.require(strictlyInside || !covered,
+                    "Boundary-ambiguous point-anchored PT pseudolink " + link.getId());
+            return new LinkClip(strictlyInside ? 1.0 : 0.0,
+                    strictlyInside ? LinkLocation.INSIDE : LinkLocation.OUTSIDE, modelLength,
+                    LinkClipMethod.POINT_ANCHORED_PSEUDOLINK);
+        }
         var line = GEOMETRY_FACTORY.createLineString(new Coordinate[]{from, to});
         double geometricLength = line.getLength();
         Production2040AnalysisSpec.require(Double.isFinite(geometricLength)
                         && geometricLength > 0,
-                "Cannot territorially clip zero-length link geometry " + link.getId());
+                "PT link has invalid node-to-node geometry " + link.getId());
         double insideLength = line.intersection(boundary.geometry()).getLength();
         double fraction = Math.max(0.0, Math.min(1.0, insideLength / geometricLength));
         LinkLocation category = fraction <= FRACTION_EPSILON ? LinkLocation.OUTSIDE
                 : fraction >= 1.0 - FRACTION_EPSILON ? LinkLocation.INSIDE
                 : LinkLocation.CROSSING;
-        return new LinkClip(fraction, category, link.getLength());
+        return new LinkClip(fraction, category, modelLength,
+                LinkClipMethod.GEOMETRIC_LINE_CLIP);
+    }
+
+    static java.util.List<ZeroGeometryLink> inventoryZeroGeometryLinks(Network network) {
+        java.util.List<ZeroGeometryLink> result = new java.util.ArrayList<>();
+        for (Link link : network.getLinks().values()) {
+            Coordinate from = coordinate(link, true);
+            Coordinate to = coordinate(link, false);
+            if (!from.equals2D(to)) continue;
+            double modelLength = link.getLength();
+            Production2040AnalysisSpec.require(Double.isFinite(modelLength) && modelLength >= 0,
+                    "PT link has invalid model length " + link.getId());
+            result.add(new ZeroGeometryLink(link.getId().toString(), modelLength,
+                    Set.copyOf(link.getAllowedModes()), from.x, from.y,
+                    link.getFromNode().getId().toString(), link.getToNode().getId().toString()));
+        }
+        result.sort(java.util.Comparator.comparing(ZeroGeometryLink::linkId));
+        return java.util.List.copyOf(result);
+    }
+
+    private static Coordinate coordinate(Link link, boolean fromNode) {
+        Coord coordinate = (fromNode ? link.getFromNode() : link.getToNode()).getCoord();
+        Production2040AnalysisSpec.require(coordinate != null
+                        && Double.isFinite(coordinate.getX())
+                        && Double.isFinite(coordinate.getY()),
+                "PT link has non-finite " + (fromNode ? "from" : "to")
+                        + " coordinate " + link.getId());
+        return new Coordinate(coordinate.getX(), coordinate.getY());
+    }
+
+    private PtPseudolinkSummary pointAnchoredSummary() {
+        long used = 0;
+        double modelMetres = 0;
+        long inside = 0;
+        double insideModelMetres = 0;
+        long outside = 0;
+        double outsideModelMetres = 0;
+        long zeroModelLength = 0;
+        for (LinkClip clip : clips.values()) {
+            if (clip.modelLinkMetres() == 0) zeroModelLength++;
+            if (clip.method() != LinkClipMethod.POINT_ANCHORED_PSEUDOLINK
+                    || clip.modelLinkMetres() == 0) continue;
+            used++;
+            modelMetres += clip.modelLinkMetres();
+            if (clip.category() == LinkLocation.INSIDE) {
+                inside++;
+                insideModelMetres += clip.modelLinkMetres();
+            } else if (clip.category() == LinkLocation.OUTSIDE) {
+                outside++;
+                outsideModelMetres += clip.modelLinkMetres();
+            } else {
+                throw new IllegalStateException("Point-anchored PT pseudolink has unsupported "
+                        + "location " + clip.category());
+            }
+        }
+        return new PtPseudolinkSummary(used, modelMetres, inside, insideModelMetres, outside,
+                outsideModelMetres, 0, pointAnchoredTerritorialServiceMetres, zeroModelLength,
+                zeroModelLengthTerritorialServiceMetres);
     }
 
     enum LinkLocation { INSIDE, OUTSIDE, CROSSING }
-    record LinkClip(double insideFraction, LinkLocation category, double modelLinkMetres) { }
+    enum LinkClipMethod { GEOMETRIC_LINE_CLIP, POINT_ANCHORED_PSEUDOLINK }
+    record LinkClip(double insideFraction, LinkLocation category, double modelLinkMetres,
+                    LinkClipMethod method) { }
+    record ZeroGeometryLink(String linkId, double modelLinkMetres, Set<String> allowedModes,
+                            double anchorX, double anchorY, String fromNodeId, String toNodeId) { }
+    record PtPseudolinkSummary(long usedPointAnchoredLinks, double uncutModelMetres,
+                               long insideLinks, double insideModelMetres, long outsideLinks,
+                               double outsideModelMetres, long boundaryAmbiguousAnchors,
+                               double territorialServiceMetres, long zeroModelLengthLinks,
+                               double zeroModelLengthTerritorialServiceMetres) {
+        static final PtPseudolinkSummary ZERO = new PtPseudolinkSummary(0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0);
+    }
     record CarScope(double metres, long vehicles, long trips, long stuckTrips) { }
     record PtService(double uncutMetres, double territorialMetres, long crossingLinkCount,
                      double crossingLinkModelMetres, double crossingServiceMetres) { }
@@ -195,9 +294,23 @@ final class Production2040AccountingEventMetrics
                   Map<MunichTripBoundaryFilter.SpatialCategory, Double> carByEndpointCategory,
                   Map<String, PtService> ptByRouteMode,
                   long crossingLinkCount, double crossingLinkModelMetres,
+                  PtPseudolinkSummary ptPseudolinks,
                   long unmatchedPersons, long unmatchedTrips, long repeatedVehicleEnters,
                   long unmatchedVehicleLeaves, long unattributedCarMovementEvents,
-                  long incompleteCarSegments) { }
+                  long incompleteCarSegments) {
+        Result(Map<Production2040AccountingScopes.Scope, CarScope> carByScope,
+               Map<MunichTripBoundaryFilter.SpatialCategory, Double> carByEndpointCategory,
+               Map<String, PtService> ptByRouteMode,
+               long crossingLinkCount, double crossingLinkModelMetres,
+               long unmatchedPersons, long unmatchedTrips, long repeatedVehicleEnters,
+               long unmatchedVehicleLeaves, long unattributedCarMovementEvents,
+               long incompleteCarSegments) {
+            this(carByScope, carByEndpointCategory, ptByRouteMode, crossingLinkCount,
+                    crossingLinkModelMetres, PtPseudolinkSummary.ZERO, unmatchedPersons,
+                    unmatchedTrips, repeatedVehicleEnters, unmatchedVehicleLeaves,
+                    unattributedCarMovementEvents, incompleteCarSegments);
+        }
+    }
 
     private static final class CarSegment {
         private final Id<Person> person;

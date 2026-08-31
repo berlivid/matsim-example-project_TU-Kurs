@@ -64,6 +64,16 @@ final class ValidateProduction2040AccountingScopes {
                         .contains(",NOT_APPLICABLE,"),
                 "Territorial PT service must not contain factor-20 values");
         Production2040AnalysisSpec.require(reports.get(
+                        "final_territorial_pt_fkm_by_route_mode.csv")
+                        .contains("point_anchored_pseudolink_used_link_count")
+                        && reports.get("final_territorial_pt_fkm_by_route_mode.csv")
+                        .contains("point_anchored_pseudolink_territorial_service_km"),
+                "Territorial PT service report lacks point-anchored pseudolink diagnostics");
+        Production2040AnalysisSpec.require(quality.contains("point_anchored_pt_pseudolinks_used")
+                        && quality.contains("point_anchored_pt_pseudolink_territorial_service_km")
+                        && quality.contains("zero_model_length_pt_links_used"),
+                "Accounting quality report lacks PT pseudolink diagnostics");
+        Production2040AnalysisSpec.require(reports.get(
                         "final_active_mode_distance_by_scope.csv")
                         .contains(",walk,walk_person_km,")
                         && reports.get("final_active_mode_distance_by_scope.csv")

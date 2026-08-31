@@ -13,6 +13,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.matsim.api.core.v01.Coord;
@@ -31,6 +32,7 @@ import org.matsim.api.core.v01.population.Person;
 import org.matsim.api.core.v01.population.Plan;
 import org.matsim.core.config.ConfigUtils;
 import org.matsim.core.network.NetworkUtils;
+import org.matsim.core.network.io.MatsimNetworkReader;
 import org.matsim.core.population.PopulationUtils;
 import org.matsim.core.scenario.ScenarioUtils;
 import org.matsim.vehicles.Vehicle;
@@ -169,15 +171,106 @@ class Production2040AccountingScopesTest {
         Link outside = network.getLinks().get(link(network, "outside", X - 90, X - 10, 160));
         Link crossing = network.getLinks().get(link(network, "crossing", X - 50, X + 50, 200));
 
-        assertEquals(1.0, Production2040AccountingEventMetrics.clip(inside, boundary)
-                .insideFraction(), 1e-12);
-        assertEquals(0.0, Production2040AccountingEventMetrics.clip(outside, boundary)
-                .insideFraction(), 1e-12);
+        var insideClip = Production2040AccountingEventMetrics.clip(inside, boundary);
+        var outsideClip = Production2040AccountingEventMetrics.clip(outside, boundary);
+        assertEquals(1.0, insideClip.insideFraction(), 1e-12);
+        assertEquals(0.0, outsideClip.insideFraction(), 1e-12);
+        assertEquals(Production2040AccountingEventMetrics.LinkClipMethod.GEOMETRIC_LINE_CLIP,
+                insideClip.method());
+        assertEquals(Production2040AccountingEventMetrics.LinkClipMethod.GEOMETRIC_LINE_CLIP,
+                outsideClip.method());
         var clipped = Production2040AccountingEventMetrics.clip(crossing, boundary);
         assertEquals(0.5, clipped.insideFraction(), 1e-12);
         assertEquals(Production2040AccountingEventMetrics.LinkLocation.CROSSING,
                 clipped.category());
+        assertEquals(Production2040AccountingEventMetrics.LinkClipMethod.GEOMETRIC_LINE_CLIP,
+                clipped.method());
         assertEquals(100.0, clipped.modelLinkMetres() * clipped.insideFraction(), 1e-12);
+    }
+
+    @Test
+    void pointAnchoredPseudolinksUseStrictAnchorProxyAndPreserveUncutService()
+            throws Exception {
+        MunichMunicipalBoundary boundary = boundary();
+        Network network = NetworkUtils.createNetwork();
+        Link inside = network.getLinks().get(link(network, "pt_4192", X + 20, X + 20, 50));
+        Link outside = network.getLinks().get(link(network, "outside-pseudolink", X - 20,
+                X - 20, 50));
+        Link boundaryAnchor = network.getLinks().get(link(network, "boundary-pseudolink", X,
+                X, 50));
+
+        var insideClip = Production2040AccountingEventMetrics.clip(inside, boundary);
+        var outsideClip = Production2040AccountingEventMetrics.clip(outside, boundary);
+        assertEquals(Production2040AccountingEventMetrics.LinkClipMethod.POINT_ANCHORED_PSEUDOLINK,
+                insideClip.method());
+        assertEquals(Production2040AccountingEventMetrics.LinkLocation.INSIDE,
+                insideClip.category());
+        assertEquals(1.0, insideClip.insideFraction());
+        assertEquals(Production2040AccountingEventMetrics.LinkClipMethod.POINT_ANCHORED_PSEUDOLINK,
+                outsideClip.method());
+        assertEquals(Production2040AccountingEventMetrics.LinkLocation.OUTSIDE,
+                outsideClip.category());
+        assertEquals(0.0, outsideClip.insideFraction());
+        assertThrows(IllegalStateException.class, () ->
+                Production2040AccountingEventMetrics.clip(boundaryAnchor, boundary));
+
+        var index = Production2040AccountingScopes.classify(List.of(twoTripResident()), boundary);
+        var observer = new Production2040AccountingEventMetrics(network, boundary, index);
+        observer.movement(Id.createVehicleId("bus"), RESIDENT, inside.getId(), 50, true, "bus");
+        observer.movement(Id.createVehicleId("bus"), RESIDENT, outside.getId(), 50, true, "bus");
+        var result = observer.result();
+        var pseudolinks = result.ptPseudolinks();
+        assertEquals(100.0, result.ptByRouteMode().get("bus").uncutMetres());
+        assertEquals(50.0, result.ptByRouteMode().get("bus").territorialMetres());
+        assertEquals(2, pseudolinks.usedPointAnchoredLinks());
+        assertEquals(100.0, pseudolinks.uncutModelMetres());
+        assertEquals(1, pseudolinks.insideLinks());
+        assertEquals(50.0, pseudolinks.insideModelMetres());
+        assertEquals(1, pseudolinks.outsideLinks());
+        assertEquals(50.0, pseudolinks.outsideModelMetres());
+        assertEquals(50.0, pseudolinks.territorialServiceMetres());
+
+        var regional = new Production2040VehicleMetrics.Result(0, 0, 0, 0, 0, 0, 0,
+                Map.of("bus", new Production2040VehicleMetrics.PtMetric(
+                        100, 0, 0, 0, 0, 0, 0)));
+        AnalyzeProduction2040AccountingScopes.validateEventMetrics(regional, result,
+                new AnalyzeProduction2040AccountingScopes.RegionalReferences(0,
+                        Map.of("bus", 100.0)));
+    }
+
+    @Test
+    void zeroModelLengthPseudolinksAreReportedButContributeNoTerritorialDistance()
+            throws Exception {
+        MunichMunicipalBoundary boundary = boundary();
+        Network network = NetworkUtils.createNetwork();
+        Link zero = network.getLinks().get(link(network, "zero-pseudolink", X + 20, X + 20,
+                0));
+        var index = Production2040AccountingScopes.classify(List.of(twoTripResident()), boundary);
+        var observer = new Production2040AccountingEventMetrics(network, boundary, index);
+
+        observer.movement(Id.createVehicleId("bus"), RESIDENT, zero.getId(), 0, true, "bus");
+        var result = observer.result();
+        assertEquals(1, result.ptPseudolinks().zeroModelLengthLinks());
+        assertEquals(0.0, result.ptPseudolinks().zeroModelLengthTerritorialServiceMetres());
+        assertEquals(0.0, result.ptByRouteMode().get("bus").uncutMetres());
+        assertEquals(0.0, result.ptByRouteMode().get("bus").territorialMetres());
+    }
+
+    @Test
+    void nonFinitePseudolinkCoordinatesFailBeforeTerritorialClassification() throws Exception {
+        MunichMunicipalBoundary boundary = boundary();
+        Network network = NetworkUtils.createNetwork();
+        Link nonFinite = network.getLinks().get(link(network, "non-finite-pseudolink",
+                Double.NaN, Double.NaN, 50));
+
+        assertThrows(IllegalStateException.class, () ->
+                Production2040AccountingEventMetrics.clip(nonFinite, boundary));
+    }
+
+    @Test
+    void protectedNetworksExposeReadOnlyZeroGeometryPtPseudolinkInventory() throws Exception {
+        assertProtectedPseudolinkInventory(Production2040Contract.BAU, 4_362, 4_353);
+        assertProtectedPseudolinkInventory(Production2040Contract.FAST_TRACK, 4_367, 4_358);
     }
 
     @Test
@@ -249,6 +342,8 @@ class Production2040AccountingScopesTest {
         String pt = reports.get("final_territorial_pt_fkm_by_route_mode.csv");
         assertTrue(pt.contains(",TERRITORIAL_PT_SERVICE,1.0,vehicle_km,bus,"));
         assertTrue(pt.contains(",NOT_APPLICABLE,"));
+        assertTrue(pt.contains("point_anchored_pseudolink_used_link_count"));
+        assertTrue(pt.contains("point_anchored_pseudolink_territorial_service_km"));
         assertFalse(pt.contains("factor_20_daily_vehicle_km,20"));
         assertTrue(reports.get("final_modal_split_by_scope.csv")
                 .contains("expanded_daily_trip_count_factor_20"));
@@ -256,6 +351,8 @@ class Production2040AccountingScopesTest {
                 .contains("selected_plan_structural_trip_count"));
         assertTrue(reports.get("accounting_scope_quality_checks.csv")
                 .contains("measurement_both_inside_bike_coverage_percent"));
+        assertTrue(reports.get("accounting_scope_quality_checks.csv")
+                .contains("point_anchored_pt_pseudolinks_used"));
         assertTrue(reports.get("accounting_scope_report.md").contains(
                 "Standard output-trip measurement is not available for every structural selected-plan trip"));
     }
@@ -488,6 +585,38 @@ class Production2040AccountingScopesTest {
         Link link = NetworkUtils.createAndAddLink(network, Id.createLinkId(id), from, to,
                 modelLength, 10, 1000, 1);
         return link.getId();
+    }
+
+    private static void assertProtectedPseudolinkInventory(
+            Production2040Contract.ScenarioSpec scenario, int expectedZeroGeometryLinks,
+            int expectedPositiveModelLengthLinks) throws Exception {
+        Path source = Production2040Contract.path(scenario.networkPath());
+        Assumptions.assumeTrue(Files.isRegularFile(source),
+                "Protected network is not available locally: " + source);
+        Network network = NetworkUtils.createNetwork();
+        new MatsimNetworkReader(network).readFile(source.toString());
+        List<Production2040AccountingEventMetrics.ZeroGeometryLink> inventory =
+                Production2040AccountingEventMetrics.inventoryZeroGeometryLinks(network);
+
+        assertEquals(expectedZeroGeometryLinks, inventory.size(), scenario.label());
+        assertEquals(expectedPositiveModelLengthLinks, inventory.stream()
+                .filter(link -> link.modelLinkMetres() > 0).count(), scenario.label());
+        assertEquals(expectedZeroGeometryLinks - expectedPositiveModelLengthLinks,
+                inventory.stream().filter(link -> link.modelLinkMetres() == 0).count(),
+                scenario.label());
+        assertTrue(inventory.stream().allMatch(link -> Set.of("pt").equals(link.allowedModes())),
+                scenario.label());
+        assertTrue(inventory.stream().filter(link -> link.modelLinkMetres() > 0)
+                .allMatch(link -> Math.abs(link.modelLinkMetres() - 50.0) <= 1e-9),
+                scenario.label());
+        var pt4192 = inventory.stream().filter(link -> "pt_4192".equals(link.linkId()))
+                .findFirst().orElseThrow();
+        assertEquals(50.0, pt4192.modelLinkMetres(), 1e-9);
+        assertEquals(Set.of("pt"), pt4192.allowedModes());
+        assertEquals(4_414_786.48, pt4192.anchorX(), 1e-6);
+        assertEquals(5_327_680.14, pt4192.anchorY(), 1e-6);
+        assertEquals("pt_102065", pt4192.fromNodeId());
+        assertEquals("pt_102065", pt4192.toNodeId());
     }
 
     private static String tripHeader() {

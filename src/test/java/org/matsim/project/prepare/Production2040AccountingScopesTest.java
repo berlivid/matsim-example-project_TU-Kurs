@@ -252,6 +252,12 @@ class Production2040AccountingScopesTest {
         assertFalse(pt.contains("factor_20_daily_vehicle_km,20"));
         assertTrue(reports.get("final_modal_split_by_scope.csv")
                 .contains("expanded_daily_trip_count_factor_20"));
+        assertTrue(reports.get("accounting_scope_quality_checks.csv")
+                .contains("selected_plan_structural_trip_count"));
+        assertTrue(reports.get("accounting_scope_quality_checks.csv")
+                .contains("measurement_both_inside_bike_coverage_percent"));
+        assertTrue(reports.get("accounting_scope_report.md").contains(
+                "Standard output-trip measurement is not available for every structural selected-plan trip"));
     }
 
     @Test
@@ -294,18 +300,120 @@ class Production2040AccountingScopesTest {
     }
 
     @Test
-    void missingStandardOutputTripFailsClosedAsPartialOutput() throws Exception {
+    void acceptsCompleteStandardOutputTripCoverage() throws Exception {
         MunichMunicipalBoundary boundary = boundary();
-        Person person = person("resident", "home", new Coord(X + 10, Y + 10),
-                "work", new Coord(X + 20, Y + 20), TransportMode.car);
-        var index = Production2040AccountingScopes.classify(List.of(person), boundary);
-        Path trips = temporary.resolve("partial-trips.csv");
-        Files.writeString(trips, tripHeader());
+        var index = Production2040AccountingScopes.classify(residentPersons(100, "car"),
+                boundary);
+        Path trips = temporary.resolve("complete-trips.csv");
+        writeTripRows(trips, 0, 100, "car");
+        var measurements = AnalyzeProduction2040AccountingScopes.readTripMeasurements(trips,
+                boundary, index);
+
+        AnalyzeProduction2040AccountingScopes.validateMeasurements(index, measurements);
+        var diagnostics = AnalyzeProduction2040AccountingScopes.measurementDiagnostics(index,
+                measurements);
+        assertEquals(100, diagnostics.overall().structuralTrips());
+        assertEquals(100, diagnostics.overall().measuredTrips());
+        assertEquals(0, diagnostics.overall().missingStructuralTrips());
+        assertEquals(100.0, diagnostics.overall().measurementCoveragePercent());
+    }
+
+    @Test
+    void acceptsPartialStandardOutputTripCoverageAtExactThreshold() throws Exception {
+        MunichMunicipalBoundary boundary = boundary();
+        var index = Production2040AccountingScopes.classify(residentPersons(100, "car"),
+                boundary);
+        Path trips = temporary.resolve("threshold-trips.csv");
+        writeTripRows(trips, 1, 100, "car");
+        var measurements = AnalyzeProduction2040AccountingScopes.readTripMeasurements(trips,
+                boundary, index);
+
+        AnalyzeProduction2040AccountingScopes.validateMeasurements(index, measurements);
+        var diagnostics = AnalyzeProduction2040AccountingScopes.measurementDiagnostics(index,
+                measurements);
+        assertEquals(99, diagnostics.overall().measuredTrips());
+        assertEquals(1, diagnostics.overall().missingStructuralTrips());
+        assertEquals(99.0, diagnostics.overall().measurementCoveragePercent());
+        var car = diagnostics.byScopeAndMode().get(
+                Production2040AccountingScopes.Scope.BOTH_INSIDE).get("car");
+        assertEquals(99.0, car.measurementCoveragePercent());
+        assertEquals(99.0, car.validDistanceTimeCoveragePercent());
+        assertEquals(1L, diagnostics.missingByEndpointCategory().get(
+                MunichTripBoundaryFilter.SpatialCategory.BOTH_INSIDE));
+        assertEquals(1L, diagnostics.missingByResidentStatus().get(
+                Production2040AccountingScopes.ResidentStatus.RESIDENT));
+    }
+
+    @Test
+    void rejectsCoverageImmediatelyBelowThreshold() throws Exception {
+        MunichMunicipalBoundary boundary = boundary();
+        var index = Production2040AccountingScopes.classify(residentPersons(100, "car"),
+                boundary);
+        Path trips = temporary.resolve("below-threshold-trips.csv");
+        writeTripRows(trips, 2, 100, "car");
         var measurements = AnalyzeProduction2040AccountingScopes.readTripMeasurements(trips,
                 boundary, index);
 
         assertThrows(IllegalStateException.class, () ->
                 AnalyzeProduction2040AccountingScopes.validateMeasurements(index, measurements));
+    }
+
+    @Test
+    void rejectsMissingTripsConcentratedInOneScopeAndMode() throws Exception {
+        MunichMunicipalBoundary boundary = boundary();
+        List<Person> persons = residentPersons(99, "car");
+        persons.add(person("resident-99", "home", new Coord(X + 10, Y + 10),
+                "work", new Coord(X + 20, Y + 20), TransportMode.bike));
+        var index = Production2040AccountingScopes.classify(persons, boundary);
+        Path trips = temporary.resolve("concentrated-missing-trips.csv");
+        writeTripRows(trips, 1, 99, "car");
+        Files.writeString(trips, tripRow("resident-99", "bike"), StandardCharsets.UTF_8,
+                java.nio.file.StandardOpenOption.APPEND);
+        var measurements = AnalyzeProduction2040AccountingScopes.readTripMeasurements(trips,
+                boundary, index);
+        var diagnostics = AnalyzeProduction2040AccountingScopes.measurementDiagnostics(index,
+                measurements);
+
+        assertEquals(99.0, diagnostics.overall().measurementCoveragePercent());
+        var car = diagnostics.byScopeAndMode().get(
+                Production2040AccountingScopes.Scope.BOTH_INSIDE).get("car");
+        assertEquals(98.0 * 100.0 / 99.0, car.measurementCoveragePercent());
+        assertThrows(IllegalStateException.class, () ->
+                AnalyzeProduction2040AccountingScopes.validateMeasurements(index, measurements));
+    }
+
+    @Test
+    void rejectsDuplicateExtraModeMismatchedAndEndpointMismatchedOutputRows() throws Exception {
+        MunichMunicipalBoundary boundary = boundary();
+        Person person = person("resident", "home", new Coord(X + 10, Y + 10),
+                "work", new Coord(X + 20, Y + 20), TransportMode.car);
+        var index = Production2040AccountingScopes.classify(List.of(person), boundary);
+
+        Path duplicate = temporary.resolve("duplicate-trips.csv");
+        Files.writeString(duplicate, tripHeader() + tripRow("resident", "car")
+                + tripRow("resident", "car"));
+        assertThrows(IllegalStateException.class, () ->
+                AnalyzeProduction2040AccountingScopes.readTripMeasurements(duplicate, boundary,
+                        index));
+
+        Path extra = temporary.resolve("extra-trips.csv");
+        Files.writeString(extra, tripHeader() + tripRow("other", "car"));
+        assertThrows(IllegalStateException.class, () ->
+                AnalyzeProduction2040AccountingScopes.readTripMeasurements(extra, boundary,
+                        index));
+
+        Path modeMismatch = temporary.resolve("mode-mismatch-trips.csv");
+        Files.writeString(modeMismatch, tripHeader() + tripRow("resident", "bike"));
+        assertThrows(IllegalStateException.class, () ->
+                AnalyzeProduction2040AccountingScopes.readTripMeasurements(modeMismatch,
+                        boundary, index));
+
+        Path endpointMismatch = temporary.resolve("endpoint-mismatch-trips.csv");
+        Files.writeString(endpointMismatch, tripHeader() + tripRow("resident", "car",
+                X + 150));
+        assertThrows(IllegalStateException.class, () ->
+                AnalyzeProduction2040AccountingScopes.readTripMeasurements(endpointMismatch,
+                        boundary, index));
     }
 
     private MunichMunicipalBoundary boundary() throws Exception {
@@ -342,6 +450,33 @@ class Production2040AccountingScopesTest {
         person.addPlan(plan);
         person.setSelectedPlan(plan);
         return person;
+    }
+
+    private static List<Person> residentPersons(int count, String mode) {
+        List<Person> persons = new ArrayList<>();
+        for (int index = 0; index < count; index++) {
+            persons.add(person("resident-" + index, "home", new Coord(X + 10, Y + 10),
+                    "work", new Coord(X + 20, Y + 20), mode));
+        }
+        return persons;
+    }
+
+    private static void writeTripRows(Path file, int firstInclusive, int endExclusive,
+            String mode) throws Exception {
+        StringBuilder rows = new StringBuilder(tripHeader());
+        for (int index = firstInclusive; index < endExclusive; index++) {
+            rows.append(tripRow("resident-" + index, mode));
+        }
+        Files.writeString(file, rows.toString(), StandardCharsets.UTF_8);
+    }
+
+    private static String tripRow(String personId, String mode) {
+        return tripRow(personId, mode, X + 20);
+    }
+
+    private static String tripRow(String personId, String mode, double destinationX) {
+        return personId + ";1;" + personId + "_1;00:10:00;1000;" + mode + ';'
+                + (X + 10) + ';' + (Y + 10) + ';' + destinationX + ';' + (Y + 20) + "\n";
     }
 
     private static Id<Link> link(Network network, String id, double fromX, double toX,

@@ -125,6 +125,7 @@ public final class AnalyzeProduction2040AccountingScopes {
         }
         MunichTripBoundaryFilter filter = new MunichTripBoundaryFilter(boundary);
         Set<Production2040AccountingScopes.TripKey> seen = new HashSet<>();
+        Set<Production2040AccountingScopes.TripKey> validMeasurements = new HashSet<>();
         long rows = 0;
         try (BufferedReader reader = reader(file)) {
             String headerLine = reader.readLine();
@@ -175,6 +176,7 @@ public final class AnalyzeProduction2040AccountingScopes {
                         "Output-trip endpoints differ from selected plan for " + key);
                 double metres = parseNonNegative(fields, distanceColumn);
                 double seconds = parseTime(fields, timeColumn);
+                if (isValidTripMeasurement(metres, seconds)) validMeasurements.add(key);
                 for (var scope : Production2040AccountingScopes.Scope.values()) {
                     if (trip.included(scope)) metrics.get(scope).get(mode).add(metres, seconds);
                 }
@@ -187,25 +189,44 @@ public final class AnalyzeProduction2040AccountingScopes {
             modes.forEach((mode, metric) -> values.put(mode, metric.freeze()));
             frozen.put(scope, Map.copyOf(values));
         });
-        return new ScopeMeasurements(rows, Set.copyOf(seen), Map.copyOf(frozen));
+        return new ScopeMeasurements(rows, Set.copyOf(seen), Set.copyOf(validMeasurements),
+                Map.copyOf(frozen));
     }
 
     static void validateMeasurements(Production2040AccountingScopes.Index index,
             ScopeMeasurements measurements) {
-        Production2040AnalysisSpec.require(measurements.totalRows() == index.trips().size()
-                        && measurements.seenTrips().size() == index.trips().size(),
-                "Final output trips are partial, stale, or do not match final selected plans");
+        Production2040AnalysisSpec.require(measurements.totalRows()
+                        == measurements.seenTrips().size(),
+                "Final output-trip row count differs from unique selected-plan trip keys");
+        Production2040AnalysisSpec.require(measurements.seenTrips().size()
+                        <= index.trips().size(),
+                "More measured output-trip rows than structural selected-plan trips");
+        Production2040AnalysisSpec.require(measurements.validMeasurementTrips().size()
+                        <= measurements.seenTrips().size(),
+                "More valid distance/time measurements than output-trip rows");
+
+        MeasurementDiagnostics diagnostics = measurementDiagnostics(index, measurements);
+        requireCoverage("all structural selected-plan trips",
+                diagnostics.overall().measuredTrips(), diagnostics.overall().structuralTrips());
+        requireCoverage("all structural selected-plan trips with valid routed distance/time",
+                diagnostics.overall().validDistanceTimeTrips(),
+                diagnostics.overall().structuralTrips());
         for (var scope : Production2040AccountingScopes.Scope.values()) {
-            Map<String, Long> structural = structuralCounts(index, scope);
             for (String mode : Production2040AnalysisSpec.MAIN_MODES) {
-                long expected = structural.get(mode);
-                TripMetric metric = measurements.byScope().get(scope).get(mode);
-                double coverage = Production2040AnalysisSpec.percent(metric.validRecords(),
-                        expected);
-                Production2040AnalysisSpec.require(coverage
-                                >= Production2040AnalysisSpec.MIN_MEASUREMENT_COVERAGE_PERCENT,
-                        "Insufficient routed distance/time coverage for " + scope + "/" + mode
-                                + ": " + coverage + "%");
+                MeasurementCoverage coverage = diagnostics.byScopeAndMode().get(scope)
+                        .get(mode);
+                Production2040AnalysisSpec.require(coverage.measuredTrips()
+                                <= coverage.structuralTrips(),
+                        "More measured output-trip rows than structural selected-plan trips for "
+                                + scope + "/" + mode);
+                Production2040AnalysisSpec.require(coverage.validDistanceTimeTrips()
+                                <= coverage.measuredTrips(),
+                        "More valid distance/time measurements than output-trip rows for "
+                                + scope + "/" + mode);
+                requireCoverage(scope + "/" + mode + " standard output-trip rows",
+                        coverage.measuredTrips(), coverage.structuralTrips());
+                requireCoverage(scope + "/" + mode + " valid routed distance/time",
+                        coverage.validDistanceTimeTrips(), coverage.structuralTrips());
             }
         }
     }
@@ -272,10 +293,13 @@ public final class AnalyzeProduction2040AccountingScopes {
             Production2040VehicleMetrics.Result regional,
             Production2040AccountingEventMetrics.Result accounting,
             RegionalReferences references) {
+        MeasurementDiagnostics diagnostics = measurementDiagnostics(index, measurements);
         Map<String, String> reports = new LinkedHashMap<>();
         reports.put("accounting_scope_definition.csv", definitionCsv(definition));
-        reports.put("final_modal_split_by_scope.csv", modalCsv(definition, index));
-        reports.put("final_pkm_by_scope_and_mode.csv", pkmCsv(definition, index, measurements));
+        reports.put("final_modal_split_by_scope.csv", modalCsv(definition, index,
+                diagnostics));
+        reports.put("final_pkm_by_scope_and_mode.csv", pkmCsv(definition, index,
+                measurements, diagnostics));
         reports.put("final_private_car_fkm_by_scope.csv", carCsv(definition, measurements,
                 accounting, references));
         reports.put("final_active_mode_distance_by_scope.csv", activeCsv(definition,
@@ -284,8 +308,9 @@ public final class AnalyzeProduction2040AccountingScopes {
                 accounting, references));
         reports.put("resident_cohort_summary.csv", residentCsv(definition, index));
         reports.put("accounting_scope_quality_checks.csv", qualityCsv(definition, index,
-                measurements, regional, accounting, references));
-        reports.put("accounting_scope_report.md", report(definition, index, accounting));
+                diagnostics, regional, accounting, references));
+        reports.put("accounting_scope_report.md", report(definition, index, accounting,
+                diagnostics));
         return Map.copyOf(reports);
     }
 
@@ -312,19 +337,24 @@ public final class AnalyzeProduction2040AccountingScopes {
     }
 
     private static String modalCsv(Production2040AnalysisSpec.ScenarioDefinition definition,
-            Production2040AccountingScopes.Index index) {
-        StringBuilder csv = new StringBuilder("scenario_id,scope_id,sample_factor,unit,main_mode,sample_daily_trip_count,unscaled_modal_share_percent,expanded_daily_trip_count_factor_20,illustrative_annual_equivalent_365_days,measurement_coverage_percent,excluded_trip_count,definition\n");
+            Production2040AccountingScopes.Index index, MeasurementDiagnostics diagnostics) {
+        StringBuilder csv = new StringBuilder("scenario_id,scope_id,sample_factor,unit,main_mode,sample_daily_trip_count,unscaled_modal_share_percent,expanded_daily_trip_count_factor_20,illustrative_annual_equivalent_365_days,standard_output_trip_row_count,measurement_coverage_percent,missing_structural_trip_count,definition\n");
         for (var scope : Production2040AccountingScopes.Scope.values()) {
             Map<String, Long> counts = structuralCounts(index, scope);
             long total = counts.values().stream().mapToLong(Long::longValue).sum();
             for (String mode : Production2040AnalysisSpec.MAIN_MODES) {
                 long count = counts.get(mode);
                 double expanded = Production2040AnalysisSpec.expanded(count);
+                MeasurementCoverage coverage = diagnostics.byScopeAndMode().get(scope)
+                        .get(mode);
                 csv.append(definition.scenarioId()).append(',').append(scope)
                         .append(",0.05,trips,").append(mode).append(',').append(count).append(',')
                         .append(number(Production2040AnalysisSpec.percent(count, total))).append(',')
                         .append(number(expanded)).append(',').append(number(expanded * 365.0))
-                        .append(",100.000000000000,0,").append(quote(scopeDefinition(scope)))
+                        .append(',').append(coverage.measuredTrips()).append(',')
+                        .append(number(coverage.measurementCoveragePercent())).append(',')
+                        .append(coverage.missingStructuralTrips()).append(',')
+                        .append(quote(scopeDefinition(scope)))
                         .append('\n');
             }
         }
@@ -332,7 +362,8 @@ public final class AnalyzeProduction2040AccountingScopes {
     }
 
     private static String pkmCsv(Production2040AnalysisSpec.ScenarioDefinition definition,
-            Production2040AccountingScopes.Index index, ScopeMeasurements measurements) {
+            Production2040AccountingScopes.Index index, ScopeMeasurements measurements,
+            MeasurementDiagnostics diagnostics) {
         StringBuilder csv = new StringBuilder("scenario_id,scope_id,sample_factor,unit,main_mode,sample_daily_trip_count,expanded_daily_trip_count_factor_20,sample_daily_person_km,expanded_daily_person_km_factor_20,illustrative_annual_equivalent_365_days,pkm_share_percent,mean_trip_distance_km,median_trip_distance_km,mean_travel_time_minutes,measurement_record_count,measurement_coverage_percent,missing_or_invalid_distance_time_count,definition\n");
         for (var scope : Production2040AccountingScopes.Scope.values()) {
             Map<String, Long> counts = structuralCounts(index, scope);
@@ -342,6 +373,8 @@ public final class AnalyzeProduction2040AccountingScopes {
             for (String mode : Production2040AnalysisSpec.MAIN_MODES) {
                 TripMetric metric = modes.get(mode);
                 long count = counts.get(mode);
+                MeasurementCoverage coverage = diagnostics.byScopeAndMode().get(scope)
+                        .get(mode);
                 double samplePkm = metric.distanceMetres() / 1000.0;
                 double expandedPkm = Production2040AnalysisSpec.expanded(samplePkm);
                 csv.append(definition.scenarioId()).append(',').append(scope)
@@ -356,9 +389,9 @@ public final class AnalyzeProduction2040AccountingScopes {
                         .append(number(metric.medianDistanceMetres() / 1000.0)).append(',')
                         .append(number(metric.meanTimeSeconds() / 60.0)).append(',')
                         .append(metric.validRecords()).append(',')
-                        .append(number(Production2040AnalysisSpec.percent(
-                                metric.validRecords(), count))).append(',')
-                        .append(metric.invalidRecords()).append(',').append(quote(DISTANCE_DEFINITION))
+                        .append(number(coverage.validDistanceTimeCoveragePercent())).append(',')
+                        .append(coverage.missingOrInvalidDistanceTimeTrips()).append(',')
+                        .append(quote(DISTANCE_DEFINITION))
                         .append('\n');
             }
         }
@@ -478,7 +511,7 @@ public final class AnalyzeProduction2040AccountingScopes {
     }
 
     private static String qualityCsv(Production2040AnalysisSpec.ScenarioDefinition definition,
-            Production2040AccountingScopes.Index index, ScopeMeasurements measurements,
+            Production2040AccountingScopes.Index index, MeasurementDiagnostics diagnostics,
             Production2040VehicleMetrics.Result regional,
             Production2040AccountingEventMetrics.Result accounting,
             RegionalReferences references) {
@@ -488,9 +521,67 @@ public final class AnalyzeProduction2040AccountingScopes {
         check(csv, definition, "boundary_hash", "PASS",
                 Production2040AnalysisSpec.BOUNDARY_HASH, "canonical UTF-8/LF SHA-256",
                 "Munich municipal boundary");
-        check(csv, definition, "selected_plan_output_trip_reconciliation", "PASS",
-                Long.toString(measurements.totalRows()), Long.toString(index.trips().size()),
-                "person ID and one-based output trip number match every selected-plan main trip");
+        MeasurementCoverage overall = diagnostics.overall();
+        check(csv, definition, "selected_plan_structural_trip_count", "REPORTED",
+                Long.toString(overall.structuralTrips()), "selected-plan main trips",
+                "structural final selected-plan trip index used for modal split and expanded counts");
+        check(csv, definition, "standard_output_trip_measured_count", "REPORTED",
+                Long.toString(overall.measuredTrips()), "unique standard output-trip rows",
+                "every available output row must match one indexed selected-plan trip");
+        check(csv, definition, "standard_output_trip_missing_count", "REPORTED",
+                Long.toString(overall.missingStructuralTrips()), "structural selected-plan trips",
+                "standard output-trip measurement not available for every structural selected-plan trip");
+        check(csv, definition, "standard_output_trip_coverage_percent",
+                coverageStatus(overall.measurementCoveragePercent()),
+                number(overall.measurementCoveragePercent()),
+                minimumCoverage(), "unique standard output-trip rows divided by structural selected-plan trips");
+        check(csv, definition, "valid_distance_time_measurement_count", "REPORTED",
+                Long.toString(overall.validDistanceTimeTrips()), "valid routed distance/time rows",
+                "valid values used for Pkm, distance and travel-time statistics");
+        check(csv, definition, "valid_distance_time_coverage_percent",
+                coverageStatus(overall.validDistanceTimeCoveragePercent()),
+                number(overall.validDistanceTimeCoveragePercent()), minimumCoverage(),
+                "valid routed distance/time rows divided by structural selected-plan trips");
+        for (var scope : Production2040AccountingScopes.Scope.values()) {
+            for (String mode : Production2040AnalysisSpec.MAIN_MODES) {
+                MeasurementCoverage coverage = diagnostics.byScopeAndMode().get(scope)
+                        .get(mode);
+                String prefix = "measurement_" + scope.name().toLowerCase(Locale.ROOT)
+                        + '_' + mode;
+                check(csv, definition, prefix + "_structural_trip_count", "REPORTED",
+                        Long.toString(coverage.structuralTrips()), "selected-plan main trips",
+                        "structural count for accounting scope and main mode");
+                check(csv, definition, prefix + "_measured_trip_count", "REPORTED",
+                        Long.toString(coverage.measuredTrips()), "unique standard output-trip rows",
+                        "available rows matching the structural scope and main mode");
+                check(csv, definition, prefix + "_missing_trip_count", "REPORTED",
+                        Long.toString(coverage.missingStructuralTrips()),
+                        "structural selected-plan trips",
+                        "standard output-trip measurement not available for every structural selected-plan trip");
+                check(csv, definition, prefix + "_coverage_percent",
+                        coverageStatus(coverage.measurementCoveragePercent()),
+                        number(coverage.measurementCoveragePercent()), minimumCoverage(),
+                        "unique standard output-trip rows divided by structural trips");
+                check(csv, definition, prefix + "_valid_distance_time_coverage_percent",
+                        coverageStatus(coverage.validDistanceTimeCoveragePercent()),
+                        number(coverage.validDistanceTimeCoveragePercent()), minimumCoverage(),
+                        "valid routed distance/time rows divided by structural trips");
+            }
+        }
+        for (var category : MunichTripBoundaryFilter.SpatialCategory.values()) {
+            check(csv, definition, "missing_indexed_trips_endpoint_"
+                            + category.name().toLowerCase(Locale.ROOT), "REPORTED",
+                    Long.toString(diagnostics.missingByEndpointCategory().get(category)),
+                    "structural selected-plan trips",
+                    "missing standard output-trip rows grouped by selected-plan endpoint category");
+        }
+        for (var status : Production2040AccountingScopes.ResidentStatus.values()) {
+            check(csv, definition, "missing_indexed_trips_resident_"
+                            + status.name().toLowerCase(Locale.ROOT), "REPORTED",
+                    Long.toString(diagnostics.missingByResidentStatus().get(status)),
+                    "structural selected-plan trips",
+                    "missing standard output-trip rows grouped by documented resident status");
+        }
         check(csv, definition, "unexpected_main_modes", "PASS", "0", "0",
                 "only car, pt, bike and walk are accepted");
         check(csv, definition, "unresolved_residents",
@@ -533,17 +624,106 @@ public final class AnalyzeProduction2040AccountingScopes {
 
     private static String report(Production2040AnalysisSpec.ScenarioDefinition definition,
             Production2040AccountingScopes.Index index,
-            Production2040AccountingEventMetrics.Result accounting) {
+            Production2040AccountingEventMetrics.Result accounting,
+            MeasurementDiagnostics diagnostics) {
         return "# " + definition.scenarioId().replace('_', ' ')
                 + " accounting scopes\n\n"
                 + "## Purpose and accounting scopes\n\nThis controller-free analysis applies one shared method to BAU and Fast Track. `BOTH_INSIDE` contains final selected-plan MATSim main trips whose two main-activity endpoints are covered by the Munich municipal boundary. `MUNICH_RESIDENTS` contains every main trip of a person whose first documented non-stage `home` activity has a finite coordinate covered by that boundary, including trips to or from the surrounding region. "
                 + index.personCounts().get(Production2040AccountingScopes.ResidentStatus.UNRESOLVED)
                 + " persons have no resolvable documented home and are reported but excluded; residence is never inferred from a trip origin. Stage activities never create main trips.\n\n"
-                + "## Demand metrics\n\nModal split and Pkm use the same transport-planning main-mode definition and standard routed final `output_trips` distance as the existing production analysis. Private-demand trip counts, Pkm and car Fkm are sample observations expanded by factor 20; shares, means, medians and travel times are unscaled. Bike-km is a transparent derivative equal to bike Pkm under a one-person-per-bike convention. Walk is reported only as Pkm and never as vehicle-kilometres. The car-Pkm/Fkm ratio is a plausibility ratio, not an occupancy estimate.\n\n"
+                + "## Demand metrics\n\nModal split and expanded demand trip counts use the complete structural final selected-plan index. Pkm, distance and travel-time statistics use valid standard final `output_trips` records matched by person ID and one-based main-trip number. The standard output-trip measurement is available for "
+                + diagnostics.overall().measuredTrips() + " of "
+                + diagnostics.overall().structuralTrips() + " structural selected-plan trips ("
+                + number(diagnostics.overall().measurementCoveragePercent())
+                + "%); valid routed distance/time values are available for "
+                + diagnostics.overall().validDistanceTimeTrips() + " trips ("
+                + number(diagnostics.overall().validDistanceTimeCoveragePercent())
+                + "%). Standard output-trip measurement is not available for every structural selected-plan trip. This is reported neutrally and does not by itself establish a cause. Publication requires at least "
+                + minimumCoverage() + " coverage overall and for every applicable demand-scope/main-mode combination. Missing indexed trips by endpoint category are "
+                + countMap(diagnostics.missingByEndpointCategory())
+                + "; by documented resident status they are "
+                + countMap(diagnostics.missingByResidentStatus())
+                + ". Every available output row must still match the indexed selected-plan key, main mode and endpoint category exactly; duplicate or extra rows fail validation. Private-demand trip counts, Pkm and car Fkm are sample observations expanded by factor 20; shares, means, medians and travel times are unscaled. Bike-km is a transparent derivative equal to bike Pkm under a one-person-per-bike convention. Walk is reported only as Pkm and never as vehicle-kilometres. The car-Pkm/Fkm ratio is a plausibility ratio, not an occupancy estimate.\n\n"
                 + "## Vehicle accounting\n\nPrivate-car Fkm use the final event stream, exclude transit vehicles and share the established MATSim 2025.0 first-/last-link calculation. Each traffic segment is joined to its person and current selected-plan main trip. Endpoint-category totals must reproduce the existing regional private-car Fkm exactly; those earlier regional Fkm remain unchanged but are unsuitable for a `BOTH_INSIDE` external-cost calculation because they include all simulated regional car movement.\n\n"
                 + "PT service cannot be assigned uniquely to resident or `BOTH_INSIDE` passengers. It is therefore reported territorially: full links inside Munich count fully, outside links count zero, and crossing links count the fraction of their straight node-to-node segment inside the polygon multiplied by MATSim link length. "
                 + accounting.crossingLinkCount() + " distinct event-used PT links cross the boundary. Uncut route-mode totals must reproduce the existing regional PT Fkm before clipping. PT supply is already full-scale and is not multiplied by 20.\n\n"
                 + "## Time interpretation\n\nEvery daily value describes the technical weekday represented by the GTFS/MATSim run. `illustrative_annual_equivalent_365_days` is a mechanically labelled multiplication by 365, not an empirically validated or authoritative annual total. No Controller, QSim, simulation, external-cost calculation or visualization was run by this analyzer.\n";
+    }
+
+    static MeasurementDiagnostics measurementDiagnostics(
+            Production2040AccountingScopes.Index index, ScopeMeasurements measurements) {
+        Map<MunichTripBoundaryFilter.SpatialCategory, Long> missingByEndpoint =
+                new EnumMap<>(MunichTripBoundaryFilter.SpatialCategory.class);
+        for (var category : MunichTripBoundaryFilter.SpatialCategory.values()) {
+            missingByEndpoint.put(category, 0L);
+        }
+        Map<Production2040AccountingScopes.ResidentStatus, Long> missingByResident =
+                new EnumMap<>(Production2040AccountingScopes.ResidentStatus.class);
+        for (var status : Production2040AccountingScopes.ResidentStatus.values()) {
+            missingByResident.put(status, 0L);
+        }
+        index.trips().forEach((key, trip) -> {
+            if (!measurements.seenTrips().contains(key)) {
+                missingByEndpoint.merge(trip.endpointCategory(), 1L, Long::sum);
+                missingByResident.merge(trip.residentStatus(), 1L, Long::sum);
+            }
+        });
+
+        Map<Production2040AccountingScopes.Scope, Map<String, MeasurementCoverage>> scopes =
+                new EnumMap<>(Production2040AccountingScopes.Scope.class);
+        for (var scope : Production2040AccountingScopes.Scope.values()) {
+            Map<String, Long> structural = structuralCounts(index, scope);
+            Map<String, MeasurementCoverage> modes = new TreeMap<>();
+            for (String mode : Production2040AnalysisSpec.MAIN_MODES) {
+                TripMetric metric = measurements.byScope().get(scope).get(mode);
+                modes.put(mode, coverage(structural.get(mode), metric.measuredRecords(),
+                        metric.validRecords()));
+            }
+            scopes.put(scope, Map.copyOf(modes));
+        }
+        return new MeasurementDiagnostics(coverage(index.trips().size(),
+                measurements.seenTrips().size(), measurements.validMeasurementTrips().size()),
+                Map.copyOf(scopes), Map.copyOf(missingByEndpoint), Map.copyOf(missingByResident));
+    }
+
+    private static MeasurementCoverage coverage(long structuralTrips, long measuredTrips,
+            long validDistanceTimeTrips) {
+        return new MeasurementCoverage(structuralTrips, measuredTrips, validDistanceTimeTrips,
+                structuralTrips - measuredTrips, structuralTrips - validDistanceTimeTrips,
+                coveragePercent(measuredTrips, structuralTrips),
+                coveragePercent(validDistanceTimeTrips, structuralTrips));
+    }
+
+    private static double coveragePercent(long measuredTrips, long structuralTrips) {
+        return structuralTrips == 0 ? 100.0 : Production2040AnalysisSpec.percent(measuredTrips,
+                structuralTrips);
+    }
+
+    private static void requireCoverage(String label, long measuredTrips,
+            long structuralTrips) {
+        double coverage = coveragePercent(measuredTrips, structuralTrips);
+        Production2040AnalysisSpec.require(coverage
+                        >= Production2040AnalysisSpec.MIN_MEASUREMENT_COVERAGE_PERCENT,
+                "Insufficient measurement coverage for " + label + ": " + coverage + "%");
+    }
+
+    private static String coverageStatus(double coverage) {
+        return coverage >= Production2040AnalysisSpec.MIN_MEASUREMENT_COVERAGE_PERCENT
+                ? "PASS" : "FAIL";
+    }
+
+    private static String minimumCoverage() {
+        return number(Production2040AnalysisSpec.MIN_MEASUREMENT_COVERAGE_PERCENT) + "%";
+    }
+
+    private static String countMap(Map<?, Long> counts) {
+        StringBuilder text = new StringBuilder();
+        counts.entrySet().stream().sorted(Comparator.comparing(entry -> entry.getKey().toString()))
+                .forEach(entry -> {
+            if (!text.isEmpty()) text.append(", ");
+            text.append(entry.getKey()).append('=').append(entry.getValue());
+        });
+        return text.toString();
     }
 
     static Map<String, Long> structuralCounts(Production2040AccountingScopes.Index index,
@@ -666,6 +846,11 @@ public final class AnalyzeProduction2040AccountingScopes {
         }
     }
 
+    private static boolean isValidTripMeasurement(double metres, double seconds) {
+        return Double.isFinite(metres) && metres >= 0 && Double.isFinite(seconds)
+                && seconds >= 0;
+    }
+
     private static BufferedReader reader(Path file) throws IOException {
         var input = Files.newInputStream(file);
         return new BufferedReader(new InputStreamReader(
@@ -760,11 +945,29 @@ public final class AnalyzeProduction2040AccountingScopes {
 
     record ScopeMeasurements(long totalRows,
                              Set<Production2040AccountingScopes.TripKey> seenTrips,
+                             Set<Production2040AccountingScopes.TripKey> validMeasurementTrips,
                              Map<Production2040AccountingScopes.Scope,
                                      Map<String, TripMetric>> byScope) { }
 
+    record MeasurementDiagnostics(MeasurementCoverage overall,
+                                  Map<Production2040AccountingScopes.Scope,
+                                          Map<String, MeasurementCoverage>> byScopeAndMode,
+                                  Map<MunichTripBoundaryFilter.SpatialCategory, Long>
+                                          missingByEndpointCategory,
+                                  Map<Production2040AccountingScopes.ResidentStatus, Long>
+                                          missingByResidentStatus) { }
+
+    record MeasurementCoverage(long structuralTrips, long measuredTrips,
+                               long validDistanceTimeTrips, long missingStructuralTrips,
+                               long missingOrInvalidDistanceTimeTrips,
+                               double measurementCoveragePercent,
+                               double validDistanceTimeCoveragePercent) { }
+
     record TripMetric(long validRecords, long invalidRecords, double distanceMetres,
                       double travelTimeSeconds, List<Double> distancesMetres) {
+        long measuredRecords() {
+            return validRecords + invalidRecords;
+        }
         double meanDistanceMetres() {
             return validRecords == 0 ? 0 : distanceMetres / validRecords;
         }
@@ -791,8 +994,7 @@ public final class AnalyzeProduction2040AccountingScopes {
         private final List<Double> distances = new ArrayList<>();
 
         private void add(double metres, double seconds) {
-            if (!Double.isFinite(metres) || metres < 0 || !Double.isFinite(seconds)
-                    || seconds < 0) {
+            if (!isValidTripMeasurement(metres, seconds)) {
                 invalid++;
                 return;
             }

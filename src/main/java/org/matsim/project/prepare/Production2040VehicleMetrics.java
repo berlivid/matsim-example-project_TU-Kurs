@@ -2,6 +2,7 @@ package org.matsim.project.prepare;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
@@ -230,8 +231,40 @@ final class Production2040VehicleMetrics implements LinkEnterEventHandler,
         movementObserver.movement(vehicleId, state.trafficPerson, linkId, metres,
                 state.transit, state.ptMode);
         if (!state.transit) return;
+        /*
+         * A passenger receives exactly the movement that occurs while the
+         * person is on board. In particular, first-/last-link corrections are
+         * applied to the passenger set that exists at that event, rather than
+         * to a later boarding or alighting count.
+         */
+        Set<Id<Person>> passengersForMovement = passengersForMovement(state, linkId, metres);
+        for (Id<Person> passenger : passengersForMovement) {
+            movementObserver.passengerMovement(vehicleId, passenger, linkId, metres,
+                    state.ptMode);
+        }
         MutablePtMetric metric = metric(state.ptMode);
         metric.vehicleMetres += metres;
+    }
+
+    /**
+     * A VehicleLeavesTraffic correction removes part of the most recent link
+     * movement. It must therefore be applied to the passenger set that was on
+     * board for that original movement, not to whoever happens to be on board
+     * when the correction event is emitted.
+     */
+    private static Set<Id<Person>> passengersForMovement(VehicleState state, Id<Link> linkId,
+            double metres) {
+        if (metres >= 0) {
+            Set<Id<Person>> snapshot = state.passengers.isEmpty() ? Set.of()
+                    : Collections.unmodifiableSet(new HashSet<>(state.passengers));
+            state.lastPtMovementLink = linkId;
+            state.lastPtMovementPassengers = snapshot;
+            return snapshot;
+        }
+        Production2040AnalysisSpec.require(state.lastPtMovementLink != null
+                        && state.lastPtMovementLink.equals(linkId),
+                "PT last-link correction has no matching prior movement on " + linkId);
+        return state.lastPtMovementPassengers;
     }
 
     private boolean isRelevantTrip(Id<Person> person) {
@@ -320,6 +353,8 @@ final class Production2040VehicleMetrics implements LinkEnterEventHandler,
         private TransitRoute route;
         private TransitStopFacility currentFacility;
         private Id<Link> currentLink;
+        private Id<Link> lastPtMovementLink;
+        private Set<Id<Person>> lastPtMovementPassengers = Set.of();
         private double distanceMetres;
         private final Set<Id<Person>> passengers = new HashSet<>();
         private final Map<Id<Person>, Boarding> boardings = new HashMap<>();
@@ -333,6 +368,13 @@ final class Production2040VehicleMetrics implements LinkEnterEventHandler,
                                   Integer mainTripIndex, boolean transit) { }
         default void movement(Id<Vehicle> vehicle, Id<Person> person, Id<Link> link,
                               double metres, boolean transit, String ptMode) { }
+        /**
+         * Called only for a non-driver passenger who is on board during one
+         * transit-vehicle movement. The distance uses the same event and
+         * first-/last-link convention as {@link #movement}.
+         */
+        default void passengerMovement(Id<Vehicle> vehicle, Id<Person> passenger,
+                                       Id<Link> link, double metres, String ptMode) { }
         default void trafficLeave(Id<Vehicle> vehicle, Id<Person> person) { }
         default void personStuck(Id<Person> person, Integer mainTripIndex) { }
     }

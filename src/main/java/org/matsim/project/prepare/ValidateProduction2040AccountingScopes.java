@@ -1,6 +1,10 @@
 package org.matsim.project.prepare;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
@@ -18,6 +22,30 @@ final class ValidateProduction2040AccountingScopes {
             "accounting_scope_report.md");
 
     private ValidateProduction2040AccountingScopes() { }
+
+    /** Validates an already published accounting-scope package without writing it. */
+    static Map<String, String> validatePublished(
+            Production2040AnalysisSpec.ScenarioDefinition definition) throws IOException {
+        var destination = definition.analysisDirectory().resolve(
+                AnalyzeProduction2040AccountingScopes.SUBDIRECTORY);
+        Production2040AnalysisSpec.require(Files.isDirectory(destination),
+                "Missing published accounting-scope analysis: " + destination);
+        Map<String, String> reports = new LinkedHashMap<>();
+        try (var files = Files.list(destination)) {
+            files.filter(Files::isRegularFile).forEach(file -> {
+                try {
+                    reports.put(file.getFileName().toString(),
+                            Files.readString(file, StandardCharsets.UTF_8));
+                } catch (IOException error) {
+                    throw new java.io.UncheckedIOException(error);
+                }
+            });
+        } catch (java.io.UncheckedIOException error) {
+            throw error.getCause();
+        }
+        validateBundle(definition, reports);
+        return Map.copyOf(reports);
+    }
 
     static void validateBundle(Production2040AnalysisSpec.ScenarioDefinition definition,
             Map<String, String> reports) {

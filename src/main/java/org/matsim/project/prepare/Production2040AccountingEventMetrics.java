@@ -35,6 +35,7 @@ final class Production2040AccountingEventMetrics
     private final Map<Production2040AccountingScopes.Scope, Set<Production2040AccountingScopes.TripKey>>
             scopeCarTrips = new EnumMap<>(Production2040AccountingScopes.Scope.class);
     private final Map<String, MutablePtService> pt = new TreeMap<>();
+    private final Map<String, MutablePtPassenger> ptPassengers = new TreeMap<>();
     private final Set<Production2040AccountingScopes.TripKey> stuckTrips = new HashSet<>();
     private double pointAnchoredTerritorialServiceMetres;
     private double zeroModelLengthTerritorialServiceMetres;
@@ -70,6 +71,7 @@ final class Production2040AccountingEventMetrics
             scopeCarTrips.put(scope, new HashSet<>());
         }
         pt.clear();
+        ptPassengers.clear();
         stuckTrips.clear();
         pointAnchoredTerritorialServiceMetres = 0;
         zeroModelLengthTerritorialServiceMetres = 0;
@@ -135,6 +137,37 @@ final class Production2040AccountingEventMetrics
         segment.metres += metres;
     }
 
+    /**
+     * Counts only passengers who are actually on board for this event movement.
+     * No selected-plan, resident, or endpoint filter is applied here: this is
+     * territorial demand from all simulated PT passengers.
+     */
+    @Override
+    public void passengerMovement(Id<Vehicle> vehicle, Id<Person> passenger, Id<Link> linkId,
+            double metres, String ptMode) {
+        Production2040AnalysisSpec.require(passenger != null,
+                "PT passenger movement has no person ID");
+        Link link = network.getLinks().get(linkId);
+        Production2040AnalysisSpec.require(link != null,
+                "PT passenger movement refers to missing link " + linkId);
+        LinkClip clip = clips.computeIfAbsent(linkId, ignored -> clip(link, boundary));
+        if (clip.modelLinkMetres() == 0) {
+            Production2040AnalysisSpec.require(Math.abs(metres) <= FRACTION_EPSILON,
+                    "Zero-model-length PT link has non-zero passenger distance " + linkId);
+        }
+        MutablePtPassenger metric = ptPassengers.computeIfAbsent(
+                ptMode == null ? "unknown" : ptMode, ignored -> new MutablePtPassenger());
+        double territorialMetres = clip.modelLinkMetres() == 0 ? 0
+                : metres * clip.insideFraction();
+        metric.uncutMetres += metres;
+        metric.territorialMetres += territorialMetres;
+        metric.movementEvents++;
+        if (clip.category() == LinkLocation.CROSSING && Math.abs(metres) > 0) {
+            metric.crossingLinks.add(linkId);
+            metric.crossingPassengerMetres += metres;
+        }
+    }
+
     @Override
     public void trafficLeave(Id<Vehicle> vehicle, Id<Person> person) {
         boolean ignored = ignoredTrafficVehicles.remove(vehicle);
@@ -166,6 +199,8 @@ final class Production2040AccountingEventMetrics
     Result result() {
         Map<String, PtService> frozenPt = new TreeMap<>();
         pt.forEach((mode, metric) -> frozenPt.put(mode, metric.freeze(clips)));
+        Map<String, PtPassenger> frozenPtPassengers = new TreeMap<>();
+        ptPassengers.forEach((mode, metric) -> frozenPtPassengers.put(mode, metric.freeze(clips)));
         Set<Id<Link>> allCrossingLinks = new HashSet<>();
         pt.values().forEach(metric -> allCrossingLinks.addAll(metric.crossingLinks));
         double allCrossingModelMetres = allCrossingLinks.stream().map(clips::get)
@@ -180,7 +215,8 @@ final class Production2040AccountingEventMetrics
                     scopeCarVehicles.get(scope).size(), scopeCarTrips.get(scope).size(), stuck));
         }
         return new Result(Map.copyOf(cars), Map.copyOf(endpointCarMetres), Map.copyOf(frozenPt),
-                allCrossingLinks.size(), allCrossingModelMetres, pointAnchoredSummary(),
+                Map.copyOf(frozenPtPassengers), allCrossingLinks.size(), allCrossingModelMetres,
+                pointAnchoredSummary(),
                 unmatchedPersons, unmatchedTrips, repeatedVehicleEnters,
                 unmatchedVehicleLeaves, unattributedCarMovementEvents,
                 openCarSegments.size());
@@ -290,9 +326,12 @@ final class Production2040AccountingEventMetrics
     record CarScope(double metres, long vehicles, long trips, long stuckTrips) { }
     record PtService(double uncutMetres, double territorialMetres, long crossingLinkCount,
                      double crossingLinkModelMetres, double crossingServiceMetres) { }
+    record PtPassenger(double uncutMetres, double territorialMetres, long movementEvents,
+                       long crossingLinkCount, double crossingPassengerMetres) { }
     record Result(Map<Production2040AccountingScopes.Scope, CarScope> carByScope,
                   Map<MunichTripBoundaryFilter.SpatialCategory, Double> carByEndpointCategory,
                   Map<String, PtService> ptByRouteMode,
+                  Map<String, PtPassenger> ptPassengerByRouteMode,
                   long crossingLinkCount, double crossingLinkModelMetres,
                   PtPseudolinkSummary ptPseudolinks,
                   long unmatchedPersons, long unmatchedTrips, long repeatedVehicleEnters,
@@ -305,8 +344,8 @@ final class Production2040AccountingEventMetrics
                long unmatchedPersons, long unmatchedTrips, long repeatedVehicleEnters,
                long unmatchedVehicleLeaves, long unattributedCarMovementEvents,
                long incompleteCarSegments) {
-            this(carByScope, carByEndpointCategory, ptByRouteMode, crossingLinkCount,
-                    crossingLinkModelMetres, PtPseudolinkSummary.ZERO, unmatchedPersons,
+            this(carByScope, carByEndpointCategory, ptByRouteMode, Map.of(),
+                    crossingLinkCount, crossingLinkModelMetres, PtPseudolinkSummary.ZERO, unmatchedPersons,
                     unmatchedTrips, repeatedVehicleEnters, unmatchedVehicleLeaves,
                     unattributedCarMovementEvents, incompleteCarSegments);
         }
@@ -334,6 +373,23 @@ final class Production2040AccountingEventMetrics
                     .map(clips::get).mapToDouble(LinkClip::modelLinkMetres).sum();
             return new PtService(uncutMetres, territorialMetres, crossingLinks.size(),
                     modelMetres, crossingServiceMetres);
+        }
+    }
+
+    private static final class MutablePtPassenger {
+        private double uncutMetres;
+        private double territorialMetres;
+        private long movementEvents;
+        private double crossingPassengerMetres;
+        private final Set<Id<Link>> crossingLinks = new HashSet<>();
+
+        private PtPassenger freeze(Map<Id<Link>, LinkClip> clips) {
+            double crossingModelMetres = crossingLinks.stream().map(clips::get)
+                    .mapToDouble(LinkClip::modelLinkMetres).sum();
+            Production2040AnalysisSpec.require(Double.isFinite(crossingModelMetres),
+                    "Invalid crossing-link passenger geometry");
+            return new PtPassenger(uncutMetres, territorialMetres, movementEvents,
+                    crossingLinks.size(), crossingPassengerMetres);
         }
     }
 }

@@ -264,7 +264,7 @@ class Production2040RunnersTest {
     }
 
     @Test
-    void allTenIntellijConfigurationsAreWellFormedAndProtected() throws Exception {
+    void allTwelveIntellijConfigurationsAreWellFormedAndProtected() throws Exception {
         List<String> names = List.of(
                 "P1 Validate BAU 2040 Production Input",
                 "P2 Validate Fast Track 2040 Production Input",
@@ -274,7 +274,9 @@ class Production2040RunnersTest {
                 "P4B Validate Existing Fast Track 2040 Production Smoke Output",
                 "P7 Run BAU 2040 Production", "P8 Run Fast Track 2040 Production",
                 "P7B Analyze Existing BAU 2040 Production Output",
-                "P8B Analyze Existing Fast Track 2040 Production Output");
+                "P8B Analyze Existing Fast Track 2040 Production Output",
+                "P11 Analyze Existing BAU 2040 PT Cost Allocation",
+                "P12 Analyze Existing Fast Track 2040 PT Cost Allocation");
         for (String name : names) {
             Path file = ROOT.resolve(".run/" + name + ".run.xml");
             assertTrue(Files.isRegularFile(file));
@@ -291,6 +293,12 @@ class Production2040RunnersTest {
             if (name.startsWith("P3B") || name.startsWith("P4B")) {
                 assertTrue(xml.contains("ValidateMatsim2040ProductionSmokeOutput"));
                 assertFalse(xml.contains("RunMatsim2040ProductionSmokeTest"));
+            }
+            if (name.startsWith("P11") || name.startsWith("P12")) {
+                assertTrue(xml.contains("Analyze") && xml.contains("PtCostAllocation"));
+                assertFalse(xml.contains("RunMatsim2040Production"));
+                assertFalse(xml.contains("Controler"));
+                assertFalse(xml.contains("QSim"));
             }
         }
     }

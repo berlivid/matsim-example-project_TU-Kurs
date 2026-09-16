@@ -238,18 +238,34 @@ final class Production2040AccountingEventMetrics
                     strictlyInside ? LinkLocation.INSIDE : LinkLocation.OUTSIDE, modelLength,
                     LinkClipMethod.POINT_ANCHORED_PSEUDOLINK);
         }
-        var line = GEOMETRY_FACTORY.createLineString(new Coordinate[]{from, to});
-        double geometricLength = line.getLength();
-        Production2040AnalysisSpec.require(Double.isFinite(geometricLength)
-                        && geometricLength > 0,
-                "PT link has invalid node-to-node geometry " + link.getId());
-        double insideLength = line.intersection(boundary.geometry()).getLength();
-        double fraction = Math.max(0.0, Math.min(1.0, insideLength / geometricLength));
+        double fraction = geometricInsideFraction(from, to, boundary);
         LinkLocation category = fraction <= FRACTION_EPSILON ? LinkLocation.OUTSIDE
                 : fraction >= 1.0 - FRACTION_EPSILON ? LinkLocation.INSIDE
                 : LinkLocation.CROSSING;
         return new LinkClip(fraction, category, modelLength,
                 LinkClipMethod.GEOMETRIC_LINE_CLIP);
+    }
+
+    /** Exact inside fraction for a finite, non-zero straight segment in the MATSim CRS. */
+    static double geometricInsideFraction(Coordinate from, Coordinate to,
+            MunichMunicipalBoundary boundary) {
+        Production2040AnalysisSpec.require(from != null && to != null
+                        && Double.isFinite(from.x) && Double.isFinite(from.y)
+                        && Double.isFinite(to.x) && Double.isFinite(to.y),
+                "Territorial segment has non-finite endpoint coordinates");
+        Production2040AnalysisSpec.require(!from.equals2D(to),
+                "Territorial segment has coincident endpoint coordinates");
+        var line = GEOMETRY_FACTORY.createLineString(new Coordinate[]{from, to});
+        double geometricLength = line.getLength();
+        Production2040AnalysisSpec.require(Double.isFinite(geometricLength)
+                        && geometricLength > 0,
+                "Territorial segment has invalid straight-line geometry");
+        double insideLength = line.intersection(boundary.geometry()).getLength();
+        double fraction = Math.max(0.0, Math.min(1.0, insideLength / geometricLength));
+        Production2040AnalysisSpec.require(Double.isFinite(fraction)
+                        && fraction >= 0.0 && fraction <= 1.0,
+                "Territorial segment clip fraction is outside [0,1]");
+        return fraction;
     }
 
     static java.util.List<ZeroGeometryLink> inventoryZeroGeometryLinks(Network network) {

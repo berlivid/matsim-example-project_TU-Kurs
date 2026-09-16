@@ -173,7 +173,8 @@ final class Production2040VehicleMetrics implements LinkEnterEventHandler,
 
     @Override
     public void handleEvent(PersonStuckEvent event) {
-        movementObserver.personStuck(event.getPersonId(), currentTripIndex.get(event.getPersonId()));
+        movementObserver.personStuck(event.getPersonId(), currentTripIndex.get(event.getPersonId()),
+                Production2040AnalysisSpec.normalizeMainMode(event.getLegMode()));
     }
 
     @Override
@@ -377,6 +378,9 @@ final class Production2040VehicleMetrics implements LinkEnterEventHandler,
                                        Id<Link> link, double metres, String ptMode) { }
         default void trafficLeave(Id<Vehicle> vehicle, Id<Person> person) { }
         default void personStuck(Id<Person> person, Integer mainTripIndex) { }
+        default void personStuck(Id<Person> person, Integer mainTripIndex, String legMode) {
+            personStuck(person, mainTripIndex);
+        }
     }
 
     private record Boarding(TransitStopFacility accessFacility, boolean relevant) { }

@@ -77,6 +77,17 @@ public final class AnalyzeProduction2040TerritorialCostInputs {
     static final double CAR_ASSUMED_OCCUPANCY = 1.5;
     static final double TOLERANCE_METRES =
             AnalyzeProduction2040AccountingScopes.RECONCILIATION_TOLERANCE_METRES;
+    /*
+     * The territorial observer accumulates each movement globally, while the
+     * established regional metric accumulates per vehicle and then totals the
+     * vehicles. They therefore retain the same movements but not necessarily
+     * the same floating-point addition order. Keep millimetre strictness for
+     * small totals and allow 1e-11 of the magnitude for large totals: at the
+     * reported BAU total this is about 0.032 m, so a one-metre discrepancy
+     * still fails.
+     */
+    static final double ACCUMULATED_DISTANCE_ABSOLUTE_TOLERANCE_METRES = 1e-3;
+    static final double ACCUMULATED_DISTANCE_RELATIVE_TOLERANCE = 1e-11;
     static final int INPUT_HEADER_ROW = 4;
     static final int INPUT_DATA_START_ROW = INPUT_HEADER_ROW + 1;
     static final List<String> PRINCIPAL_PT_MODES =
@@ -370,7 +381,7 @@ public final class AnalyzeProduction2040TerritorialCostInputs {
         Production2040AnalysisSpec.require(car.territorialMetres()
                         <= car.uncutMetres() + TOLERANCE_METRES,
                 "Territorial car movement exceeds uncut car movement");
-        requireCloseMetres(car.uncutMetres(), regional.carMetres(),
+        requireAccumulatedDistanceCloseMetres(car.uncutMetres(), regional.carMetres(),
                 "territorial car uncut event reconciliation with regional car Fkm");
         Production2040AnalysisSpec.require(regional.missingLinks() == 0,
                 "Car event stream contains a missing network link");
@@ -1012,6 +1023,22 @@ public final class AnalyzeProduction2040TerritorialCostInputs {
         Production2040AnalysisSpec.require(Double.isFinite(actual) && Double.isFinite(expected)
                         && Math.abs(actual - expected) <= TOLERANCE_METRES,
                 label + " does not reconcile: actual=" + actual + " expected=" + expected);
+    }
+
+    static void requireAccumulatedDistanceCloseMetres(double actual, double expected,
+            String label) {
+        boolean finite = Double.isFinite(actual) && Double.isFinite(expected);
+        double absoluteDifference = finite ? Math.abs(actual - expected) : Double.NaN;
+        double magnitude = finite ? Math.max(Math.abs(actual), Math.abs(expected)) : Double.NaN;
+        double relativeDifference = magnitude == 0.0 ? 0.0 : absoluteDifference / magnitude;
+        double permittedTolerance = finite ? Math.max(
+                ACCUMULATED_DISTANCE_ABSOLUTE_TOLERANCE_METRES,
+                ACCUMULATED_DISTANCE_RELATIVE_TOLERANCE * magnitude) : Double.NaN;
+        Production2040AnalysisSpec.require(finite && absoluteDifference <= permittedTolerance,
+                label + " does not reconcile: actual=" + actual + " expected=" + expected
+                        + " absoluteDifference=" + absoluteDifference
+                        + " relativeDifference=" + relativeDifference
+                        + " permittedTolerance=" + permittedTolerance);
     }
 
     private static String plain(double value) {

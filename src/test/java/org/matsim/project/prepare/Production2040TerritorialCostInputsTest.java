@@ -1,6 +1,7 @@
 package org.matsim.project.prepare;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -70,6 +71,46 @@ class Production2040TerritorialCostInputsTest {
         assertEquals(3, result.carVehicles());
         assertTrue(result.otherNetworkVehicleCategories().isEmpty());
         AnalyzeProduction2040TerritorialCostInputs.validateCarMetrics(result, metrics.result());
+    }
+
+    @Test
+    void accumulatedCarDistanceReconciliationAllowsOnlyFloatingPointOrderNoise() {
+        double bauActual = 3.1521145518915625E9;
+        double bauExpected = 3.152114551887584E9;
+
+        assertDoesNotThrow(() -> AnalyzeProduction2040TerritorialCostInputs
+                .requireAccumulatedDistanceCloseMetres(bauActual, bauExpected,
+                        "reported BAU reconciliation"));
+
+        IllegalStateException oneMetre = assertThrows(IllegalStateException.class, () ->
+                AnalyzeProduction2040TerritorialCostInputs.requireAccumulatedDistanceCloseMetres(
+                        bauExpected + 1.0, bauExpected, "one-metre difference"));
+        assertReconciliationMessage(oneMetre);
+        assertReconciliationMessage(assertThrows(IllegalStateException.class, () ->
+                AnalyzeProduction2040TerritorialCostInputs.requireAccumulatedDistanceCloseMetres(
+                        bauExpected + 10_000.0, bauExpected, "material difference")));
+    }
+
+    @Test
+    void accumulatedCarDistanceReconciliationRemainsStrictNearZeroAndRejectsNonFinite() {
+        assertDoesNotThrow(() -> AnalyzeProduction2040TerritorialCostInputs
+                .requireAccumulatedDistanceCloseMetres(0.0009, 0.0, "near-zero pass"));
+        assertReconciliationMessage(assertThrows(IllegalStateException.class, () ->
+                AnalyzeProduction2040TerritorialCostInputs.requireAccumulatedDistanceCloseMetres(
+                        0.0011, 0.0, "near-zero failure")));
+
+        assertReconciliationMessage(assertThrows(IllegalStateException.class, () ->
+                AnalyzeProduction2040TerritorialCostInputs.requireAccumulatedDistanceCloseMetres(
+                        Double.NaN, 0.0, "NaN actual")));
+        assertReconciliationMessage(assertThrows(IllegalStateException.class, () ->
+                AnalyzeProduction2040TerritorialCostInputs.requireAccumulatedDistanceCloseMetres(
+                        0.0, Double.NaN, "NaN expected")));
+        assertReconciliationMessage(assertThrows(IllegalStateException.class, () ->
+                AnalyzeProduction2040TerritorialCostInputs.requireAccumulatedDistanceCloseMetres(
+                        Double.POSITIVE_INFINITY, 0.0, "positive infinity actual")));
+        assertReconciliationMessage(assertThrows(IllegalStateException.class, () ->
+                AnalyzeProduction2040TerritorialCostInputs.requireAccumulatedDistanceCloseMetres(
+                        0.0, Double.NEGATIVE_INFINITY, "negative infinity expected")));
     }
 
     @Test
@@ -350,6 +391,14 @@ class Production2040TerritorialCostInputsTest {
                 "car", 0.0));
         metrics.handleEvent(new VehicleLeavesTrafficEvent(1, person, link.getId(), vehicle,
                 "car", 1.0));
+    }
+
+    private static void assertReconciliationMessage(IllegalStateException error) {
+        assertTrue(error.getMessage().contains("actual="));
+        assertTrue(error.getMessage().contains("expected="));
+        assertTrue(error.getMessage().contains("absoluteDifference="));
+        assertTrue(error.getMessage().contains("relativeDifference="));
+        assertTrue(error.getMessage().contains("permittedTolerance="));
     }
 
     private MunichMunicipalBoundary boundary() throws Exception {

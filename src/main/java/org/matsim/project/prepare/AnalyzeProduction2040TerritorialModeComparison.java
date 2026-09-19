@@ -53,6 +53,7 @@ import org.matsim.pt.transitSchedule.api.TransitLine;
 import org.matsim.pt.transitSchedule.api.TransitRoute;
 import org.matsim.pt.transitSchedule.api.TransitSchedule;
 import org.matsim.pt.transitSchedule.api.TransitScheduleReader;
+import org.matsim.pt.transitSchedule.api.TransitStopFacility;
 
 /**
  * Read-only comparison of territorial main-trip counts and previously validated
@@ -103,8 +104,13 @@ public final class AnalyzeProduction2040TerritorialModeComparison {
         Scenario scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig());
         new MatsimNetworkReader(scenario.getNetwork()).readFile(files.network().toString());
         new TransitScheduleReader(scenario).readFile(files.schedule().toString());
+        TerritorialGeometryCache geometryCache = new TerritorialGeometryCache(scenario.getNetwork(),
+                boundary);
+        long planAnalysisStartedNanos = System.nanoTime();
         TripAudit audit = readFinalSelectedPlans(files.plans(), scenario.getNetwork(),
-                scenario.getTransitSchedule(), boundary);
+                scenario.getTransitSchedule(), boundary, geometryCache);
+        reportPlanAnalysisDiagnostics(definition.scenarioId(), audit, geometryCache,
+                System.nanoTime() - planAnalysisStartedNanos);
         return new ScenarioResult(definition, files, activeRouting, audit, cost);
     }
 
@@ -126,12 +132,19 @@ public final class AnalyzeProduction2040TerritorialModeComparison {
 
     static TripAudit readFinalSelectedPlans(Path plans, Network network, TransitSchedule schedule,
             MunichMunicipalBoundary boundary) {
+        return readFinalSelectedPlans(plans, network, schedule, boundary,
+                new TerritorialGeometryCache(network, boundary));
+    }
+
+    static TripAudit readFinalSelectedPlans(Path plans, Network network, TransitSchedule schedule,
+            MunichMunicipalBoundary boundary, TerritorialGeometryCache geometryCache) {
         Production2040AnalysisSpec.require(Files.isRegularFile(plans),
                 "Missing final selected plans for territorial main-trip analysis: " + plans);
+        geometryCache.requireCompatible(network, boundary);
         TripAudit audit = new TripAudit();
         Scenario scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig());
         StreamingPopulationReader reader = new StreamingPopulationReader(scenario);
-        reader.addAlgorithm(person -> collectPersonTrips(person, network, schedule, boundary, audit));
+        reader.addAlgorithm(person -> collectPersonTrips(person, schedule, geometryCache, audit));
         reader.readFile(plans.toString());
         audit.requireNoFatalGeometry();
         return audit.freeze();
@@ -139,14 +152,26 @@ public final class AnalyzeProduction2040TerritorialModeComparison {
 
     static TripAudit collectTrips(Iterable<Person> persons, Network network, TransitSchedule schedule,
             MunichMunicipalBoundary boundary) {
+        return collectTrips(persons, network, schedule, boundary,
+                new TerritorialGeometryCache(network, boundary));
+    }
+
+    static TripAudit collectTrips(Iterable<Person> persons, Network network, TransitSchedule schedule,
+            MunichMunicipalBoundary boundary, TerritorialGeometryCache geometryCache) {
+        geometryCache.requireCompatible(network, boundary);
         TripAudit audit = new TripAudit();
-        for (Person person : persons) collectPersonTrips(person, network, schedule, boundary, audit);
+        for (Person person : persons) collectPersonTrips(person, schedule, geometryCache, audit);
         audit.requireNoFatalGeometry();
         return audit.freeze();
     }
 
-    private static void collectPersonTrips(Person person, Network network, TransitSchedule schedule,
-            MunichMunicipalBoundary boundary, TripAudit audit) {
+    private static void collectPersonTrips(Person person, TransitSchedule schedule,
+            TerritorialGeometryCache geometryCache, TripAudit audit) {
+        audit.processedPersons++;
+        if (audit.processedPersons % 25_000 == 0) {
+            System.out.println("  territorial main-trip progress: persons="
+                    + audit.processedPersons + ", main_trips=" + audit.totalMainTrips);
+        }
         Plan selected = person.getSelectedPlan();
         if (selected == null) {
             audit.addFatal("missing_selected_plan", "unknown", "none", person.getId().toString());
@@ -167,8 +192,8 @@ public final class AnalyzeProduction2040TerritorialModeComparison {
             }
             double territorialMetres;
             try {
-                territorialMetres = territorialDistance(mainMode, trip, network, schedule,
-                        boundary, audit, key);
+                territorialMetres = territorialDistance(mainMode, trip, schedule, geometryCache,
+                        audit, key);
             } catch (RuntimeException exception) {
                 audit.addFatal("unresolved_route_geometry", mainMode,
                         routeTypes(trip), key + ": " + exception.getMessage());
@@ -178,7 +203,8 @@ public final class AnalyzeProduction2040TerritorialModeComparison {
                 audit.excludedByMainMode.merge(mainMode, 1L, Long::sum);
                 continue;
             }
-            Scope scope = scope(trip.getOriginActivity(), trip.getDestinationActivity(), boundary);
+            Scope scope = scope(trip.getOriginActivity(), trip.getDestinationActivity(),
+                    geometryCache.boundary());
             if (scope == null) {
                 audit.invalidCoordinates++;
                 audit.addFatal("invalid_origin_or_destination_coordinate", mainMode,
@@ -190,21 +216,21 @@ public final class AnalyzeProduction2040TerritorialModeComparison {
     }
 
     private static double territorialDistance(String mainMode, TripStructureUtils.Trip trip,
-            Network network, TransitSchedule schedule, MunichMunicipalBoundary boundary,
+            TransitSchedule schedule, TerritorialGeometryCache geometryCache,
             TripAudit audit, String key) {
         return switch (mainMode) {
-            case "car" -> carDistance(trip, network, boundary, audit, key);
-            case "pt" -> ptDistance(trip, network, schedule, boundary, audit, key);
-            case "bike" -> teleportedDistance(trip, Set.of("bike"), network, boundary,
+            case "car" -> carDistance(trip, geometryCache, audit, key);
+            case "pt" -> ptDistance(trip, schedule, geometryCache, audit, key);
+            case "bike" -> teleportedDistance(trip, Set.of("bike"), geometryCache.boundary(),
                     audit, key, "bike");
             case "walk" -> teleportedDistance(trip, Set.of("walk", "transit_walk",
-                    "non_network_walk"), network, boundary, audit, key, "walk");
+                    "non_network_walk"), geometryCache.boundary(), audit, key, "walk");
             default -> throw new IllegalStateException("Unexpected main mode " + mainMode);
         };
     }
 
-    private static double carDistance(TripStructureUtils.Trip trip, Network network,
-            MunichMunicipalBoundary boundary, TripAudit audit, String key) {
+    private static double carDistance(TripStructureUtils.Trip trip,
+            TerritorialGeometryCache geometryCache, TripAudit audit, String key) {
         double total = 0.0;
         boolean found = false;
         for (PlanElement element : trip.getTripElements()) {
@@ -214,14 +240,14 @@ public final class AnalyzeProduction2040TerritorialModeComparison {
             if (!(leg.getRoute() instanceof NetworkRoute route)) {
                 throw new IllegalStateException("car leg route type is " + routeType(leg));
             }
-            total += clippedNetworkRoute(route, network, boundary, "car", key);
+            total += clippedNetworkRoute(route, geometryCache, "car", key);
         }
         if (!found) throw new IllegalStateException("car main trip contains no car NetworkRoute");
         return total;
     }
 
-    private static double ptDistance(TripStructureUtils.Trip trip, Network network,
-            TransitSchedule schedule, MunichMunicipalBoundary boundary, TripAudit audit,
+    private static double ptDistance(TripStructureUtils.Trip trip, TransitSchedule schedule,
+            TerritorialGeometryCache geometryCache, TripAudit audit,
             String key) {
         double total = 0.0;
         boolean foundPtLeg = false;
@@ -241,7 +267,7 @@ public final class AnalyzeProduction2040TerritorialModeComparison {
                         + passengerRoute.getLineId() + "/" + passengerRoute.getRouteId());
             }
             String routeMode = Production2040AnalysisSpec.normalizePtRouteMode(route.getTransportMode());
-            double distance = clippedTransitSegment(route, passengerRoute, network, boundary, key);
+            double distance = clippedTransitSegment(route, passengerRoute, geometryCache, key);
             if (!PT_MODES.contains(routeMode)) {
                 audit.unexpectedPtRouteModes.merge(routeMode, 1L, Long::sum);
                 if (distance > POSITIVE_TERRITORIAL_DISTANCE_TOLERANCE_METRES) {
@@ -255,7 +281,7 @@ public final class AnalyzeProduction2040TerritorialModeComparison {
     }
 
     private static double teleportedDistance(TripStructureUtils.Trip trip, Set<String> legModes,
-            Network network, MunichMunicipalBoundary boundary, TripAudit audit, String key,
+            MunichMunicipalBoundary boundary, TripAudit audit, String key,
             String auditMode) {
         double total = 0.0;
         List<? extends PlanElement> elements = trip.getTripElements();
@@ -292,7 +318,16 @@ public final class AnalyzeProduction2040TerritorialModeComparison {
     }
 
     private static double clippedTransitSegment(TransitRoute transitRoute,
-            TransitPassengerRoute passengerRoute, Network network, MunichMunicipalBoundary boundary,
+            TransitPassengerRoute passengerRoute, TerritorialGeometryCache geometryCache,
+            String key) {
+        PtSegmentKey segmentKey = new PtSegmentKey(passengerRoute.getLineId(),
+                passengerRoute.getRouteId(), passengerRoute.getAccessStopId(),
+                passengerRoute.getEgressStopId());
+        return geometryCache.territorialPtSegment(segmentKey, transitRoute, passengerRoute, key);
+    }
+
+    private static double calculateClippedTransitSegment(TransitRoute transitRoute,
+            TransitPassengerRoute passengerRoute, TerritorialGeometryCache geometryCache,
             String key) {
         var access = transitRoute.getStops().stream().map(value -> value.getStopFacility())
                 .filter(value -> value.getId().equals(passengerRoute.getAccessStopId())).findFirst()
@@ -318,16 +353,16 @@ public final class AnalyzeProduction2040TerritorialModeComparison {
         double total = 0.0;
         // Matches MATSim RouteUtils: the access link is not traveled in-vehicle; the egress link is.
         for (int index = accessIndex + 1; index <= egressIndex; index++) {
-            total += clippedLink(links.get(index), network, boundary, "PT transit segment", key);
+            total += clippedLink(links.get(index), geometryCache, "PT transit segment", key);
         }
         return total;
     }
 
-    private static double clippedNetworkRoute(NetworkRoute route, Network network,
-            MunichMunicipalBoundary boundary, String mode, String key) {
+    private static double clippedNetworkRoute(NetworkRoute route,
+            TerritorialGeometryCache geometryCache, String mode, String key) {
         double total = 0.0;
         for (Id<Link> link : networkRouteLinks(route)) {
-            total += clippedLink(link, network, boundary, mode + " NetworkRoute", key);
+            total += clippedLink(link, geometryCache, mode + " NetworkRoute", key);
         }
         return total;
     }
@@ -352,18 +387,26 @@ public final class AnalyzeProduction2040TerritorialModeComparison {
         if (target.isEmpty() || !target.getLast().equals(link)) target.add(link);
     }
 
-    private static double clippedLink(Id<Link> id, Network network, MunichMunicipalBoundary boundary,
+    private static double clippedLink(Id<Link> id, TerritorialGeometryCache geometryCache,
             String context, String key) {
-        Link link = network.getLinks().get(id);
-        if (link == null) throw new IllegalStateException(context + " references missing link " + id);
-        var clip = Production2040AccountingEventMetrics.clip(link, boundary);
-        if (!Double.isFinite(clip.modelLinkMetres()) || clip.modelLinkMetres() < 0.0
-                || !Double.isFinite(clip.insideFraction()) || clip.insideFraction() < 0.0
-                || clip.insideFraction() > 1.0) {
-            throw new IllegalStateException(context + " has invalid territorial clipping on " + id
-                    + " for " + key);
-        }
-        return clip.modelLinkMetres() * clip.insideFraction();
+        return geometryCache.territorialLinkDistance(id, context, key);
+    }
+
+    private static void reportPlanAnalysisDiagnostics(String scenarioId, TripAudit audit,
+            TerritorialGeometryCache geometryCache, long elapsedNanos) {
+        GeometryCacheDiagnostics diagnostics = geometryCache.diagnostics();
+        System.out.println("2040 TERRITORIAL PLAN ANALYSIS DIAGNOSTICS");
+        System.out.println("  scenario=" + scenarioId);
+        System.out.println("  processed_persons=" + audit.processedPersons());
+        System.out.println("  processed_main_trips=" + audit.totalMainTrips());
+        System.out.println("  unique_link_clipping_calculations="
+                + diagnostics.uniqueLinkClippingCalculations());
+        System.out.println("  link_cache_hits=" + diagnostics.linkCacheHits());
+        System.out.println("  link_cache_misses=" + diagnostics.linkCacheMisses());
+        System.out.println("  pt_segment_cache_hits=" + diagnostics.ptSegmentCacheHits());
+        System.out.println("  pt_segment_cache_misses=" + diagnostics.ptSegmentCacheMisses());
+        System.out.println("  elapsed_analysis_seconds=" + String.format(Locale.ROOT, "%.3f",
+                elapsedNanos / 1_000_000_000.0));
     }
 
     private static Scope scope(Activity origin, Activity destination, MunichMunicipalBoundary boundary) {
@@ -1174,12 +1217,99 @@ public final class AnalyzeProduction2040TerritorialModeComparison {
                       Double fastFkm, Double fkmAbsoluteChange, Double fkmRelativeChange,
                       String status) { }
 
+    /**
+     * Scenario-local cache for immutable territorial geometry results. MATSim 2025's
+     * {@link StreamingPopulationReader} invokes its {@code PersonAlgorithm} callbacks
+     * synchronously while adding each person, and this analyzer introduces no parallel
+     * processing. Ordinary HashMaps and counters therefore preserve the reader's serial
+     * aggregation semantics. A cache is constructed in each {@link #readScenario} call;
+     * it is never shared between BAU and Fast Track.
+     */
+    static final class TerritorialGeometryCache {
+        private final Network network;
+        private final MunichMunicipalBoundary boundary;
+        private final Map<Id<Link>, Double> territorialLinkMetres = new HashMap<>();
+        private final Map<PtSegmentKey, Double> territorialPtSegmentMetres = new HashMap<>();
+        private long uniqueLinkClippingCalculations;
+        private long linkCacheHits;
+        private long linkCacheMisses;
+        private long ptSegmentCacheHits;
+        private long ptSegmentCacheMisses;
+
+        TerritorialGeometryCache(Network network, MunichMunicipalBoundary boundary) {
+            this.network = Objects.requireNonNull(network, "network");
+            this.boundary = Objects.requireNonNull(boundary, "boundary");
+        }
+
+        MunichMunicipalBoundary boundary() {
+            return boundary;
+        }
+
+        void requireCompatible(Network expectedNetwork, MunichMunicipalBoundary expectedBoundary) {
+            Production2040AnalysisSpec.require(network == expectedNetwork && boundary == expectedBoundary,
+                    "Territorial geometry cache belongs to another scenario network or boundary");
+        }
+
+        double territorialLinkDistance(Id<Link> linkId, String context, String key) {
+            Double cached = territorialLinkMetres.get(linkId);
+            if (cached != null) {
+                linkCacheHits++;
+                return cached;
+            }
+            linkCacheMisses++;
+            Link link = network.getLinks().get(linkId);
+            if (link == null) throw new IllegalStateException(context + " references missing link "
+                    + linkId);
+            uniqueLinkClippingCalculations++;
+            Production2040AccountingEventMetrics.LinkClip clip =
+                    Production2040AccountingEventMetrics.clip(link, boundary);
+            double fraction = clip.insideFraction();
+            if (!Double.isFinite(fraction) || fraction < 0.0 || fraction > 1.0
+                    || !Double.isFinite(clip.modelLinkMetres())
+                    || clip.modelLinkMetres() < 0.0) {
+                throw new IllegalStateException(context + " has invalid territorial clipping on "
+                        + linkId + " for " + key);
+            }
+            double territorialMetres = clip.modelLinkMetres() * fraction;
+            territorialLinkMetres.put(linkId, territorialMetres);
+            return territorialMetres;
+        }
+
+        double territorialPtSegment(PtSegmentKey key, TransitRoute transitRoute,
+                TransitPassengerRoute passengerRoute, String diagnosticKey) {
+            Double cached = territorialPtSegmentMetres.get(key);
+            if (cached != null) {
+                ptSegmentCacheHits++;
+                return cached;
+            }
+            ptSegmentCacheMisses++;
+            double territorialMetres = calculateClippedTransitSegment(transitRoute,
+                    passengerRoute, this, diagnosticKey);
+            territorialPtSegmentMetres.put(key, territorialMetres);
+            return territorialMetres;
+        }
+
+        GeometryCacheDiagnostics diagnostics() {
+            return new GeometryCacheDiagnostics(uniqueLinkClippingCalculations, linkCacheHits,
+                    linkCacheMisses, ptSegmentCacheHits, ptSegmentCacheMisses);
+        }
+    }
+
+    record PtSegmentKey(Id<TransitLine> lineId, Id<TransitRoute> routeId,
+                        Id<TransitStopFacility> accessStopId,
+                        Id<TransitStopFacility> egressStopId) { }
+
+    record GeometryCacheDiagnostics(long uniqueLinkClippingCalculations, long linkCacheHits,
+                                    long linkCacheMisses, long ptSegmentCacheHits,
+                                    long ptSegmentCacheMisses) { }
+
     static final class TripAudit {
         private final Map<String, Map<Scope, Long>> included = new TreeMap<>();
         private final Map<String, Long> excludedByMainMode = new TreeMap<>();
         private final Map<String, Long> unexpectedMainModes = new TreeMap<>();
         private final Map<String, Long> unexpectedPtRouteModes = new TreeMap<>();
         private final List<String> fatalIssues = new ArrayList<>();
+        private long processedPersons;
         private long totalMainTrips;
         private long invalidCoordinates;
         private long missingDistanceMeasurements;
@@ -1187,6 +1317,7 @@ public final class AnalyzeProduction2040TerritorialModeComparison {
 
         private TripAudit() { for (String mode : MODES) { Map<Scope, Long> values = new EnumMap<>(Scope.class); for (Scope scope : Scope.values()) values.put(scope, 0L); included.put(mode, values); excludedByMainMode.put(mode, 0L); } }
         private void incrementIncluded(String mode, Scope scope) { included.get(mode).merge(scope, 1L, Long::sum); }
+        long processedPersons() { return processedPersons; }
         long totalMainTrips() { return totalMainTrips; }
         long included(String mode) { return included.get(mode).values().stream().mapToLong(Long::longValue).sum(); }
         long included(String mode, Scope scope) { return included.get(mode).get(scope); }

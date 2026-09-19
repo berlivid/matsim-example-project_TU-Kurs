@@ -92,6 +92,80 @@ class Production2040TerritorialModeComparisonTest {
     }
 
     @Test
+    void cachesRepeatedCarLinkWithoutChangingTripClassifications() throws Exception {
+        Fixture fixture = fixture();
+        MunichMunicipalBoundary boundary = boundary();
+        var cache = new AnalyzeProduction2040TerritorialModeComparison.TerritorialGeometryCache(
+                fixture.network, boundary);
+
+        var audit = AnalyzeProduction2040TerritorialModeComparison.collectTrips(List.of(
+                car("repeated-car-1", fixture.through, X - 50, X + 150),
+                car("repeated-car-2", fixture.through, X - 50, X + 150),
+                car("repeated-car-3", fixture.through, X - 50, X + 150)), fixture.network,
+                fixture.scenario.getTransitSchedule(), boundary, cache);
+
+        assertEquals(3, audit.included("car",
+                AnalyzeProduction2040TerritorialModeComparison.Scope.THROUGH));
+        var diagnostics = cache.diagnostics();
+        assertEquals(1, diagnostics.uniqueLinkClippingCalculations());
+        assertEquals(1, diagnostics.linkCacheMisses());
+        assertEquals(2, diagnostics.linkCacheHits());
+        assertEquals(0, diagnostics.ptSegmentCacheMisses());
+        assertEquals(0, diagnostics.ptSegmentCacheHits());
+    }
+
+    @Test
+    void cachesRepeatedPtPassengerSegmentWithoutChangingTripCounts() throws Exception {
+        Fixture fixture = fixture();
+        MunichMunicipalBoundary boundary = boundary();
+        TransitSegment segment = fixture.transit("repeated", fixture.inside, fixture.inside2,
+                "bus");
+        var cache = new AnalyzeProduction2040TerritorialModeComparison.TerritorialGeometryCache(
+                fixture.network, boundary);
+
+        var audit = AnalyzeProduction2040TerritorialModeComparison.collectTrips(List.of(
+                ptTrip("repeated-pt-1", segment, null, X - 20, X + 120, false),
+                ptTrip("repeated-pt-2", segment, null, X - 20, X + 120, false)),
+                fixture.network, fixture.scenario.getTransitSchedule(), boundary, cache);
+
+        assertEquals(2, audit.included("pt"));
+        assertEquals(2, audit.included("pt",
+                AnalyzeProduction2040TerritorialModeComparison.Scope.THROUGH));
+        var diagnostics = cache.diagnostics();
+        assertEquals(1, diagnostics.ptSegmentCacheMisses());
+        assertEquals(1, diagnostics.ptSegmentCacheHits());
+        assertEquals(1, diagnostics.uniqueLinkClippingCalculations());
+        assertEquals(1, diagnostics.linkCacheMisses());
+        assertEquals(0, diagnostics.linkCacheHits());
+    }
+
+    @Test
+    void scenarioLocalGeometryCachesDoNotShareValuesOrCounters() throws Exception {
+        MunichMunicipalBoundary boundary = boundary();
+        Fixture bau = fixture();
+        Fixture fast = fixture();
+        var bauCache = new AnalyzeProduction2040TerritorialModeComparison.TerritorialGeometryCache(
+                bau.network, boundary);
+        var fastCache = new AnalyzeProduction2040TerritorialModeComparison.TerritorialGeometryCache(
+                fast.network, boundary);
+
+        AnalyzeProduction2040TerritorialModeComparison.collectTrips(List.of(
+                car("bau-car", bau.through, X - 50, X + 150)), bau.network,
+                bau.scenario.getTransitSchedule(), boundary, bauCache);
+        assertEquals(1, bauCache.diagnostics().linkCacheMisses());
+        assertEquals(0, fastCache.diagnostics().linkCacheMisses());
+        assertEquals(0, fastCache.diagnostics().uniqueLinkClippingCalculations());
+
+        AnalyzeProduction2040TerritorialModeComparison.collectTrips(List.of(
+                car("fast-car", fast.through, X - 50, X + 150)), fast.network,
+                fast.scenario.getTransitSchedule(), boundary, fastCache);
+        assertEquals(1, bauCache.diagnostics().linkCacheMisses());
+        assertEquals(0, bauCache.diagnostics().linkCacheHits());
+        assertEquals(1, fastCache.diagnostics().linkCacheMisses());
+        assertEquals(1, fastCache.diagnostics().uniqueLinkClippingCalculations());
+    }
+
+    @Test
     void unexpectedModesAndUnavailableRouteGeometryFailClosed() throws Exception {
         Fixture fixture = fixture();
         Person unexpected = active("unexpected", "ride", X + 10, X + 90, 100);

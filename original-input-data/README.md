@@ -2,8 +2,9 @@
 
 This directory separates external source data, versioned processing decisions and reproducible generated artifacts from final MATSim scenario inputs.
 
-- `mvv_gtfs_2026/` contains the current 2026 MVV reference feed and its
-  versioned provenance note. The raw ZIP remains Git-ignored.
+- `mvv_gtfs_2026/` contains a Git-ignored legacy 2026 MVV reference ZIP.
+  It is not a final pipeline input and has no tracked provenance-note file;
+  treat it as external reference data subject to its provider's terms.
 - `mvv_gtfs_2019/` contains the versioned specification for the synthetic 2019
   reference supply extracted from the combined forecast dataset. Source and
   derived ZIP files remain Git-ignored and are rebuilt on the target system.

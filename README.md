@@ -1,66 +1,83 @@
-# Munich MATSim 2040 scenario project
+# Munich 2040 MATSim scenarios
 
-This repository supports a political-science master’s thesis comparing two Munich transport scenarios for 2040:
+This repository contains the final MATSim model, configurations, validation code, and selected thesis result tables for a political-science master's thesis on two Munich 2040 transport scenarios:
 
-- **BAU 2040:** the cleaned GTFS 2037 forecast plus the common Poccistraße and Berduxstraße rail stops and the common background road network;
-- **Fast Track 2040:** BAU plus U9, the U4 extension, two Nordring services and the approved Herzog-Wilhelm-Straße/Kreuzstraße car-link restrictions associated with infrastructure that could be accelerated for a hypothetical Munich Olympic Games.
+- **BAU 2040:** the common 2037 forecast public-transport supply, Poccistraße and Berduxstraße stops, and unchanged base road component.
+- **Fast Track 2040:** BAU plus U9, the U4 extension, two Nordring services, the approved pedestrian-zone car restrictions, Mobility Hub transfer-time proxy, and Olympic/Media Village population relocation.
 
-Pricing is outside the final thesis scope. Scenario results must be interpreted as modelled contrasts under common assumptions, not as causal forecasts with exact real-world probabilities.
+The final 2019 reference setup uses literature-based scoring and the selected Round-5 calibration candidate. The final Round-5 run and both 2040 production simulations are documented as completed on the university server. Round 5 retains its documented formal calibration status and is not a new behavioural calibration against unavailable 2040 observations.
 
-## Common model basis
+The visible public repository may later be named **munich-2040-matsim-scenarios**. The Maven artifact and IntelliJ module intentionally remain **matsim-example-project**. Do not rename the artifact, module, Java packages, or source folders.
 
-The project uses MATSim 2025.0 and Java 21, the existing Munich model, a projected 2040 population derived from its five-percent sample, coordinate system `EPSG:31468`, and one shared base road network. Fast Track deterministically removes `car` from 12 spatially selected links and one technical boundary connector while retaining all 13 links and every other mode; BAU retains the base road component unchanged. The GTFS service date 13 February 2026 is only the technical date that activates the forecast feed; it is not the scenario year.
+## Requirements
 
-Authoritative methods:
+- Java 21;
+- the included Maven Wrapper, configured for Maven 3.9.8;
+- PowerShell on Windows for the GTFS build scripts;
+- a Git checkout for commands that record or check repository provenance;
+- an adequately equipped headless machine or server for conversion, calibration, smoke, and production runs.
 
-- [Population 2040](docs/methodology/population_2040.md)
-- [Literature-based 2019 scoring diagnostic](docs/methodology/literature_based_scoring_diagnostic.md)
-- [Shared BAU/Fast Track production analysis](docs/methodology/production_2040_analysis.md)
-- [BAU/Fast Track production contract and server order](docs/methodology/production_2040_scenario_contract.md)
-- [GTFS filtering](docs/gtfs2040/gtfs2037_munich_filter_method.md)
-- [BAU and Fast Track public transport](docs/gtfs2040/gtfs2037_fast_track_method.md)
-- [MATSim transit inputs](docs/gtfs2040/matsim_2040_transit_inputs.md)
-- [Run log](docs/run_log/run_log.md)
+The retained launchers use 4 GiB for production-config creation, 6 GiB for GTFS builders, 12 GiB for MATSim-transit creation/validation, and 16 GiB for full calibration and production. These are operating guidance, not a portable runtime or disk guarantee.
 
-## Current status
+## What is tracked and what is not
 
-The BAU and Fast Track GTFS feeds and their activated MATSim transit inputs have been rebuilt and revalidated with the common Poccistraße and Berduxstraße measures. Fast Track additionally contains the Olympic Village and Media Village population relocation and a 13-link pedestrian-zone car restriction: 12 spatially selected links plus one technical boundary connector required for car-network consistency. The connector is not an extension of the planned pedestrian area. The Sendlinger Spange is documented as an indirect normal-day representation without added GTFS rows. Focused readback and routing tests pass. The production simulations completed on the university server; no Controller, QSim, or full simulation is part of local repository verification.
+The Git repository contains the reproducible source code, tests, Maven/IntelliJ launchers, final configurations, specifications, methodology, and selected final tables. Large inputs, provider data, generated MATSim inputs, runtime output, local IDE files, and build products are intentionally excluded.
 
-Contract-compliant server entry points are prepared under the `P` IntelliJ prefix. `P1` and `P2` validate inputs read-only; `P3` and `P4` run protected iteration-zero smoke tests and validate them automatically; `P3B` and `P4B` validate preserved, normally completed smoke outputs without repeating QSim; `P7` and `P8` run the sequential BAU and Fast Track productions; `P7B` and `P8B` recover analysis only after normal simulation shutdown. QSim configurations are headless. Smoke outputs are technical evidence only, and no local Controller, QSim or smoke run is part of repository verification.
+A full reproduction needs authorised external data restored to its exact repository-relative paths:
 
-The completed production outputs are analyzed further without rerunning simulation through `P9 Analyze Existing BAU 2040 Accounting Scopes` and `P10 Analyze Existing Fast Track 2040 Accounting Scopes`. One shared fail-closed method separates `BOTH_INSIDE` trip accounting, the complete travel of documented Munich residents, scoped private-car Fkm and territorially clipped PT service Fkm. Five-percent private demand is expanded by factor 20; full-scale PT service is not. Any 365-day figure is explicitly illustrative rather than an authoritative annual total.
+| Input | Required location |
+| --- | --- |
+| 2019 source GTFS | original-input-data/mvv_gtfs_2019/gtfs_2019.zip |
+| 2037 raw source feed | original-input-data/mvv_gtfs_2037/raw/ |
+| Final BAU GTFS package | original-input-data/mvv_gtfs_2037/generated/gtfs2037_munich_bau.zip |
+| Final Fast Track GTFS package | original-input-data/mvv_gtfs_2037/generated/gtfs2037_munich_fast_track.zip |
+| Base network and plans | original-input-data/munich-v1/; scenarios/munich_base_2023/studyNetworkDense.xml; scenarios/munich_base_2023/munich-v1.0-5pct.plans.xml |
+| Scenario transit/population inputs | scenarios/munich_bau_2040/input_transit/ and population_2040.xml; scenarios/munich_fast_track_2040/input_transit/, population_2040.xml, and population_2040_fast_track.xml |
 
-`P11 Analyze Existing BAU 2040 PT Cost Allocation` and `P12 Analyze Existing Fast Track 2040 PT Cost Allocation` extend those preserved packages without rerunning a simulation. They reconstruct territorial in-vehicle Pkm for every non-driver PT passenger from final events, including non-residents and persons with unresolved homes; reuse the validated territorial full-service Fkm and existing BOTH_INSIDE in-vehicle Pkm; calculate mode-specific occupancy; and allocate Fkm to BOTH_INSIDE demand. Demand alone is expanded by 20, supply is not. Results are atomically published only to `analysis/pt_cost_allocation/`, include mechanical 365-day Excel fields and vehicle-unit limitations, and must not be interpreted as marginal avoidable service. The full production files remain required on the server; copied local analysis folders do not establish a completed local real-data run.
+Do not substitute newer feeds or similarly named local files. Every external delivery needs a source record, SHA-256 calculated on the delivered archive, licence/attribution decision, recipient scope, and target path. The public code licence does not grant redistribution rights for GTFS, provider workbooks, planning data, population inputs, or production outputs.
 
-`Analyze Existing BAU 2040 Territorial Cost Inputs` and `Analyze Existing Fast Track 2040 Territorial Cost Inputs` are separate, argument-free, controller-free server configurations for the external-cost comparison. Each validates the completed production output and the preserved accounting/PT packages, then atomically writes one compact workbook to `analysis/territorial_cost_inputs/`: `BAU_2040_territorial_cost_inputs.xlsx` or `Fast_Track_2040_territorial_cost_inputs.xlsx`. This is a territorial perspective: it transfers only distance inside Munich's municipal boundary irrespective of residence or trip endpoints, and does not replace the existing BOTH_INSIDE or resident analyses. It uses final-event car movement, validated territorial all-passenger PT Pkm and full-service PT Fkm directly, and a documented leg-endpoint clipping approximation for teleported walk and bike. The workbook's `Inputs` values are already full-scale; no additional factor 20 may be applied. The complete server output remains required, and no local production result has been processed.
+See [Data availability](docs/submission/data_availability.md) for the complete boundary.
 
-An isolated literature-based 2019 scoring diagnostic is prepared on a separate
-branch. It resets the four choice-mode constants, keeps walk as the permanent
-zero reference, introduces an explicit car operating cost and uses observed
-Munich walk/bike speeds. It is a short diagnostic rather than a calibrated
-result; no later BAU or Fast Track run may proceed with different scoring
-specifications.
+## Authoritative entry points
 
-## Reproduction
+All retained IntelliJ launchers are in .run and use the internal module name matsim-example-project.
 
-```powershell
-# Targeted tests
-.\mvnw.cmd -q -Dtest=BuildCommonGtfs2037MeasuresTest test
-.\mvnw.cmd -q -Dtest=BuildFastTrackGtfs2037Test test
-.\mvnw.cmd -q -Dtest=FastTrackPedestrianZonesTest test
+| Purpose | Entry points |
+| --- | --- |
+| Build 2019 calibration inputs | 01 Build Synthetic GTFS 2019; 02 Create GTFS 2019 Calibration Transit |
+| Validate/finalise 2019 calibration | 03 Validate GTFS 2019 Calibration Input; 17 Validate Literature-Based Scoring Calibration Round 5; 18 Run Literature-Based Scoring Calibration Round 5; 18B Analyze Existing Literature-Based Scoring Calibration Round 5 |
+| Build BAU 2040 | src/main/scripts/gtfs2040/build_munich_gtfs2037.ps1; src/main/scripts/gtfs2040/build_common_gtfs2037.ps1 -Mode build; src/main/scripts/gtfs2040/build_matsim_2040_transit.ps1 -Scenario bau -Mode build; Build 2040 Production Configs; Validate 2040 Production Configs; P1 Validate BAU 2040 Production Input |
+| Build Fast Track 2040 | Build BAU first; src/main/scripts/gtfs2040/build_fast_track_gtfs2037.ps1 -Mode build; src/main/scripts/gtfs2040/build_matsim_2040_transit.ps1 -Scenario fast-track -Mode build; Build 2040 Production Configs; Validate 2040 Production Configs; P2 Validate Fast Track 2040 Production Input |
+| Smoke evidence | P3 Run BAU 2040 Production Smoke Test; P4 Run Fast Track 2040 Production Smoke Test; P3B/P4B existing-output validators |
+| Final production | P7 Run BAU 2040 Production, then P8 Run Fast Track 2040 Production, sequentially on the server |
+| Recovery analysis | P7B Analyze Existing BAU 2040 Production Output; P8B Analyze Existing Fast Track 2040 Production Output |
+| Output analysis | P9 Analyze Existing BAU 2040 Accounting Scopes; P10 Analyze Existing Fast Track 2040 Accounting Scopes; P11/P12 PT-cost allocation; the two territorial-cost-input launchers; Analyze Existing BAU and Fast Track 2040 Territorial Mode Comparison |
 
-# Common BAU measures
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\src\main\scripts\gtfs2040\build_common_gtfs2037.ps1 -Mode build
+P1/P2 are controller-free input validators. Configuration 03, P3/P4, P7/P8, GTFS builds, and calibration runs are operational commands that may start QSim, conversion, or full simulation; do not use them as casual local checks.
 
-# Fast Track GTFS
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\src\main\scripts\gtfs2040\build_fast_track_gtfs2037.ps1 -Mode build
+The canonical smoke locations are:
 
-# Both MATSim transit input sets
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\src\main\scripts\gtfs2040\build_matsim_2040_transit.ps1 -Scenario all
-```
+- scenarios/munich_bau_2040/output/smoke-production-r5
+- scenarios/munich_fast_track_2040/output/smoke-production-r5
 
-Large raw and generated inputs are excluded from Git. Specifications, source code, scripts, tests and methodology documents remain version-controlled.
+Historical directories named smoke-output are noncanonical generated evidence. P3/P4 require their target and production-output directory to be absent. P7/P8 require preserved smoke evidence and never overwrite an existing production directory.
 
-## Licensing
+## Local source-only validation
 
-MATSim program code follows the repository’s GNU GPL v2 terms. MATSim inputs, outputs and analyses follow their stated data licences; external source data retain the licences and conditions of their providers.
+Use the Maven Wrapper. The documented data-free test subset is in [Reproduction and validation](docs/submission/reproduction.md).
+
+~~~powershell
+.\mvnw.cmd -q -DskipTests compile
+~~~
+
+Automated full tests require excluded scenario inputs. No CI workflow is added or changed here; run data-dependent tests only in an authorised environment with the required inputs.
+
+## Results and execution evidence
+
+Selected final result tables remain tracked under analysis/territorial_mode_comparison_2040/ and scenarios/munich_bau_2040/production-mode-choice/analysis/. Full Fast Track results, raw production output, events, plans, and normal-shutdown logs remain controlled execution evidence outside Git. Generated simulation output is intentionally excluded and must not be committed.
+
+The production contract defines the required evidence for recovery analysis and the output analyzers: [Production 2040 scenario contract](docs/methodology/production_2040_scenario_contract.md). Further build, validation, and operational detail is in [Reproduction and validation](docs/submission/reproduction.md).
+
+## Licence
+
+The source code follows the repository LICENSE. External inputs and outputs retain their providers' terms. Do not distribute data or evidence without confirmed permission and attribution requirements.

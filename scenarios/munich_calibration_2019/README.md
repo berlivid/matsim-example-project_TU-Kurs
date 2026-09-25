@@ -10,9 +10,9 @@ service date 13 February 2026 is only a technical activation date and must not
 be interpreted as the historical reference year.
 
 The GTFS subset, MATSim transit inputs, reference checks, temporal checks and
-representative SwissRailRaptor connections are structurally validated. Full
-end-to-end approval remains conditional on a normal iteration-zero shutdown on
-the Uni server. No mode-choice strategy is active in the validation
+representative SwissRailRaptor connections are structurally validated. The
+server iteration-zero validation and the subsequent final Round-5 calibration
+were completed on the university server. No mode-choice strategy is active in
 configuration.
 
 ## Required server input
@@ -56,27 +56,21 @@ The final validation requires at least 8 GB Java heap; 12 GB is recommended
 and is configured for step 3. Its output directory must not already exist
 because the configuration deliberately uses `failIfDirectoryExists`.
 
-## Recovery from the unbounded server run
+## Historical recovery record (superseded)
 
-The non-terminating server run used `qsim.endTime=undefined`. The similarly
-named `hermes.endTime=30:00:00` did not control QSim. A read-only audit found
-the last accepted vehicle arrival at `42:30:00`; the corrected generator sets
-QSim end time to the first following complete hour, `43:00:00`. The validator
-now fails before QSim if the end time is missing, non-finite, inconsistent with
-the schedule, or if any accepted vehicle reaches it. Services reaching the
-following service day are retained, subject to a fail-closed 48-hour maximum.
+An earlier server attempt did not terminate because `qsim.endTime=undefined`;
+the similarly named `hermes.endTime=30:00:00` did not control QSim. The
+corrected generator derives a finite end time from the accepted schedule, and
+the validator fails before QSim if that end time is missing, non-finite,
+inconsistent with the schedule, or reached by an accepted vehicle. Services
+reaching the following service day remain subject to the fail-closed 48-hour
+maximum.
 
-For the existing Uni-server checkout, use this exact recovery sequence:
-
-1. pull the correction commit;
-2. delete only
-   `scenarios/munich_calibration_2019/output/input-validation-qsim2`, which is
-   the incomplete output of the stopped run;
-3. rerun **03 Validate GTFS 2019 Calibration Input**.
-
-Do not rerun step 02 for this recovery: the GTFS subset and the three MATSim
-transit inputs did not change. Step 02 will apply the same time policy during a
-future clean transit rebuild. Step 01 is also unnecessary for this recovery.
+The former deletion-and-rerun procedure applied only to that stopped attempt.
+It is retained as historical context, not as a release instruction. Do not
+delete or rerun a completed evidence directory as part of a release operation;
+the final iteration-zero validation subsequently completed on the university
+server.
 
 ## Local validation evidence and limitation
 
@@ -88,11 +82,10 @@ was limited by a 3,936 MB Maven heap, while the later server attempt exposed
 the independent undefined-end-time defect. Neither incomplete output may be
 used for analysis.
 
-Consequently, the input is structurally ready for transfer but is not fully
-end-to-end approved until step 3 finishes normally on the Uni server. Only
-after that result should the common spatial analysis filter and mode-choice
-calibration be started. BAU 2040, Fast Track 2040 and GTFS 2037 are independent
-of this workflow and must not be rebuilt by these configurations.
+The completed server validation established this input as the basis for the
+final Round-5 calibration. The historical incomplete outputs remain invalid
+for analysis. BAU 2040, Fast Track 2040 and GTFS 2037 are independent of this
+workflow and must not be rebuilt by these configurations.
 
 For provenance, selection counts, conversion assumptions and methodological
 limitations, see
@@ -231,11 +224,13 @@ versioned derivation is
 `calibration_specifications/round_5_constant_derivation.csv`. The protected
 output is `output/literature-based-scoring-calibration-round-5`.
 
-Run `17 Validate Literature-Based Scoring Calibration Round 5` first. Run `18
-Run Literature-Based Scoring Calibration Round 5` exactly once on the server;
-its headless VM option enables chart creation without a display, and normal
-shutdown is followed by analysis. Use `18B Analyze Existing Literature-Based
-Scoring Calibration Round 5` only to recover analysis from an already complete
-output. Round 5 is compared with Round 4 under the unchanged acceptance rules
-and is not automatically preferred. No Round 6 is permitted. The selected
-specification must then be transferred unchanged to BAU and Fast Track.
+The completed final execution used `17 Validate Literature-Based Scoring
+Calibration Round 5`, followed by `18 Run Literature-Based Scoring Calibration
+Round 5` on the server. Its headless VM option enables chart creation without
+a display, and normal shutdown is followed by analysis. `18B Analyze Existing
+Literature-Based Scoring Calibration Round 5` is recovery-only for an already
+complete output. For an authorised clean-server reproduction, use the same
+order without overwriting preserved evidence. Round 5 is compared with Round 4
+under the unchanged acceptance rules and is not automatically preferred. No
+Round 6 is permitted. The selected specification is transferred unchanged to
+BAU and Fast Track.

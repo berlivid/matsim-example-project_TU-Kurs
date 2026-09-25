@@ -167,4 +167,4 @@ For the later BAU/Fast Track comparison, this cleaned feed should be frozen as a
 
 ## Recommended next step
 
-The cleaned feed is now frozen as the BAU public-transport baseline. Fast Track additions are implemented in a separate derived ZIP under version-controlled service and stop specifications; see [`gtfs2037_fast_track_method.md`](gtfs2037_fast_track_method.md). Scenario configs remain inactive pending a focused configuration and routing smoke test.
+The cleaned feed is now frozen as the BAU public-transport baseline. Fast Track additions are implemented in a separate derived ZIP under version-controlled service and stop specifications; see [`gtfs2037_fast_track_method.md`](gtfs2037_fast_track_method.md). The scenario-specific transit inputs are active in the contract-compliant production configurations; focused routing and final technical-smoke methodology are maintained in [`matsim_2040_transit_inputs.md`](matsim_2040_transit_inputs.md).

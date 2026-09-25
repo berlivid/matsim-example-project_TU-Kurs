@@ -7,12 +7,13 @@ forecast dataset**. It is not a historical MVV GTFS snapshot. The isolated
 Analyze/Build/Validate pipeline is implemented, the derived GTFS subset is
 referentially closed, and the MATSim network, schedule and vehicles pass
 structural, temporal and SwissRailRaptor tests. The full 324,043-person
-iteration-zero run is not yet accepted. An earlier local run was memory-limited;
-a later server run exposed an independent configuration defect: QSim had no
-finite end time and therefore continued after the timetable had finished. The
-generator and validator now apply the deterministic service-horizon policy
-described below. A new server run with at least 8 GB heap remains required
-before mode-choice calibration starts.
+iteration-zero validation and the subsequent final Round-5 scoring calibration
+were completed on the university server. An earlier local run was memory-limited,
+and an earlier server run exposed an independent configuration defect: QSim had
+no finite end time and therefore continued after the timetable had finished.
+Those historical issues are corrected by the deterministic service-horizon
+policy described below. The final calibration decision and its remaining
+limitations are recorded in the literature-based scoring documentation.
 
 No mode choice is enabled. BAU 2040, Fast Track 2040, GTFS 2037 and the current
 GTFS converter are independent and unchanged.
@@ -99,8 +100,7 @@ an immediate rebuild produced the identical checksum.
 
 ## MATSim conversion
 
-`CreateGtfs2019CalibrationTransit` is separate from
-`CreateCurrentMvvTransit` and every 2037 builder. It loads the original public
+`CreateGtfs2019CalibrationTransit` is separate from every 2037 builder. It loads the original public
 Munich road network, converts WGS84 stops to EPSG:31468, uses `doNotMerge`,
 extended route types and existing transfer data, creates a PT pseudonetwork,
 and creates MATSim transit vehicles. Candidate files are written in a
@@ -182,7 +182,7 @@ or after QSim end time. It prints every route pattern over eight hours for
 review. These checks distinguish a technical safety rule from any claim that
 long-distance services are empirically representative of Munich travel.
 
-## Validation evidence and remaining step
+## Validation evidence and final status
 
 The focused JUnit tests pass. They cover an explicit finite end time, rejection
 of excessive route duration, acceptance of a valid after-midnight service,
@@ -192,20 +192,11 @@ and SwissRailRaptor returns representative bus, tram, subway and rail
 connections. The validation config uses the unchanged 5-% base population,
 `useTransit=true`, iteration 0 only, random seed 4711, two QSim threads,
 `qsim.endTime=43:00:00` and no mode-choice strategy. No full local QSim was run
-for this correction.
-
-The smallest remaining step is to run the shared IntelliJ configuration
-**03 Validate GTFS 2019 Calibration Input** on the Uni server. After pulling
-the correction, only the incomplete directory
-`scenarios/munich_calibration_2019/output/input-validation-qsim2` must be
-deleted. Step 02 does not need to be repeated because the three generated
-transit inputs are unchanged; step 03 must be rerun. Its validator
-repeats the structural and representative SwissRailRaptor checks and then
-executes `scenarios/munich_calibration_2019/config_input_validation.xml` in the
-same Java process. The run configuration provides 12 GB heap (8 GB is the
-minimum), retains iteration 0 and requires a regular controller shutdown. Only
-after that pass should the common spatial analysis filter and mode-choice
-calibration be started.
+for the correction. The subsequent university-server validation completed and
+provided the input basis for the final Round-5 scoring calibration. The old
+incomplete validation directory is neither a reproducibility input nor a
+prerequisite for the final configuration; the final calibration decision and
+its documented residual limitations are retained separately.
 
 ## Reproducibility and version control
 

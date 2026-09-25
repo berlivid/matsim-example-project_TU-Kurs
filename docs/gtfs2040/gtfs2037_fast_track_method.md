@@ -73,7 +73,7 @@ The 680 new trips comprise 520 U9, 80 FT-NR-A and 80 FT-NR-B trips. Separately, 
 
 Both feeds use one shared converter. It transforms WGS84 to `EPSG:31468`, imports minimum transfer times, creates a PT pseudonetwork and creates one transit vehicle per departure. The original car network is preserved semantically and byte-identical source networks are used in both scenarios. New pseudolinks allow only `pt`, never `car`. Vehicle types and capacities are MATSim converter defaults and are not calibrated operator forecasts.
 
-Current MATSim counts, activated input paths and focused integration-test results are maintained in [`matsim_2040_transit_inputs.md`](matsim_2040_transit_inputs.md). Both scenario configs now activate their scenario-specific transit inputs. No calibrated or substantive simulation has been run.
+Current MATSim counts, activated input paths and focused integration-test results are maintained in [`matsim_2040_transit_inputs.md`](matsim_2040_transit_inputs.md). Both scenario configs activate their scenario-specific transit inputs. The final Round-5 calibration and BAU/Fast Track production simulations completed on the university server; their formal status remains documented in the [production scenario contract](../methodology/production_2040_scenario_contract.md).
 
 ## Reproduction
 
@@ -99,8 +99,8 @@ Generated ZIP and MATSim XML files are Git-ignored. Specifications, Java code, t
 - Future station coordinates and new running times use explicit proxies and derivations.
 - Neither U9 nor Nordring has an operationally validated timetable.
 - Vehicle capacities remain uncertain and use converter defaults.
-- Scenario configuration activation and earlier small smoke tests are documented separately.
+- Scenario configuration activation and the final P3/P4 technical smoke workflow are documented separately.
 - Olympic Village and Media Village have a simple relocated-demand population representation; facilities and differentiated Games-time demand remain pending.
-- The Mobility Hub transfer-time proxy is implemented and technically tested; shared mobility, parking and physical hub features remain outside the model, and no causal modal-split effect can be inferred without calibrated mode choice.
+- The Mobility Hub transfer-time proxy is implemented and technically tested; shared mobility, parking and physical hub features remain outside the model, and the proxy alone cannot establish a causal modal-split effect.
 - Remaining road and non-PT infrastructure measures are not yet implemented.
-- Final calibration, the Nordring dwell sensitivity, other sensitivity tests and substantive BAU/Fast Track runs remain pending.
+- The Nordring dwell sensitivity and other sensitivity tests remain pending. The completed final calibration and BAU/Fast Track production runs remain subject to the limitations above.
